@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar';
-import QuickAdd from './components/QuickAdd';
+import FloatingSmartBar from './components/QuickAdd';
 import QuadrantBoard from './components/QuadrantBoard';
 import TimelineView from './components/TimelineView';
 import GanttView from './components/GanttView';
@@ -82,7 +82,6 @@ export default function App() {
         return;
       }
 
-      // تأكيد قبل حذف كل المهام الحالية
       const confirmed = window.confirm(
         `سيتم حذف جميع المهام الحالية (${tasks.length}) واستبدالها بـ ${imported.length} مهمة من الملف.\n\nهل أنت متأكد؟ لا يمكن التراجع عن هذه العملية.`
       );
@@ -99,7 +98,6 @@ export default function App() {
     }
   };
 
-  // ─── شاشة التحميل ──────────────────────────────────────────
   if (loading) {
     return (
       <div
@@ -109,12 +107,10 @@ export default function App() {
           justifyContent: 'center',
           minHeight: '100vh',
           background: 'var(--bg-color, #f1f5f9)',
-          color: 'var(--text-primary, #1e293b)',
         }}
       >
         <div style={{ textAlign: 'center' }}>
           <div
-            className="loading-spinner"
             style={{
               width: 52,
               height: 52,
@@ -125,20 +121,15 @@ export default function App() {
               margin: '0 auto 20px',
             }}
           />
-          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-secondary, #64748b)' }}>
+          <p style={{ fontSize: 16, fontWeight: 400, color: 'var(--text-secondary)' }}>
             جاري تحميل المهام…
           </p>
         </div>
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  // ─── شاشة عدم الاتصال ──────────────────────────────────────
   if (!connected) {
     return (
       <div
@@ -151,22 +142,14 @@ export default function App() {
           padding: 24,
         }}
       >
-        <div
-          className="card"
-          style={{
-            maxWidth: 480,
-            width: '100%',
-            textAlign: 'center',
-            padding: 40,
-          }}
-        >
+        <div className="card" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 40 }}>
           <div
             style={{
               width: 64,
               height: 64,
               borderRadius: 16,
-              background: 'var(--danger-light, #fee2e2)',
-              color: 'var(--danger, #ef4444)',
+              background: 'var(--danger-light)',
+              color: 'var(--danger)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -178,14 +161,7 @@ export default function App() {
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>غير متصل بقاعدة البيانات</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
-            تأكد من وجود ملف <code style={{ background: 'var(--hover-bg)', padding: '2px 6px', borderRadius: 4 }}>.env</code> في جذر المشروع
-            مع القيمتين:
-            <br />
-            <code style={{ fontSize: 13 }}>VITE_SUPABASE_URL</code>
-            <br />
-            <code style={{ fontSize: 13 }}>VITE_SUPABASE_ANON_KEY</code>
-            <br />
-            ثم أعد تشغيل الخادم (<code>npm run dev</code>).
+            تأكد من ملف <code>.env</code> ثم أعد تشغيل <code>npm run dev</code>.
           </p>
           <button className="btn-primary" onClick={() => refetch()} style={{ margin: '0 auto' }}>
             <i className="ph ph-arrow-clockwise"></i>
@@ -229,8 +205,6 @@ export default function App() {
       <main className="main-content">
         {view === 'Matrix' && (
           <div id="viewMatrix">
-            <QuickAdd onAddTask={addTask} onOpenAdvanced={openAddModal} />
-
             {subview === 'Board' && (
               <QuadrantBoard
                 tasks={tasks}
@@ -272,6 +246,9 @@ export default function App() {
       </main>
 
       {view === 'Matrix' && <ViewSwitcher subview={subview} onSwitch={setSubview} />}
+
+      {/* شريط المساعد الذكي العائم */}
+      <FloatingSmartBar onAddTask={addTask} onOpenAdvanced={openAddModal} />
 
       <TaskModal isOpen={modalOpen} task={editingTask} onClose={closeModal} onSave={handleSaveTask} />
     </div>
