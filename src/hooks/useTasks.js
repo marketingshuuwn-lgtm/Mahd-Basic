@@ -12,6 +12,9 @@ function fromRow(row) {
     notes: row.notes ?? '',
     dueDate: row.due_date ?? '',
     duration: row.duration ?? 1,
+    sortOrder: row.sort_order ?? 0,
+    recurrence: row.recurrence ?? null,
+    recurrenceDays: row.recurrence_days ?? [],
     createdAt: row.created_at,
     completedAt: row.completed_at,
   };
@@ -28,6 +31,7 @@ export function useTasks(showToast) {
     const { data, error } = await supabase
       .from(TABLE)
       .select('*')
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -45,15 +49,12 @@ export function useTasks(showToast) {
   useEffect(() => {
     fetchTasks(true);
 
-    // Realtime ذكي: يحدّث الـ state محلياً حسب نوع الحدث بدل إعادة جلب كل شيء
     const channel = supabase
       .channel('tasks-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) => {
         const newTask = fromRow(payload.new);
         setTasks((prev) => {
-          // تجنب التكرار إذا كانت المهمة أُضيفت محلياً (optimistic)
           if (prev.some((t) => t.id === newTask.id)) return prev;
-          // إزالة أي مهمة مؤقتة بنفس العنوان تقريباً
           const withoutTemp = prev.filter((t) => !String(t.id).startsWith('temp-'));
           return [newTask, ...withoutTemp];
         });
@@ -73,10 +74,11 @@ export function useTasks(showToast) {
     };
   }, [fetchTasks]);
 
-  // ─── إضافة مهمة (Optimistic) ───────────────────────────────
   const addTask = useCallback(
-    async (title, quadrant, dueDate, notes, duration = 1) => {
+    async (title, quadrant, dueDate, notes, duration = 1, extra = {}) => {
       const tempId = `temp-${Date.now()}`;
+      const recurrence = extra.recurrence || null;
+      const recurrenceDays = extra.recurrenceDays || [];
       const optimisticTask = {
         id: tempId,
         title,
@@ -85,23 +87,27 @@ export function useTasks(showToast) {
         notes: notes || '',
         dueDate: dueDate || '',
         duration: duration || 1,
+        sortOrder: 0,
+        recurrence,
+        recurrenceDays,
         createdAt: new Date().toISOString(),
         completedAt: null,
       };
 
       setTasks((prev) => [optimisticTask, ...prev]);
 
-      const { data, error } = await supabase
-        .from(TABLE)
-        .insert({
-          title,
-          quadrant,
-          due_date: dueDate || null,
-          notes: notes || '',
-          duration: duration || 1,
-        })
-        .select()
-        .single();
+      const payload = {
+        title,
+        quadrant,
+        due_date: dueDate || null,
+        notes: notes || '',
+        duration: duration || 1,
+        sort_order: 0,
+        recurrence,
+        recurrence_days: recurrence === 'weekly' ? recurrenceDays : null,
+      };
+
+      const { data, error } = await supabase.from(TABLE).insert(payload).select().single();
 
       if (error) {
         console.error(error);
@@ -110,24 +116,34 @@ export function useTasks(showToast) {
         return;
       }
 
-      setTasks((prev) =>
-        prev.map((t) => (t.id === tempId ? fromRow(data) : t))
-      );
+      setTasks((prev) => prev.map((t) => (t.id === tempId ? fromRow(data) : t)));
       showToast?.(`أُضيفت "${title}"`, 'ph-plus-circle');
     },
     [showToast]
   );
 
-  // ─── تعديل مهمة (Optimistic) ───────────────────────────────
   const updateTask = useCallback(
-    async (id, title, quadrant, dueDate, notes, duration) => {
+    async (id, title, quadrant, dueDate, notes, duration, extra = {}) => {
       const previous = tasks.find((t) => t.id === id);
       if (!previous) return;
+
+      const recurrence = extra.recurrence !== undefined ? extra.recurrence : previous.recurrence;
+      const recurrenceDays =
+        extra.recurrenceDays !== undefined ? extra.recurrenceDays : previous.recurrenceDays;
 
       setTasks((prev) =>
         prev.map((t) =>
           t.id === id
-            ? { ...t, title, quadrant, dueDate: dueDate || '', notes: notes || '', duration: duration || 1 }
+            ? {
+                ...t,
+                title,
+                quadrant,
+                dueDate: dueDate || '',
+                notes: notes || '',
+                duration: duration || 1,
+                recurrence,
+                recurrenceDays: recurrenceDays || [],
+              }
             : t
         )
       );
@@ -140,6 +156,8 @@ export function useTasks(showToast) {
           due_date: dueDate || null,
           notes: notes || '',
           duration: duration || 1,
+          recurrence: recurrence || null,
+          recurrence_days: recurrence === 'weekly' ? recurrenceDays : null,
         })
         .eq('id', id);
 
@@ -155,7 +173,6 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  // ─── حذف مهمة (Optimistic) ─────────────────────────────────
   const deleteTask = useCallback(
     async (id) => {
       const task = tasks.find((t) => t.id === id);
@@ -177,7 +194,6 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  // ─── تبديل الإكمال (Optimistic) ────────────────────────────
   const toggleComplete = useCallback(
     async (id) => {
       const task = tasks.find((t) => t.id === id);
@@ -211,7 +227,6 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  // ─── نقل مهمة (Optimistic) ─────────────────────────────────
   const moveTask = useCallback(
     async (id, newQuadrant) => {
       const task = tasks.find((t) => t.id === id);
@@ -242,27 +257,29 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  // ─── إعادة جدولة (Optimistic) ──────────────────────────────
   const rescheduleTask = useCallback(
     async (id, newDate) => {
-      const task = tasks.find((t) => t.id === id);
-      if (!task) return;
+      const task = tasks.find((t) => String(t.id) === String(id));
+      if (!task) {
+        console.warn('reschedule: task not found', id);
+        return;
+      }
 
       const previousDate = task.dueDate;
 
       setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, dueDate: newDate } : t))
+        prev.map((t) => (String(t.id) === String(id) ? { ...t, dueDate: newDate } : t))
       );
 
       const { error } = await supabase
         .from(TABLE)
         .update({ due_date: newDate })
-        .eq('id', id);
+        .eq('id', task.id);
 
       if (error) {
         console.error(error);
         setTasks((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, dueDate: previousDate } : t))
+          prev.map((t) => (String(t.id) === String(id) ? { ...t, dueDate: previousDate } : t))
         );
         showToast?.('تعذّر تحديث الموعد', 'ph-x-circle', 'error');
         return;
@@ -273,7 +290,28 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  // ─── استبدال كل المهام (استيراد) ───────────────────────────
+  /** إعادة ترتيب داخل نفس الربع */
+  const reorderInQuadrant = useCallback(
+    async (quadrant, orderedIds) => {
+      setTasks((prev) => {
+        const map = new Map(orderedIds.map((id, i) => [String(id), i]));
+        return prev.map((t) =>
+          t.quadrant === quadrant && map.has(String(t.id))
+            ? { ...t, sortOrder: map.get(String(t.id)) }
+            : t
+        );
+      });
+
+      // تحديث متوازٍ خفيف
+      await Promise.all(
+        orderedIds.map((id, i) =>
+          supabase.from(TABLE).update({ sort_order: i }).eq('id', id)
+        )
+      );
+    },
+    []
+  );
+
   const replaceAllTasks = useCallback(
     async (importedTasks) => {
       const { error: deleteError } = await supabase.from(TABLE).delete().neq('id', 0);
@@ -283,13 +321,14 @@ export function useTasks(showToast) {
         return;
       }
 
-      const rows = importedTasks.map((t) => ({
+      const rows = importedTasks.map((t, i) => ({
         title: t.title,
         quadrant: t.quadrant,
         completed: t.completed,
         notes: t.notes || '',
         due_date: t.dueDate || null,
         duration: t.duration || 1,
+        sort_order: i,
         completed_at: t.completed ? new Date().toISOString() : null,
       }));
 
@@ -316,6 +355,7 @@ export function useTasks(showToast) {
     toggleComplete,
     moveTask,
     rescheduleTask,
+    reorderInQuadrant,
     replaceAllTasks,
     refetch: () => fetchTasks(true),
   };
