@@ -77,11 +77,22 @@ export default function App() {
   const handleImportFile = async (file) => {
     try {
       const imported = await readImportFile(file);
-      if (imported.length > 0) {
-        await replaceAllTasks(imported);
-      } else {
+      if (imported.length === 0) {
         showToast('الملف فارغ أو غير صالح', 'ph-warning', 'error');
+        return;
       }
+
+      // تأكيد قبل حذف كل المهام الحالية
+      const confirmed = window.confirm(
+        `سيتم حذف جميع المهام الحالية (${tasks.length}) واستبدالها بـ ${imported.length} مهمة من الملف.\n\nهل أنت متأكد؟ لا يمكن التراجع عن هذه العملية.`
+      );
+
+      if (!confirmed) {
+        showToast('تم إلغاء الاستيراد', 'ph-info');
+        return;
+      }
+
+      await replaceAllTasks(imported);
     } catch (err) {
       console.error(err);
       showToast('حدث خطأ أثناء قراءة الملف', 'ph-x-circle', 'error');
@@ -127,7 +138,7 @@ export default function App() {
     );
   }
 
-  // ─── شاشة عدم الاتصال (عند غياب مفاتيح Supabase أو فشل الاتصال) ───
+  // ─── شاشة عدم الاتصال ──────────────────────────────────────
   if (!connected) {
     return (
       <div
