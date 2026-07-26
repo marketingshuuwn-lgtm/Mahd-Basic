@@ -56,28 +56,34 @@ export default function Sidebar({
           {connected ? 'متصل بقاعدة البيانات' : 'غير متصل'}
         </div>
 
-        <button className="theme-toggle-btn" onClick={onToggleTheme}>
+        <button type="button" className="theme-toggle-btn" onClick={onToggleTheme}>
           <span>{theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}</span>
           <i className={`ph ${theme === 'dark' ? 'ph-sun' : 'ph-moon'}`}></i>
         </button>
 
         <div className="data-actions">
           <button
+            type="button"
             className="data-btn"
-            onClick={() => {
-              setMenuOpen((v) => !v);
-            }}
+            onClick={() => setMenuOpen((v) => !v)}
           >
             <i className="ph ph-download-simple"></i> تصدير
           </button>
-          <button className="data-btn" onClick={() => fileInputRef.current?.click()}>
+          <button
+            type="button"
+            className="data-btn"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <i className="ph ph-upload-simple"></i> استيراد
           </button>
+          {/* مخفي تماماً — لا يظهر نص المتصفح الافتراضي */}
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv,.xlsx"
-            className="hidden"
+            style={{ display: 'none' }}
+            tabIndex={-1}
+            aria-hidden="true"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) onImportFile(file);
@@ -87,6 +93,7 @@ export default function Sidebar({
           {menuOpen && (
             <div className="dropdown-menu">
               <button
+                type="button"
                 onClick={() => {
                   onExport('csv');
                   setMenuOpen(false);
@@ -95,7 +102,7 @@ export default function Sidebar({
                 CSV
               </button>
               <button
-                onClick={() => {
+                type="button"\)n                onClick={() => {
                   onExport('xlsx');
                   setMenuOpen(false);
                 }}
