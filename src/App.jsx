@@ -18,6 +18,7 @@ export default function App() {
   const showToast = useToast();
   const {
     tasks,
+    loading,
     connected,
     addTask,
     updateTask,
@@ -85,6 +86,29 @@ export default function App() {
       showToast('حدث خطأ أثناء قراءة الملف', 'ph-x-circle', 'error');
     }
   };
+
+  // ─── شاشة التحميل ──────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              border: '3px solid var(--border, #dee2e6)',
+              borderTopColor: 'var(--accent, #5c7cfa)',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 16px',
+            }}
+          ></div>
+          <p style={{ color: 'var(--text-secondary, #868e96)', fontSize: 15 }}>جاري تحميل المهام…</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
