@@ -1,20 +1,23 @@
 const SUBVIEWS = [
-  { id: 'Board', icon: 'ph-squares-four', label: 'لوحة المصفوفة' },
+  { id: 'Board', icon: 'ph-squares-four', label: 'المصفوفة' },
   { id: 'Timeline', icon: 'ph-list-dashes', label: 'الخط الزمني' },
-  { id: 'Gantt', icon: 'ph-chart-bar-horizontal', label: 'مخطط جانت' },
+  { id: 'Gantt', icon: 'ph-chart-bar-horizontal', label: 'جانت' },
 ];
 
 export default function ViewSwitcher({ subview, onSwitch }) {
   return (
-    <div className="view-switcher">
+    <div className="view-tabs" role="tablist">
       {SUBVIEWS.map((s) => (
         <button
           key={s.id}
-          className={`switcher-btn ${subview === s.id ? 'active' : ''}`}
-          title={s.label}
+          type="button"
+          role="tab"
+          aria-selected={subview === s.id}
+          className={`view-tab ${subview === s.id ? 'active' : ''}`}
           onClick={() => onSwitch(s.id)}
         >
           <i className={`ph ${s.icon}`}></i>
+          <span>{s.label}</span>
         </button>
       ))}
     </div>
