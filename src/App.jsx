@@ -13,6 +13,7 @@ import { useToast } from './hooks/useToast';
 import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/importExport';
 
 const THEME_KEY = 'mahd_theme_react_v1';
+const SIDEBAR_KEY = 'mahd_sidebar_compact';
 
 export default function App() {
   const showToast = useToast();
@@ -26,6 +27,7 @@ export default function App() {
     toggleComplete,
     moveTask,
     rescheduleTask,
+    reorderInQuadrant,
     replaceAllTasks,
     refetch,
   } = useTasks(showToast);
@@ -33,6 +35,9 @@ export default function App() {
   const [view, setView] = useState('Matrix');
   const [subview, setSubview] = useState('Board');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCompact, setSidebarCompact] = useState(
+    () => localStorage.getItem(SIDEBAR_KEY) === '1'
+  );
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -42,6 +47,10 @@ export default function App() {
     else document.documentElement.removeAttribute('data-theme');
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_KEY, sidebarCompact ? '1' : '0');
+  }, [sidebarCompact]);
 
   const editingTask = useMemo(
     () => tasks.find((t) => t.id === editingTaskId) || null,
@@ -61,10 +70,14 @@ export default function App() {
   const closeModal = () => setModalOpen(false);
 
   const handleSaveTask = (form, id) => {
+    const extra = {
+      recurrence: form.recurrence || null,
+      recurrenceDays: form.recurrenceDays || [],
+    };
     if (id) {
-      updateTask(id, form.title, form.quadrant, form.dueDate, form.notes, form.duration);
+      updateTask(id, form.title, form.quadrant, form.dueDate, form.notes, form.duration, extra);
     } else {
-      addTask(form.title, form.quadrant, form.dueDate, form.notes, form.duration);
+      addTask(form.title, form.quadrant, form.dueDate, form.notes, form.duration, extra);
     }
     closeModal();
   };
@@ -81,16 +94,10 @@ export default function App() {
         showToast('الملف فارغ أو غير صالح', 'ph-warning', 'error');
         return;
       }
-
       const confirmed = window.confirm(
-        `سيتم حذف جميع المهام الحالية (${tasks.length}) واستبدالها بـ ${imported.length} مهمة من الملف.\n\nهل أنت متأكد؟ لا يمكن التراجع عن هذه العملية.`
+        `سيتم حذف جميع المهام الحالية (${tasks.length}) واستبدالها بـ ${imported.length} مهمة.\n\nهل أنت متأكد؟`
       );
-
-      if (!confirmed) {
-        showToast('تم إلغاء الاستيراد', 'ph-info');
-        return;
-      }
-
+      if (!confirmed) return;
       await replaceAllTasks(imported);
     } catch (err) {
       console.error(err);
@@ -100,71 +107,23 @@ export default function App() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          background: 'var(--bg-color, #f1f5f9)',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              border: '4px solid var(--border-color, #e2e8f0)',
-              borderTopColor: 'var(--accent, #3b82f6)',
-              borderRadius: '50%',
-              animation: 'spin 0.75s linear infinite',
-              margin: '0 auto 20px',
-            }}
-          />
-          <p style={{ fontSize: 16, fontWeight: 400, color: 'var(--text-secondary)' }}>
-            جاري تحميل المهام…
-          </p>
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="full-center">
+        <div className="loading-spinner" />
+        <p style={{ color: 'var(--text-secondary)' }}>جاري تحميل المهام…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}} .loading-spinner{width:48px;height:48px;border:4px solid var(--border-color);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 16px}`}</style>
       </div>
     );
   }
 
   if (!connected) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          background: 'var(--bg-color, #f1f5f9)',
-          padding: 24,
-        }}
-      >
-        <div className="card" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 40 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              background: 'var(--danger-light)',
-              color: 'var(--danger)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 28,
-              margin: '0 auto 20px',
-            }}
-          >
-            <i className="ph ph-plugs-connected"></i>
-          </div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>غير متصل بقاعدة البيانات</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
-            تأكد من ملف <code>.env</code> ثم أعد تشغيل <code>npm run dev</code>.
+      <div className="full-center" style={{ padding: 24 }}>
+        <div className="card" style={{ maxWidth: 440, textAlign: 'center', padding: 36 }}>
+          <h2 style={{ marginBottom: 12 }}>غير متصل بقاعدة البيانات</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
+            تأكد من ملف .env ثم أعد تشغيل npm run dev
           </p>
-          <button className="btn-primary" onClick={() => refetch()} style={{ margin: '0 auto' }}>
-            <i className="ph ph-arrow-clockwise"></i>
+          <button type="button" className="btn-primary" onClick={() => refetch()} style={{ margin: '0 auto' }}>
             إعادة المحاولة
           </button>
         </div>
@@ -173,7 +132,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarCompact ? 'sidebar-is-compact' : ''}`}>
       <div className="mobile-header">
         <div className="logo-area" style={{ marginBottom: 0 }}>
           <div className="logo-icon" style={{ width: 36, height: 36, fontSize: 18 }}>
@@ -183,7 +142,7 @@ export default function App() {
             مهد
           </div>
         </div>
-        <button className="btn-icon" onClick={() => setSidebarOpen(true)}>
+        <button type="button" className="btn-icon" onClick={() => setSidebarOpen(true)}>
           <i className="ph ph-list" style={{ fontSize: 24 }}></i>
         </button>
       </div>
@@ -200,11 +159,17 @@ export default function App() {
         connected={connected}
         onExport={handleExport}
         onImportFile={handleImportFile}
+        compact={sidebarCompact}
+        onToggleCompact={() => setSidebarCompact((v) => !v)}
       />
 
       <main className="main-content">
         {view === 'Matrix' && (
           <div id="viewMatrix">
+            <div className="matrix-topbar">
+              <ViewSwitcher subview={subview} onSwitch={setSubview} />
+            </div>
+
             {subview === 'Board' && (
               <QuadrantBoard
                 tasks={tasks}
@@ -212,6 +177,7 @@ export default function App() {
                 onEdit={openEditModal}
                 onDelete={deleteTask}
                 onMoveTask={moveTask}
+                onReorderInQuadrant={reorderInQuadrant}
               />
             )}
             {subview === 'Timeline' && (
@@ -245,9 +211,6 @@ export default function App() {
         {view === 'Kpi' && <KpiView tasks={tasks} />}
       </main>
 
-      {view === 'Matrix' && <ViewSwitcher subview={subview} onSwitch={setSubview} />}
-
-      {/* شريط المساعد الذكي العائم */}
       <FloatingSmartBar onAddTask={addTask} onOpenAdvanced={openAddModal} />
 
       <TaskModal isOpen={modalOpen} task={editingTask} onClose={closeModal} onSave={handleSaveTask} />
