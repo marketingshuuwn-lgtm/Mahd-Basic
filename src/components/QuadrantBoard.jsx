@@ -8,8 +8,13 @@ const QUADRANTS = [
   { id: 'not-important-not-urgent', title: 'غير مهم غير مستعجل', color: 'var(--text-secondary)' },
 ];
 
+function parseDragId(raw) {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isNaN(n) ? raw : n;
+}
+
 export default function QuadrantBoard({ tasks, onToggleComplete, onEdit, onDelete, onMoveTask }) {
-  // null = كلها مفتوحة، أو id للربع المطوي
   const [collapsed, setCollapsed] = useState({});
   const [dragOverZone, setDragOverZone] = useState(null);
 
@@ -19,12 +24,13 @@ export default function QuadrantBoard({ tasks, onToggleComplete, onEdit, onDelet
 
   const collapseAll = () => {
     const next = {};
-    QUADRANTS.forEach((q) => { next[q.id] = true; });
+    QUADRANTS.forEach((q) => {
+      next[q.id] = true;
+    });
     setCollapsed(next);
   };
 
   const expandAll = () => setCollapsed({});
-
   const anyCollapsed = QUADRANTS.some((q) => collapsed[q.id]);
 
   return (
@@ -45,13 +51,12 @@ export default function QuadrantBoard({ tasks, onToggleComplete, onEdit, onDelet
             <div
               key={q.id}
               className={`card quadrant-card ${isCollapsed ? 'collapsed' : ''}`}
-              data-quadrant={q.id}
             >
               <div className="accent-bar" style={{ background: q.color }}></div>
-              <div className="quadrant-inner">
+              <div className={`quadrant-inner ${isCollapsed ? 'inner-collapsed' : ''}`}>
                 <button
                   type="button"
-                  className="quadrant-header quadrant-header-btn"
+                  className="quadrant-header-btn"
                   onClick={() => toggleCollapse(q.id)}
                   aria-expanded={!isCollapsed}
                 >
@@ -61,27 +66,36 @@ export default function QuadrantBoard({ tasks, onToggleComplete, onEdit, onDelet
                   </span>
                   <span className="q-count">{items.length}</span>
                   <span className="collapse-indicator">
-                    <i className={`ph ph-caret-${isCollapsed ? 'left' : 'down'}`}></i>
+                    <i className={`ph ${isCollapsed ? 'ph-caret-left' : 'ph-caret-down'}`}></i>
                   </span>
                 </button>
 
-                <div
-                  className={`quadrant-body ${isCollapsed ? 'is-collapsed' : ''}`}
-                >
+                {/* عند الطي لا نعرض المحتوى أصلاً — يمنع التشوه */}
+                {!isCollapsed && (
                   <div
                     className={`drop-zone ${dragOverZone === q.id ? 'drag-over' : ''}`}
                     onDragOver={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
                       e.dataTransfer.dropEffect = 'move';
                       setDragOverZone(q.id);
                     }}
-                    onDragLeave={() => setDragOverZone(null)}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setDragOverZone(q.id);
+                    }}
+                    onDragLeave={(e) => {
+                      // تجنب إغلاق المنطقة عند المرور فوق عنصر فرعي
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        setDragOverZone(null);
+                      }
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
                       setDragOverZone(null);
-                      const raw = e.dataTransfer.getData('text/plain');
-                      const id = Number(raw);
-                      if (id) onMoveTask(id, q.id);
+                      const id = parseDragId(e.dataTransfer.getData('text/plain'));
+                      if (id != null && id !== '') onMoveTask(id, q.id);
                     }}
                   >
                     {items.length === 0 ? (
@@ -98,7 +112,7 @@ export default function QuadrantBoard({ tasks, onToggleComplete, onEdit, onDelet
                       ))
                     )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           );
