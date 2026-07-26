@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 
 const TABLE = 'tasks';
 
-// يحوّل صف قادم من Supabase (snake_case) إلى شكل المهمة المستخدم في الواجهة (camelCase)
 function fromRow(row) {
   return {
     id: row.id,
@@ -23,7 +22,6 @@ export function useTasks(showToast) {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(true);
 
-  // التحميل الأولي فقط (لا نضع loading=true عند كل تحديث Realtime لتجنب الوميض)
   const fetchTasks = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
 
@@ -47,12 +45,26 @@ export function useTasks(showToast) {
   useEffect(() => {
     fetchTasks(true);
 
-    // اشتراك في التحديثات اللحظية
+    // Realtime ذكي: يحدّث الـ state محلياً حسب نوع الحدث بدل إعادة جلب كل شيء
     const channel = supabase
       .channel('tasks-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => {
-        // عند التحديث من جهاز آخر فقط نعيد الجلب (بدون loading)
-        fetchTasks(false);
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) => {
+        const newTask = fromRow(payload.new);
+        setTasks((prev) => {
+          // تجنب التكرار إذا كانت المهمة أُضيفت محلياً (optimistic)
+          if (prev.some((t) => t.id === newTask.id)) return prev;
+          // إزالة أي مهمة مؤقتة بنفس العنوان تقريباً
+          const withoutTemp = prev.filter((t) => !String(t.id).startsWith('temp-'));
+          return [newTask, ...withoutTemp];
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: TABLE }, (payload) => {
+        const updated = fromRow(payload.new);
+        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: TABLE }, (payload) => {
+        const deletedId = payload.old.id;
+        setTasks((prev) => prev.filter((t) => t.id !== deletedId));
       })
       .subscribe();
 
@@ -64,7 +76,6 @@ export function useTasks(showToast) {
   // ─── إضافة مهمة (Optimistic) ───────────────────────────────
   const addTask = useCallback(
     async (title, quadrant, dueDate, notes, duration = 1) => {
-      // نضع مهمة مؤقتة فوراً في الواجهة
       const tempId = `temp-${Date.now()}`;
       const optimisticTask = {
         id: tempId,
@@ -94,13 +105,11 @@ export function useTasks(showToast) {
 
       if (error) {
         console.error(error);
-        // نرجع للخلف إذا فشلت العملية
         setTasks((prev) => prev.filter((t) => t.id !== tempId));
         showToast?.('تعذّرت إضافة المهمة', 'ph-x-circle', 'error');
         return;
       }
 
-      // نستبدل المهمة المؤقتة بالمهمة الحقيقية القادمة من السيرفر
       setTasks((prev) =>
         prev.map((t) => (t.id === tempId ? fromRow(data) : t))
       );
@@ -115,18 +124,10 @@ export function useTasks(showToast) {
       const previous = tasks.find((t) => t.id === id);
       if (!previous) return;
 
-      // تحديث فوري
       setTasks((prev) =>
         prev.map((t) =>
           t.id === id
-            ? {
-                ...t,
-                title,
-                quadrant,
-                dueDate: dueDate || '',
-                notes: notes || '',
-                duration: duration || 1,
-              }
+            ? { ...t, title, quadrant, dueDate: dueDate || '', notes: notes || '', duration: duration || 1 }
             : t
         )
       );
@@ -144,7 +145,6 @@ export function useTasks(showToast) {
 
       if (error) {
         console.error(error);
-        // نرجع للحالة السابقة
         setTasks((prev) => prev.map((t) => (t.id === id ? previous : t)));
         showToast?.('تعذّر تعديل المهمة', 'ph-x-circle', 'error');
         return;
@@ -161,14 +161,12 @@ export function useTasks(showToast) {
       const task = tasks.find((t) => t.id === id);
       if (!task) return;
 
-      // حذف فوري من الواجهة
       setTasks((prev) => prev.filter((t) => t.id !== id));
 
       const { error } = await supabase.from(TABLE).delete().eq('id', id);
 
       if (error) {
         console.error(error);
-        // نرجع المهمة
         setTasks((prev) => [task, ...prev]);
         showToast?.('تعذّر حذف المهمة', 'ph-x-circle', 'error');
         return;
@@ -188,11 +186,8 @@ export function useTasks(showToast) {
       const completed = !task.completed;
       const completedAt = completed ? new Date().toISOString() : null;
 
-      // تحديث فوري
       setTasks((prev) =>
-        prev.map((t) =>
-          t.id === id ? { ...t, completed, completedAt } : t
-        )
+        prev.map((t) => (t.id === id ? { ...t, completed, completedAt } : t))
       );
 
       const { error } = await supabase
@@ -202,7 +197,6 @@ export function useTasks(showToast) {
 
       if (error) {
         console.error(error);
-        // نرجع
         setTasks((prev) =>
           prev.map((t) =>
             t.id === id ? { ...t, completed: task.completed, completedAt: task.completedAt } : t
@@ -225,7 +219,6 @@ export function useTasks(showToast) {
 
       const previousQuadrant = task.quadrant;
 
-      // نقل فوري
       setTasks((prev) =>
         prev.map((t) => (t.id === id ? { ...t, quadrant: newQuadrant } : t))
       );
@@ -237,7 +230,6 @@ export function useTasks(showToast) {
 
       if (error) {
         console.error(error);
-        // نرجع
         setTasks((prev) =>
           prev.map((t) => (t.id === id ? { ...t, quadrant: previousQuadrant } : t))
         );
@@ -301,22 +293,14 @@ export function useTasks(showToast) {
         completed_at: t.completed ? new Date().toISOString() : null,
       }));
 
-      const { error: insertError } = await supabase.from(TABLE).insert(rows);
+      const { data, error: insertError } = await supabase.from(TABLE).insert(rows).select();
       if (insertError) {
         console.error(insertError);
         showToast?.('حدث خطأ أثناء استيراد المهام', 'ph-x-circle', 'error');
         return;
       }
 
-      // نحدّث الواجهة فوراً
-      setTasks(importedTasks.map((t, i) => ({
-        ...t,
-        id: t.id || `imported-${i}`,
-        notes: t.notes || '',
-        dueDate: t.dueDate || '',
-        duration: t.duration || 1,
-      })));
-
+      setTasks((data ?? []).map(fromRow));
       showToast?.(`تم استيراد ${rows.length} مهمة بنجاح`, 'ph-upload-simple');
     },
     [showToast]
