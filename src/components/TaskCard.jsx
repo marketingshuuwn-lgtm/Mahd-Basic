@@ -7,13 +7,17 @@ export default function TaskCard({ task, onToggleComplete, onEdit, onDelete, dra
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', String(task.id));
+        e.dataTransfer.effectAllowed = 'move';
         e.currentTarget.classList.add('dragging');
       }}
       onDragEnd={(e) => e.currentTarget.classList.remove('dragging')}
     >
       <div
         className={`task-checkbox ${task.completed ? 'checked' : ''}`}
-        onClick={() => onToggleComplete(task.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleComplete(task.id);
+        }}
       >
         {task.completed && <i className="ph ph-check" style={{ fontSize: 14 }}></i>}
       </div>
@@ -29,11 +33,25 @@ export default function TaskCard({ task, onToggleComplete, onEdit, onDelete, dra
           </div>
         )}
       </div>
-      <div className="task-actions">
-        <button className="btn-icon" onClick={() => onEdit(task.id)}>
+      <div className="task-actions" onMouseDown={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(task.id);
+          }}
+        >
           <i className="ph ph-pencil-simple"></i>
         </button>
-        <button className="btn-icon danger" onClick={() => onDelete(task.id)}>
+        <button
+          type="button"
+          className="btn-icon danger"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(task.id);
+          }}
+        >
           <i className="ph ph-trash"></i>
         </button>
       </div>
