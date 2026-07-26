@@ -1,63 +1,82 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { toLocalISO } from '../utils/dateUtils';
 
 const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+function parseDragId(raw) {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isNaN(n) ? raw : n;
+}
 
 export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedule }) {
   const [dragOverDate, setDragOverDate] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return d.toISOString().split('T')[0];
+  const days = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        return toLocalISO(d);
+      }),
+    [today]
+  );
+
+  const tasksWithDates = tasks.filter((t) => {
+    if (!t.dueDate) return false;
+    const d = new Date(t.dueDate + 'T12:00:00');
+    return d >= today;
   });
-
-  const tasksWithDates = tasks.filter((t) => t.dueDate && new Date(t.dueDate + 'T00:00:00') >= today);
 
   const handleDropOnDay = (e, day) => {
     e.preventDefault();
     e.stopPropagation();
+    const id = parseDragId(e.dataTransfer.getData('text/plain'));
     setDragOverDate(null);
-    const raw = e.dataTransfer.getData('text/plain');
-    const id = Number(raw);
-    if (id) onReschedule(id, day);
     setDraggingId(null);
+    if (id != null && id !== '') onReschedule(id, day);
   };
 
   return (
     <div className="card">
       <div className="gantt-hint">
         <i className="ph ph-hand-grabbing"></i>
-        اسحب شريط المهمة وأفلته فوق عمود اليوم لتغيير التاريخ
+        اسحب شريط المهمة وأفلته على عمود اليوم لتغيير التاريخ
       </div>
       <div className="gantt-container">
         <div className="gantt-grid-wrapper">
           <div className="gantt-header">
             <div className="gantt-corner"></div>
-            {days.map((d) => (
-              <div
-                key={d}
-                className={`gantt-day-col ${dragOverDate === d ? 'day-highlight' : ''}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOverDate(d);
-                }}
-                onDragLeave={() => setDragOverDate(null)}
-                onDrop={(e) => handleDropOnDay(e, d)}
-              >
-                <span className="gantt-day-name">{DAY_NAMES[new Date(d + 'T12:00:00').getDay()]}</span>
-                <span className="gantt-day-num">
-                  {new Date(d + 'T12:00:00').getDate()}/{new Date(d + 'T12:00:00').getMonth() + 1}
-                </span>
-              </div>
-            ))}
+            {days.map((d) => {
+              const dd = new Date(d + 'T12:00:00');
+              return (
+                <div
+                  key={d}
+                  className={`gantt-day-col ${dragOverDate === d ? 'day-highlight' : ''}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDragOverDate(d);
+                  }}
+                  onDrop={(e) => handleDropOnDay(e, d)}
+                >
+                  <span className="gantt-day-name">{DAY_NAMES[dd.getDay()]}</span>
+                  <span className="gantt-day-num">
+                    {dd.getDate()}/{dd.getMonth() + 1}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className={`gantt-rows-area ${draggingId ? 'is-dragging' : ''}`}>
-            {/* طبقة إسقاط فوق الأعمدة بالكامل لتسهيل الإفلات */}
             {draggingId && (
               <div className="gantt-drop-overlay">
                 <div className="gantt-drop-spacer"></div>
@@ -70,7 +89,6 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
                       e.dataTransfer.dropEffect = 'move';
                       setDragOverDate(d);
                     }}
-                    onDragLeave={() => setDragOverDate(null)}
                     onDrop={(e) => handleDropOnDay(e, d)}
                   />
                 ))}
@@ -78,12 +96,10 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
             )}
 
             {tasksWithDates.length === 0 ? (
-              <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                لا توجد مهام مجدولة للأسبوع القادم
-              </div>
+              <div className="empty-state">لا توجد مهام مجدولة للأسبوع القادم</div>
             ) : (
               tasksWithDates.map((task) => {
-                const taskDate = new Date(task.dueDate + 'T00:00:00');
+                const taskDate = new Date(task.dueDate + 'T12:00:00');
                 const diffDays = Math.round((taskDate - today) / 86400000);
                 if (diffDays < 0 || diffDays >= 7) return null;
                 const duration = Math.min(task.duration || 1, 7 - diffDays);
