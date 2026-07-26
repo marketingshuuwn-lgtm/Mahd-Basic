@@ -76,7 +76,6 @@ export default function Sidebar({
           >
             <i className="ph ph-upload-simple"></i> استيراد
           </button>
-          {/* مخفي تماماً — لا يظهر نص المتصفح الافتراضي */}
           <input
             ref={fileInputRef}
             type="file"
@@ -102,7 +101,8 @@ export default function Sidebar({
                 CSV
               </button>
               <button
-                type="button"\)n                onClick={() => {
+                type="button"
+                onClick={() => {
                   onExport('xlsx');
                   setMenuOpen(false);
                 }}
