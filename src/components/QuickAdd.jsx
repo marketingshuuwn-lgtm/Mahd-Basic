@@ -1,75 +1,63 @@
 import { useState } from 'react';
 import { parseSmartInput } from '../utils/dateUtils';
 
-export default function QuickAdd({ onAddTask, onOpenAdvanced }) {
-  const [quickValue, setQuickValue] = useState('');
-  const [aiValue, setAiValue] = useState('');
+const QUADRANTS = [
+  { id: 'important-urgent', color: 'var(--danger)', label: 'مهم ومستعجل' },
+  { id: 'important-not-urgent', color: 'var(--accent)', label: 'مهم غير مستعجل' },
+  { id: 'not-important-urgent', color: 'var(--warning)', label: 'غير مهم ومستعجل' },
+  { id: 'not-important-not-urgent', color: 'var(--text-secondary)', label: 'غير مهم غير مستعجل' },
+];
 
-  const submitQuick = (e) => {
-    e.preventDefault();
-    const value = quickValue.trim();
-    if (!value) return;
-    onAddTask(value, 'important-urgent', '', '', 1);
-    setQuickValue('');
-  };
+/** شريط المساعد الذكي العائم في الأسفل وسط الشاشة */
+export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
+  const [value, setValue] = useState('');
+  const [quadrant, setQuadrant] = useState('important-urgent');
 
-  const runSmartParse = () => {
-    const text = aiValue.trim();
+  const submit = (e) => {
+    e?.preventDefault?.();
+    const text = value.trim();
     if (!text) return;
     const { title, dueDate } = parseSmartInput(text);
-    onAddTask(title, 'important-urgent', dueDate, '', 1);
-    setAiValue('');
+    onAddTask(title || text, quadrant, dueDate, '', 1);
+    setValue('');
   };
 
   return (
-    <>
-      <div className="card inbox-container">
-        <div className="inbox-header">
-          <i className="ph ph-tray" style={{ color: 'var(--accent)', fontSize: 20 }}></i>
-          <span>إضافة سريعة</span>
+    <div className="floating-smart-bar">
+      <form className="floating-smart-inner" onSubmit={submit}>
+        <div className="floating-quad-dots" title="تصنيف المهمة">
+          {QUADRANTS.map((q) => (
+            <button
+              key={q.id}
+              type="button"
+              className={`quad-dot-btn ${quadrant === q.id ? 'active' : ''}`}
+              style={{ '--dot-color': q.color }}
+              title={q.label}
+              onClick={() => setQuadrant(q.id)}
+              aria-label={q.label}
+            />
+          ))}
         </div>
-        <form className="inbox-form" onSubmit={submitQuick}>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="اكتب عنوان المهمة..."
-            value={quickValue}
-            onChange={(e) => setQuickValue(e.target.value)}
-          />
-          <button type="submit" className="btn-primary">
-            <i className="ph ph-plus"></i> إضافة
-          </button>
-        </form>
-        <button className="advanced-add-btn" onClick={onOpenAdvanced}>
-          <i className="ph ph-sliders"></i> إعدادات متقدمة
-        </button>
-      </div>
 
-      <div className="card ai-assistant-container">
-        <div className="inbox-header">
-          <i className="ph ph-sparkle" style={{ color: 'var(--accent)', fontSize: 20 }}></i>
-          <span>المساعد الذكي (اكتب نصاً وسيقوم بإنشاء المهمة)</span>
-        </div>
-        <div className="ai-input-wrapper">
-          <i className="ph ph-magic-wand ai-icon"></i>
+        <div className="floating-input-wrap">
+          <i className="ph ph-sparkle floating-ai-icon"></i>
           <input
             type="text"
-            className="form-input ai-input"
-            placeholder="مثال: اجتماع طارئ بكرة مع الإدارة..."
-            value={aiValue}
-            onChange={(e) => setAiValue(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') runSmartParse();
-            }}
+            className="floating-input"
+            placeholder="اكتب مهمة… (مثال: اجتماع بكرة)"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
           />
-          <button className="btn-primary" onClick={runSmartParse}>
-            <i className="ph ph-lightning"></i> حلل
-          </button>
         </div>
-        <div className="ai-suggestion">
-          * المساعد يتعرف تلقائياً على كلمات مثل (اليوم، بكرة، غداً، بعد أسبوع) ويستخرج التاريخ.
-        </div>
-      </div>
-    </>
+
+        <button type="button" className="floating-icon-btn" onClick={onOpenAdvanced} title="إعدادات متقدمة">
+          <i className="ph ph-sliders-horizontal"></i>
+        </button>
+
+        <button type="submit" className="floating-submit" title="إضافة" disabled={!value.trim()}>
+          <i className="ph ph-plus"></i>
+        </button>
+      </form>
+    </div>
   );
 }
