@@ -27,6 +27,7 @@ export default function App() {
     moveTask,
     rescheduleTask,
     replaceAllTasks,
+    refetch,
   } = useTasks(showToast);
 
   const [view, setView] = useState('Matrix');
@@ -90,22 +91,96 @@ export default function App() {
   // ─── شاشة التحميل ──────────────────────────────────────────
   if (loading) {
     return (
-      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          background: 'var(--bg-color, #f1f5f9)',
+          color: 'var(--text-primary, #1e293b)',
+        }}
+      >
         <div style={{ textAlign: 'center' }}>
           <div
+            className="loading-spinner"
             style={{
-              width: 48,
-              height: 48,
-              border: '3px solid var(--border, #dee2e6)',
-              borderTopColor: 'var(--accent, #5c7cfa)',
+              width: 52,
+              height: 52,
+              border: '4px solid var(--border-color, #e2e8f0)',
+              borderTopColor: 'var(--accent, #3b82f6)',
               borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-              margin: '0 auto 16px',
+              animation: 'spin 0.75s linear infinite',
+              margin: '0 auto 20px',
             }}
-          ></div>
-          <p style={{ color: 'var(--text-secondary, #868e96)', fontSize: 15 }}>جاري تحميل المهام…</p>
+          />
+          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-secondary, #64748b)' }}>
+            جاري تحميل المهام…
+          </p>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ─── شاشة عدم الاتصال (عند غياب مفاتيح Supabase أو فشل الاتصال) ───
+  if (!connected) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          background: 'var(--bg-color, #f1f5f9)',
+          padding: 24,
+        }}
+      >
+        <div
+          className="card"
+          style={{
+            maxWidth: 480,
+            width: '100%',
+            textAlign: 'center',
+            padding: 40,
+          }}
+        >
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 16,
+              background: 'var(--danger-light, #fee2e2)',
+              color: 'var(--danger, #ef4444)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 28,
+              margin: '0 auto 20px',
+            }}
+          >
+            <i className="ph ph-plugs-connected"></i>
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>غير متصل بقاعدة البيانات</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
+            تأكد من وجود ملف <code style={{ background: 'var(--hover-bg)', padding: '2px 6px', borderRadius: 4 }}>.env</code> في جذر المشروع
+            مع القيمتين:
+            <br />
+            <code style={{ fontSize: 13 }}>VITE_SUPABASE_URL</code>
+            <br />
+            <code style={{ fontSize: 13 }}>VITE_SUPABASE_ANON_KEY</code>
+            <br />
+            ثم أعد تشغيل الخادم (<code>npm run dev</code>).
+          </p>
+          <button className="btn-primary" onClick={() => refetch()} style={{ margin: '0 auto' }}>
+            <i className="ph ph-arrow-clockwise"></i>
+            إعادة المحاولة
+          </button>
+        </div>
       </div>
     );
   }
