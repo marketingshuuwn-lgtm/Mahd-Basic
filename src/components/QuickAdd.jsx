@@ -8,10 +8,10 @@ const QUADRANTS = [
   { id: 'not-important-not-urgent', color: 'var(--text-secondary)', label: 'غير مهم غير مستعجل' },
 ];
 
-/** شريط المساعد الذكي العائم في الأسفل وسط الشاشة */
 export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
   const [value, setValue] = useState('');
   const [quadrant, setQuadrant] = useState('important-urgent');
+  const [minimized, setMinimized] = useState(false);
 
   const submit = (e) => {
     e?.preventDefault?.();
@@ -22,9 +22,34 @@ export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
     setValue('');
   };
 
+  if (minimized) {
+    return (
+      <div className="floating-smart-bar floating-minimized">
+        <button
+          type="button"
+          className="floating-restore-btn"
+          onClick={() => setMinimized(false)}
+          title="إظهار المساعد الذكي"
+        >
+          <i className="ph ph-sparkle"></i>
+          <i className="ph ph-caret-up"></i>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="floating-smart-bar">
       <form className="floating-smart-inner" onSubmit={submit}>
+        <button
+          type="button"
+          className="floating-hide-btn"
+          onClick={() => setMinimized(true)}
+          title="إخفاء الشريط"
+        >
+          <i className="ph ph-caret-down"></i>
+        </button>
+
         <div className="floating-quad-dots" title="تصنيف المهمة">
           {QUADRANTS.map((q) => (
             <button
@@ -44,7 +69,7 @@ export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
           <input
             type="text"
             className="floating-input"
-            placeholder="اكتب مهمة… (مثال: اجتماع بكرة)"
+            placeholder="اكتب مهمة… (اجتماع الخميس / 15/8/2026)"
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
