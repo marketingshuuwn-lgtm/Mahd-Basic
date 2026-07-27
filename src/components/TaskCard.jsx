@@ -99,6 +99,19 @@ export default function TaskCard({
           className="btn-icon"
           onClick={(e) => {
             e.stopPropagation();
+            // تشغيل بومودورو لهذه المهمة عبر النظام العام (لا قاعدة بيانات)
+            const event = new CustomEvent('start-pomodoro-task', { detail: { taskId: task.id, title: task.title, context: task.context } });
+            window.dispatchEvent(event);
+          }}
+          title="تشغيل بومودورو"
+        >
+          <i className="ph ph-play-circle" style={{ fontSize: 16 }}></i>
+        </button>
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={(e) => {
+            e.stopPropagation();
             onEdit(task.id);
           }}
         >
