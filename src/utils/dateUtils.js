@@ -6,20 +6,96 @@ export function toLocalISO(date) {
   return `${y}-${m}-${d}`;
 }
 
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function startOfToday() {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
+/**
+ * due_date = تاريخ البداية
+ * المدة بالأيام → تاريخ الانتهاء = البداية + (المدة - 1)
+ */
+export function getTaskStartDate(task) {
+  return parseLocalDate(task?.dueDate);
+}
+
+export function getTaskEndDate(task) {
+  const start = getTaskStartDate(task);
+  if (!start) return null;
+  const duration = Math.max(1, Number(task.duration) || 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + (duration - 1));
+  return end;
+}
+
+export function getTaskEndISO(task) {
+  const end = getTaskEndDate(task);
+  return end ? toLocalISO(end) : '';
+}
+
+/** متأخرة فقط إذا انتهى تاريخ الانتهاء قبل اليوم ولم تُنجز */
+export function isTaskOverdue(task) {
+  if (!task || task.completed) return false;
+  const end = getTaskEndDate(task);
+  if (!end) return false;
+  const today = startOfToday();
+  return end < today;
+}
+
+/** عرض التاريخ كرقم فقط — بدون أمس/بكرة/اليوم */
 export function formatDate(dateStr) {
-  if (!dateStr) return 'غير محدد';
+  if (!dateStr || dateStr === 'غير محدد') return 'بدون تاريخ';
   try {
-    const d = new Date(dateStr + 'T12:00:00');
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-    const diff = Math.round((d - today) / 86400000);
-    if (diff === 0) return 'اليوم';
-    if (diff === 1) return 'بكرة';
-    if (diff === -1) return 'أمس';
-    return d.toLocaleDateString('ar-EG');
+    const d = parseLocalDate(dateStr);
+    if (!d) return 'بدون تاريخ';
+    return d.toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    });
   } catch (e) {
-    return 'غير محدد';
+    return 'بدون تاريخ';
   }
+}
+
+/** عرض بداية–نهاية للمهام متعددة الأيام */
+export function formatTaskSchedule(task) {
+  if (!task?.dueDate) return 'بدون تاريخ';
+  const start = task.dueDate;
+  const duration = Math.max(1, Number(task.duration) || 1);
+  if (duration <= 1) return formatDate(start);
+  const endIso = getTaskEndISO(task);
+  return `${formatDate(start)} → ${formatDate(endIso)}`;
+}
+
+/** مفتاح فرز زمني للمهام داخل البطاقة */
+export function taskScheduleSortKey(task) {
+  // المنجزة في الأسفل
+  if (task.completed) {
+    const end = getTaskEndDate(task);
+    return { bucket: 100, time: end ? end.getTime() : 0 };
+  }
+  const start = getTaskStartDate(task);
+  const end = getTaskEndDate(task);
+  if (!start) return { bucket: 50, time: Infinity }; // بدون تاريخ — بعد المؤرّخة المعلقة
+  const today = startOfToday();
+  if (end && end < today) return { bucket: 0, time: start.getTime() }; // متأخرة أولاً
+  return { bucket: 10, time: start.getTime() }; // اليوم ثم بكرة ثم لاحقاً
+}
+
+export function compareTasksBySchedule(a, b) {
+  const ka = taskScheduleSortKey(a);
+  const kb = taskScheduleSortKey(b);
+  if (ka.bucket !== kb.bucket) return ka.bucket - kb.bucket;
+  if (ka.time !== kb.time) return ka.time - kb.time;
+  return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
 }
 
 const WEEKDAY_MAP = {
@@ -33,17 +109,15 @@ const WEEKDAY_MAP = {
 };
 
 function nextWeekday(targetDay) {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
+  const d = startOfToday();
   const current = d.getDay();
   let add = (targetDay - current + 7) % 7;
-  if (add === 0) add = 7; // القادم = الأسبوع القادم إذا كان اليوم نفسه
+  if (add === 0) add = 7;
   d.setDate(d.getDate() + add);
   return d;
 }
 
 function parseNumericDate(text) {
-  // 15/8/2026 أو 15-8-2026 أو 2026-08-15 أو 15/8
   const iso = text.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
   if (iso) {
     const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 12);
@@ -59,7 +133,6 @@ function parseNumericDate(text) {
     const year = new Date().getFullYear();
     const d = new Date(year, Number(dm[2]) - 1, Number(dm[1]), 12);
     if (!Number.isNaN(d.getTime())) {
-      // إذا التاريخ مضى هذا العام، نفترض السنة القادمة
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (d < today) d.setFullYear(year + 1);
@@ -69,17 +142,11 @@ function parseNumericDate(text) {
   return null;
 }
 
-/**
- * يحلل نصاً حراً بالعربي ويستخرج عنوان المهمة وتاريخ الاستحقاق.
- * يدعم: اليوم، بكرة، غداً، بعد أسبوع، أيام الأسبوع، وتواريخ رقمية.
- */
 export function parseSmartInput(text) {
   let dueDate = '';
   let title = text;
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
+  const today = startOfToday();
 
-  // تواريخ رقمية أولاً
   const numeric = parseNumericDate(text);
   if (numeric) {
     dueDate = toLocalISO(numeric);
@@ -112,7 +179,6 @@ export function parseSmartInput(text) {
     dueDate = toLocalISO(t);
     title = text.replace(/بعد\s*ثلاثة\s*أيام|بعد\s*٣\s*أيام/g, '').trim();
   } else {
-    // يوم الأسبوع: الخميس القادم / يوم الخميس / الخميس
     for (const [name, dayNum] of Object.entries(WEEKDAY_MAP)) {
       const re = new RegExp(`(يوم\s*)?${name}(\s*القادم)?`);
       if (re.test(text)) {
