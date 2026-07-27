@@ -18,9 +18,14 @@ export function startOfToday() {
   return d;
 }
 
+export function isRecurringTask(task) {
+  return task?.recurrence === 'daily' || task?.recurrence === 'weekly';
+}
+
 /**
- * due_date = تاريخ البداية
- * المدة بالأيام → تاريخ الانتهاء = البداية + (المدة - 1)
+ * due_date = تاريخ البداية (أو مرساة التكرار)
+ * للمهام غير المتكررة: الانتهاء = البداية + (المدة - 1)
+ * للمتكررة: كل حدوثة يوم واحد — المدة لا تمد الشريط على أيام متتالية
  */
 export function getTaskStartDate(task) {
   return parseLocalDate(task?.dueDate);
@@ -29,6 +34,9 @@ export function getTaskStartDate(task) {
 export function getTaskEndDate(task) {
   const start = getTaskStartDate(task);
   if (!start) return null;
+  if (isRecurringTask(task)) {
+    return new Date(start);
+  }
   const duration = Math.max(1, Number(task.duration) || 1);
   const end = new Date(start);
   end.setDate(end.getDate() + (duration - 1));
@@ -40,16 +48,73 @@ export function getTaskEndISO(task) {
   return end ? toLocalISO(end) : '';
 }
 
-/** متأخرة فقط إذا انتهى تاريخ الانتهاء قبل اليوم ولم تُنجز */
-export function isTaskOverdue(task) {
-  if (!task || task.completed) return false;
-  const end = getTaskEndDate(task);
-  if (!end) return false;
-  const today = startOfToday();
-  return end < today;
+const DAY_LABELS = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+
+/**
+ * تواريخ الحدوث داخل نافذة [fromDate, toDate] شاملة.
+ * - daily: كل يوم (مع تخطي الجمعة افتراضياً)
+ * - weekly: أيام recurrenceDays فقط
+ * - غير متكرر: من البداية بطول المدة كأيام متصلة
+ */
+export function getOccurrenceDates(task, fromDate, toDate, { skipFriday = true } = {}) {
+  const out = [];
+  if (!task) return out;
+
+  const from = new Date(fromDate);
+  from.setHours(12, 0, 0, 0);
+  const to = new Date(toDate);
+  to.setHours(12, 0, 0, 0);
+
+  if (task.recurrence === 'daily') {
+    const cursor = new Date(from);
+    while (cursor <= to) {
+      if (!(skipFriday && cursor.getDay() === 5)) {
+        out.push(toLocalISO(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }
+
+  if (task.recurrence === 'weekly') {
+    const days = Array.isArray(task.recurrenceDays) ? task.recurrenceDays.map(Number) : [];
+    if (days.length === 0) return out;
+    const cursor = new Date(from);
+    while (cursor <= to) {
+      if (days.includes(cursor.getDay())) {
+        out.push(toLocalISO(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }
+
+  // مشروع متصل: بداية + مدة
+  const start = getTaskStartDate(task);
+  if (!start) return out;
+  const duration = Math.max(1, Number(task.duration) || 1);
+  for (let i = 0; i < duration; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    if (d >= from && d <= to) out.push(toLocalISO(d));
+  }
+  return out;
 }
 
-/** عرض التاريخ كرقم فقط — بدون أمس/بكرة/اليوم */
+export function isTaskOverdue(task) {
+  if (!task || task.completed) return false;
+  // متكررة: متأخرة فقط إذا مرّ يوم حدوث قبل اليوم دون إنجاز (تبسيط: مرساة dueDate في الماضي)
+  if (isRecurringTask(task)) {
+    const start = getTaskStartDate(task);
+    if (!start) return false;
+    // لا نعتبرها متأخرة لمجرد المرساة — التكرار مستمر
+    return false;
+  }
+  const end = getTaskEndDate(task);
+  if (!end) return false;
+  return end < startOfToday();
+}
+
 export function formatDate(dateStr) {
   if (!dateStr || dateStr === 'غير محدد') return 'بدون تاريخ';
   try {
@@ -65,29 +130,48 @@ export function formatDate(dateStr) {
   }
 }
 
-/** عرض بداية–نهاية للمهام متعددة الأيام */
 export function formatTaskSchedule(task) {
-  if (!task?.dueDate) return 'بدون تاريخ';
-  const start = task.dueDate;
+  if (!task) return 'بدون تاريخ';
+
+  if (task.recurrence === 'daily') {
+    return 'يومياً (عدا الجمعة)';
+  }
+  if (task.recurrence === 'weekly') {
+    const days = Array.isArray(task.recurrenceDays) ? task.recurrenceDays : [];
+    if (days.length === 0) return 'أسبوعياً';
+    const labels = [...days].sort((a, b) => a - b).map((d) => DAY_LABELS[d] || d);
+    return `كل: ${labels.join('، ')}`;
+  }
+
+  if (!task.dueDate) return 'بدون تاريخ';
   const duration = Math.max(1, Number(task.duration) || 1);
-  if (duration <= 1) return formatDate(start);
-  const endIso = getTaskEndISO(task);
-  return `${formatDate(start)} → ${formatDate(endIso)}`;
+  if (duration <= 1) return formatDate(task.dueDate);
+  return `${formatDate(task.dueDate)} → ${formatDate(getTaskEndISO(task))}`;
 }
 
-/** مفتاح فرز زمني للمهام داخل البطاقة */
 export function taskScheduleSortKey(task) {
-  // المنجزة في الأسفل
   if (task.completed) {
     const end = getTaskEndDate(task);
     return { bucket: 100, time: end ? end.getTime() : 0 };
   }
   const start = getTaskStartDate(task);
   const end = getTaskEndDate(task);
-  if (!start) return { bucket: 50, time: Infinity }; // بدون تاريخ — بعد المؤرّخة المعلقة
+  if (!start && !isRecurringTask(task)) return { bucket: 50, time: Infinity };
   const today = startOfToday();
-  if (end && end < today) return { bucket: 0, time: start.getTime() }; // متأخرة أولاً
-  return { bucket: 10, time: start.getTime() }; // اليوم ثم بكرة ثم لاحقاً
+  if (!isRecurringTask(task) && end && end < today) {
+    return { bucket: 0, time: start.getTime() };
+  }
+  // متكررة: أول حدوث قادم أو اليوم
+  if (isRecurringTask(task)) {
+    const windowEnd = new Date(today);
+    windowEnd.setDate(today.getDate() + 14);
+    const occ = getOccurrenceDates(task, today, windowEnd);
+    if (occ.length) {
+      return { bucket: 10, time: parseLocalDate(occ[0]).getTime() };
+    }
+    return { bucket: 40, time: 0 };
+  }
+  return { bucket: 10, time: start.getTime() };
 }
 
 export function compareTasksBySchedule(a, b) {
