@@ -1,4 +1,6 @@
 /** تنسيق تاريخ محلي بدون مشاكل UTC */
+import { DEFAULT_WORK_DAYS, formatWorkDays, normalizeWorkDays } from './taskMeta';
+
 export function toLocalISO(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -48,15 +50,23 @@ export function getTaskEndISO(task) {
 }
 
 const DAY_LABELS = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+
+function resolveDailyWorkDays(options = {}) {
+  if (Array.isArray(options.workDays)) return normalizeWorkDays(options.workDays);
+  // توافق خلفي: لو استُخدم skipFriday=false يعني كل الأيام.
+  if (options.skipFriday === false) return EVERY_DAY;
+  return DEFAULT_WORK_DAYS;
+}
 
 /**
  * تواريخ الحدوث داخل تقاطع:
  *   [نافذة العرض] ∩ [عمر المهمة من البداية]
  * - weekly: أيام recurrenceDays فقط
- * - daily: كل يوم عدا الجمعة (اختياري)
+ * - daily: أيام العمل المحددة في الإعدادات (افتراضياً الأحد–الخميس)
  * - مرة واحدة: أيام متصلة بطول المدة
  */
-export function getOccurrenceDates(task, fromDate, toDate, { skipFriday = true } = {}) {
+export function getOccurrenceDates(task, fromDate, toDate, options = {}) {
   const out = [];
   if (!task) return out;
 
@@ -92,9 +102,10 @@ export function getOccurrenceDates(task, fromDate, toDate, { skipFriday = true }
   }
 
   if (task.recurrence === 'daily') {
+    const workDays = resolveDailyWorkDays(options);
     const cursor = new Date(rangeFrom);
     while (cursor <= rangeTo) {
-      if (!(skipFriday && cursor.getDay() === 5)) {
+      if (workDays.includes(cursor.getDay())) {
         out.push(toLocalISO(cursor));
       }
       cursor.setDate(cursor.getDate() + 1);
@@ -134,7 +145,7 @@ export function formatDate(dateStr) {
   }
 }
 
-export function formatTaskSchedule(task) {
+export function formatTaskSchedule(task, options = {}) {
   if (!task) return 'بدون تاريخ';
 
   const life = Math.max(1, Number(task.duration) || 1);
@@ -146,7 +157,8 @@ export function formatTaskSchedule(task) {
         : '';
 
   if (task.recurrence === 'daily') {
-    return `يومياً عدا الجمعة${range}`;
+    const days = formatWorkDays(resolveDailyWorkDays(options));
+    return `يومياً في أيام العمل (${days})${range}`;
   }
   if (task.recurrence === 'weekly') {
     const days = Array.isArray(task.recurrenceDays) ? task.recurrenceDays : [];
@@ -160,7 +172,7 @@ export function formatTaskSchedule(task) {
   return `${formatDate(task.dueDate)} → ${formatDate(getTaskEndISO(task))}`;
 }
 
-export function taskScheduleSortKey(task) {
+export function taskScheduleSortKey(task, options = {}) {
   if (task.completed) {
     const end = getTaskEndDate(task);
     return { bucket: 100, time: end ? end.getTime() : 0 };
@@ -174,16 +186,16 @@ export function taskScheduleSortKey(task) {
   if (isRecurringTask(task)) {
     const windowEnd = new Date(today);
     windowEnd.setDate(today.getDate() + 14);
-    const occ = getOccurrenceDates(task, today, windowEnd);
+    const occ = getOccurrenceDates(task, today, windowEnd, options);
     if (occ.length) return { bucket: 10, time: parseLocalDate(occ[0]).getTime() };
     return { bucket: 40, time: end ? end.getTime() : 0 };
   }
   return { bucket: 10, time: start.getTime() };
 }
 
-export function compareTasksBySchedule(a, b) {
-  const ka = taskScheduleSortKey(a);
-  const kb = taskScheduleSortKey(b);
+export function compareTasksBySchedule(a, b, options = {}) {
+  const ka = taskScheduleSortKey(a, options);
+  const kb = taskScheduleSortKey(b, options);
   if (ka.bucket !== kb.bucket) return ka.bucket - kb.bucket;
   if (ka.time !== kb.time) return ka.time - kb.time;
   return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);

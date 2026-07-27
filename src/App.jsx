@@ -7,15 +7,62 @@ import GanttView from './components/GanttView';
 import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
 import TrelloView from './components/TrelloView';
+import SettingsView from './components/SettingsView';
 import TaskModal from './components/TaskModal';
 import ViewSwitcher from './components/ViewSwitcher';
 import { useTasks } from './hooks/useTasks';
+import { sendNotificationPreview, useLocalNotifications } from './hooks/useLocalNotifications';
 import { useTrello } from './hooks/useTrello';
 import { useToast } from './hooks/useToast';
 import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/importExport';
+import { DEFAULT_WORK_DAYS, normalizeWorkDays } from './utils/taskMeta';
 
 const THEME_KEY = 'mahd_theme_react_v1';
 const SIDEBAR_KEY = 'mahd_sidebar_compact';
+const WORK_DAYS_KEY = 'mahd_work_days_v1';
+const NOTIFICATION_SETTINGS_KEY = 'mahd_notification_settings_v1';
+
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  enabled: false,
+  morningSummary: true,
+  morningTime: '10:00',
+  eveningReview: true,
+  eveningTime: '20:00',
+  activeDays: DEFAULT_WORK_DAYS,
+};
+
+function readSavedWorkDays() {
+  try {
+    const raw = localStorage.getItem(WORK_DAYS_KEY);
+    if (!raw) return DEFAULT_WORK_DAYS;
+    return normalizeWorkDays(JSON.parse(raw));
+  } catch {
+    return DEFAULT_WORK_DAYS;
+  }
+}
+
+function normalizeNotificationSettings(value) {
+  return {
+    ...DEFAULT_NOTIFICATION_SETTINGS,
+    ...(value || {}),
+    activeDays: normalizeWorkDays(value?.activeDays || DEFAULT_NOTIFICATION_SETTINGS.activeDays),
+  };
+}
+
+function readSavedNotificationSettings() {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+    if (!raw) return DEFAULT_NOTIFICATION_SETTINGS;
+    return normalizeNotificationSettings(JSON.parse(raw));
+  } catch {
+    return DEFAULT_NOTIFICATION_SETTINGS;
+  }
+}
+
+function getNotificationPermission() {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
 
 /** إيقاف مؤقت لمزامنة تريلو التلقائية — الكود والواجهة يبقيان */
 const TRELLO_SYNC_ENABLED = false;
@@ -30,6 +77,7 @@ export default function App() {
     updateTask,
     deleteTask,
     toggleComplete,
+    toggleSubtask,
     moveTask,
     rescheduleTask,
     reorderInQuadrant,
@@ -46,6 +94,9 @@ export default function App() {
     () => localStorage.getItem(SIDEBAR_KEY) === '1'
   );
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
+  const [workDays, setWorkDays] = useState(readSavedWorkDays);
+  const [notificationSettings, setNotificationSettings] = useState(readSavedNotificationSettings);
+  const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
 
@@ -58,6 +109,19 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, sidebarCompact ? '1' : '0');
   }, [sidebarCompact]);
+
+  useEffect(() => {
+    localStorage.setItem(WORK_DAYS_KEY, JSON.stringify(normalizeWorkDays(workDays)));
+  }, [workDays]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      NOTIFICATION_SETTINGS_KEY,
+      JSON.stringify(normalizeNotificationSettings(notificationSettings))
+    );
+  }, [notificationSettings]);
+
+  useLocalNotifications(tasks, workDays, notificationSettings);
 
   // مزامنة تريلو متوقفة مؤقتاً
   useEffect(() => {
@@ -90,6 +154,8 @@ export default function App() {
     const extra = {
       recurrence: form.recurrence || null,
       recurrenceDays: form.recurrenceDays || [],
+      context: form.context || 'work',
+      subtasks: form.subtasks || [],
     };
     if (id) {
       updateTask(id, form.title, form.quadrant, form.dueDate, form.notes, form.duration, extra);
@@ -97,6 +163,29 @@ export default function App() {
       addTask(form.title, form.quadrant, form.dueDate, form.notes, form.duration, extra);
     }
     closeModal();
+  };
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationPermission('unsupported');
+      showToast('المتصفح لا يدعم إشعارات سطح المكتب', 'ph-warning', 'error');
+      return 'unsupported';
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    if (permission === 'granted') {
+      showToast('تم تفعيل إذن التنبيهات', 'ph-bell-ringing');
+      setNotificationSettings((prev) => ({ ...prev, enabled: true }));
+    } else {
+      showToast('لم يتم منح إذن التنبيهات', 'ph-warning', 'error');
+    }
+    return permission;
+  };
+
+  const sendTestNotification = () => {
+    const ok = sendNotificationPreview();
+    if (!ok) showToast('فعّل إذن التنبيهات أولاً', 'ph-warning', 'error');
   };
 
   const handleExport = (format) => {
@@ -192,19 +281,23 @@ export default function App() {
               <QuadrantBoard
                 tasks={tasks}
                 onToggleComplete={toggleComplete}
+                onToggleSubtask={toggleSubtask}
                 onEdit={openEditModal}
                 onDelete={deleteTask}
                 onMoveTask={moveTask}
                 onReorderInQuadrant={reorderInQuadrant}
+                workDays={workDays}
               />
             )}
             {subview === 'Timeline' && (
               <TimelineView
                 tasks={tasks}
                 onToggleComplete={toggleComplete}
+                onToggleSubtask={toggleSubtask}
                 onEdit={openEditModal}
                 onDelete={deleteTask}
                 onReschedule={rescheduleTask}
+                workDays={workDays}
               />
             )}
             {subview === 'Gantt' && (
@@ -213,6 +306,7 @@ export default function App() {
                 onToggleComplete={toggleComplete}
                 onEdit={openEditModal}
                 onReschedule={rescheduleTask}
+                workDays={workDays}
               />
             )}
           </div>
@@ -222,8 +316,10 @@ export default function App() {
           <PendingView
             tasks={tasks}
             onToggleComplete={toggleComplete}
+            onToggleSubtask={toggleSubtask}
             onEdit={openEditModal}
             onDelete={deleteTask}
+            workDays={workDays}
           />
         )}
 
@@ -240,18 +336,40 @@ export default function App() {
                   },
             }}
             onToggleComplete={toggleComplete}
+            onToggleSubtask={toggleSubtask}
             onEdit={openEditModal}
             onDelete={deleteTask}
             onMoveTask={moveTask}
+            workDays={workDays}
           />
         )}
 
         {view === 'Kpi' && <KpiView tasks={tasks} />}
+
+        {view === 'Settings' && (
+          <SettingsView
+            workDays={workDays}
+            onChangeWorkDays={(days) => setWorkDays(normalizeWorkDays(days))}
+            notificationSettings={notificationSettings}
+            onChangeNotificationSettings={(next) =>
+              setNotificationSettings((prev) => normalizeNotificationSettings({ ...prev, ...next }))
+            }
+            notificationPermission={notificationPermission}
+            onRequestNotificationPermission={requestNotificationPermission}
+            onSendTestNotification={sendTestNotification}
+          />
+        )}
       </main>
 
       <FloatingSmartBar onAddTask={addTask} onOpenAdvanced={openAddModal} />
 
-      <TaskModal isOpen={modalOpen} task={editingTask} onClose={closeModal} onSave={handleSaveTask} />
+      <TaskModal
+        isOpen={modalOpen}
+        task={editingTask}
+        onClose={closeModal}
+        onSave={handleSaveTask}
+        workDays={workDays}
+      />
     </div>
   );
 }

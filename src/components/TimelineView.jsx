@@ -2,7 +2,15 @@ import { useState } from 'react';
 import { formatDate } from '../utils/dateUtils';
 import TaskCard from './TaskCard';
 
-export default function TimelineView({ tasks, onToggleComplete, onEdit, onDelete, onReschedule }) {
+export default function TimelineView({
+  tasks,
+  onToggleComplete,
+  onToggleSubtask,
+  onEdit,
+  onDelete,
+  onReschedule,
+  workDays,
+}) {
   const [overKey, setOverKey] = useState(null);
 
   const groups = {};
@@ -58,8 +66,10 @@ export default function TimelineView({ tasks, onToggleComplete, onEdit, onDelete
                   key={task.id}
                   task={task}
                   onToggleComplete={onToggleComplete}
+                  onToggleSubtask={onToggleSubtask}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  workDays={workDays}
                 />
               ))}
             </div>

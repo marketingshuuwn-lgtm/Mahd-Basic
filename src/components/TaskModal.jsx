@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
-
-const WEEK_DAYS = [
-  { id: 0, label: 'أحد' },
-  { id: 1, label: 'إثنين' },
-  { id: 2, label: 'ثلاثاء' },
-  { id: 3, label: 'أربعاء' },
-  { id: 4, label: 'خميس' },
-  { id: 5, label: 'جمعة' },
-  { id: 6, label: 'سبت' },
-];
+import { createSubtask, normalizeSubtasks } from '../utils/subtasks';
+import { TASK_CONTEXTS, WEEK_DAYS, formatWorkDays, normalizeTaskContext } from '../utils/taskMeta';
 
 const EMPTY_FORM = {
   title: '',
   quadrant: 'important-urgent',
+  context: 'work',
+  subtasks: [],
   dueDate: '',
   notes: '',
   duration: 1,
@@ -20,14 +14,17 @@ const EMPTY_FORM = {
   recurrenceDays: [],
 };
 
-export default function TaskModal({ isOpen, task, onClose, onSave }) {
+export default function TaskModal({ isOpen, task, onClose, onSave, workDays }) {
   const [form, setForm] = useState(EMPTY_FORM);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
   useEffect(() => {
     if (task) {
       setForm({
         title: task.title,
         quadrant: task.quadrant,
+        context: normalizeTaskContext(task.context),
+        subtasks: normalizeSubtasks(task.subtasks),
         dueDate: task.dueDate || '',
         notes: task.notes || '',
         duration: task.duration || 1,
@@ -37,6 +34,7 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
     } else {
       setForm(EMPTY_FORM);
     }
+    setNewSubtaskTitle('');
   }, [task, isOpen]);
 
   if (!isOpen) return null;
@@ -51,6 +49,35 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
     });
   };
 
+  const addSubtask = () => {
+    const title = newSubtaskTitle.trim();
+    if (!title) return;
+    setForm((f) => {
+      const current = normalizeSubtasks(f.subtasks);
+      return {
+        ...f,
+        subtasks: [...current, { ...createSubtask(title), sortOrder: current.length }],
+      };
+    });
+    setNewSubtaskTitle('');
+  };
+
+  const updateSubtask = (subtaskId, patch) => {
+    setForm((f) => ({
+      ...f,
+      subtasks: normalizeSubtasks(f.subtasks).map((item) =>
+        String(item.id) === String(subtaskId) ? { ...item, ...patch } : item
+      ),
+    }));
+  };
+
+  const removeSubtask = (subtaskId) => {
+    setForm((f) => ({
+      ...f,
+      subtasks: normalizeSubtasks(f.subtasks).filter((item) => String(item.id) !== String(subtaskId)),
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const title = form.title.trim();
@@ -61,6 +88,8 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
         ...form,
         title,
         duration,
+        context: normalizeTaskContext(form.context),
+        subtasks: normalizeSubtasks(form.subtasks),
         recurrence: form.recurrence || null,
         recurrenceDays: form.recurrence === 'weekly' ? form.recurrenceDays : [],
       },
@@ -96,18 +125,34 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
             />
           </div>
 
-          <div className="form-field">
-            <label>التصنيف</label>
-            <select
-              className="form-input"
-              value={form.quadrant}
-              onChange={(e) => setForm({ ...form, quadrant: e.target.value })}
-            >
-              <option value="important-urgent">مهم ومستعجل</option>
-              <option value="important-not-urgent">مهم غير مستعجل</option>
-              <option value="not-important-urgent">غير مهم ومستعجل</option>
-              <option value="not-important-not-urgent">غير مهم غير مستعجل</option>
-            </select>
+          <div className="form-row">
+            <div className="form-field" style={{ flex: 1 }}>
+              <label>الأولوية</label>
+              <select
+                className="form-input"
+                value={form.quadrant}
+                onChange={(e) => setForm({ ...form, quadrant: e.target.value })}
+              >
+                <option value="important-urgent">مهم ومستعجل</option>
+                <option value="important-not-urgent">مهم غير مستعجل</option>
+                <option value="not-important-urgent">غير مهم ومستعجل</option>
+                <option value="not-important-not-urgent">غير مهم غير مستعجل</option>
+              </select>
+            </div>
+            <div className="form-field" style={{ flex: 1 }}>
+              <label>المساحة</label>
+              <select
+                className="form-input"
+                value={form.context}
+                onChange={(e) => setForm({ ...form, context: e.target.value })}
+              >
+                {TASK_CONTEXTS.map((ctx) => (
+                  <option key={ctx.id} value={ctx.id}>
+                    {ctx.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="form-field">
@@ -143,7 +188,9 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
               </div>
             )}
             {form.recurrence === 'daily' && (
-              <p className="form-hint">كل يوم ضمن مدة العمر، مع تخطي الجمعة</p>
+              <p className="form-hint">
+                تظهر يومياً في أيام العمل المحددة من الإعدادات: {formatWorkDays(workDays)}
+              </p>
             )}
             {form.recurrence === 'weekly' && (
               <p className="form-hint">
@@ -174,7 +221,7 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
               <p className="form-hint">
                 {isRecurring
                   ? 'مثال: 40 = تنزل في الأيام المحددة لمدة 40 يوماً من البداية ثم تتوقف'
-                  : 'أيام عمل متصلة لمشروع واحد'}
+                  : 'أيام متصلة لمشروع واحد'}
               </p>
             </div>
           </div>
@@ -187,6 +234,61 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
+          </div>
+
+          <div className="form-field">
+            <label>مهام فرعية / Checklist</label>
+            <div className="subtask-editor-list">
+              {normalizeSubtasks(form.subtasks).length === 0 ? (
+                <div className="subtask-empty-hint">أضف خطوات صغيرة لتوضيح الإنجاز.</div>
+              ) : (
+                normalizeSubtasks(form.subtasks).map((item) => (
+                  <div key={item.id} className="subtask-editor-row">
+                    <button
+                      type="button"
+                      className={`mini-check ${item.completed ? 'checked' : ''}`}
+                      onClick={() => updateSubtask(item.id, { completed: !item.completed })}
+                      title={item.completed ? 'إلغاء الإنجاز' : 'تحديد كمنجز'}
+                    >
+                      {item.completed && <i className="ph ph-check"></i>}
+                    </button>
+                    <input
+                      type="text"
+                      className="form-input subtask-input"
+                      value={item.title}
+                      onChange={(e) => updateSubtask(item.id, { title: e.target.value })}
+                      placeholder="عنوان المهمة الفرعية"
+                    />
+                    <button
+                      type="button"
+                      className="btn-icon danger"
+                      onClick={() => removeSubtask(item.id)}
+                      title="حذف"
+                    >
+                      <i className="ph ph-trash"></i>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="subtask-add-row">
+              <input
+                type="text"
+                className="form-input"
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSubtask();
+                  }
+                }}
+                placeholder="مثال: تجهيز العرض"
+              />
+              <button type="button" className="btn-secondary" onClick={addSubtask}>
+                إضافة
+              </button>
+            </div>
           </div>
 
           <div className="modal-footer">

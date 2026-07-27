@@ -12,9 +12,11 @@ export default function TrelloView({
   tasks,
   trello,
   onToggleComplete,
+  onToggleSubtask,
   onEdit,
   onDelete,
   onMoveTask,
+  workDays,
 }) {
   const [apiKey, setApiKey] = useState('');
   const [token, setToken] = useState('');
@@ -140,9 +142,11 @@ export default function TrelloView({
                 <TaskCard
                   task={task}
                   onToggleComplete={onToggleComplete}
+                  onToggleSubtask={onToggleSubtask}
                   onEdit={onEdit}
                   onDelete={onDelete}
                   draggable={false}
+                  workDays={workDays}
                 />
                 <div className="trello-item-meta">
                   {task.externalUrl && (

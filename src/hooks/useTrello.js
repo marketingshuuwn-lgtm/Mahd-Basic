@@ -138,6 +138,7 @@ export function useTrello(showToast, onSynced) {
             notes: fields.notes,
             due_date: fields.dueDate || null,
             quadrant: DEFAULT_QUADRANT,
+            context: 'work',
             completed: false,
             duration: 1,
             sort_order: 0,

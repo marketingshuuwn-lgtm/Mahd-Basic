@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { normalizeSubtasks } from '../utils/subtasks';
+import { normalizeTaskContext } from '../utils/taskMeta';
 
 const TABLE = 'tasks';
 
@@ -8,6 +10,8 @@ function fromRow(row) {
     id: row.id,
     title: row.title,
     quadrant: row.quadrant,
+    context: normalizeTaskContext(row.context),
+    subtasks: normalizeSubtasks(row.subtasks),
     completed: row.completed,
     notes: row.notes ?? '',
     dueDate: row.due_date ?? '',
@@ -84,10 +88,14 @@ export function useTasks(showToast) {
       const tempId = `temp-${Date.now()}`;
       const recurrence = extra.recurrence || null;
       const recurrenceDays = extra.recurrenceDays || [];
+      const context = normalizeTaskContext(extra.context);
+      const subtasks = normalizeSubtasks(extra.subtasks);
       const optimisticTask = {
         id: tempId,
         title,
         quadrant,
+        context,
+        subtasks,
         completed: false,
         notes: notes || '',
         dueDate: dueDate || '',
@@ -107,6 +115,8 @@ export function useTasks(showToast) {
       const payload = {
         title,
         quadrant,
+        context,
+        subtasks,
         due_date: dueDate || null,
         notes: notes || '',
         duration: duration || 1,
@@ -138,6 +148,11 @@ export function useTasks(showToast) {
       const recurrence = extra.recurrence !== undefined ? extra.recurrence : previous.recurrence;
       const recurrenceDays =
         extra.recurrenceDays !== undefined ? extra.recurrenceDays : previous.recurrenceDays;
+      const context = normalizeTaskContext(
+        extra.context !== undefined ? extra.context : previous.context
+      );
+      const subtasks =
+        extra.subtasks !== undefined ? normalizeSubtasks(extra.subtasks) : normalizeSubtasks(previous.subtasks);
 
       setTasks((prev) =>
         prev.map((t) =>
@@ -146,6 +161,8 @@ export function useTasks(showToast) {
                 ...t,
                 title,
                 quadrant,
+                context,
+                subtasks,
                 dueDate: dueDate || '',
                 notes: notes || '',
                 duration: duration || 1,
@@ -161,6 +178,8 @@ export function useTasks(showToast) {
         .update({
           title,
           quadrant,
+          context,
+          subtasks,
           due_date: dueDate || null,
           notes: notes || '',
           duration: duration || 1,
@@ -231,6 +250,33 @@ export function useTasks(showToast) {
       }
 
       if (completed) showToast?.(`✓ "${task.title}" مكتملة`, 'ph-check-circle');
+    },
+    [tasks, showToast]
+  );
+
+  const toggleSubtask = useCallback(
+    async (taskId, subtaskId) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      const previousSubtasks = normalizeSubtasks(task.subtasks);
+      const subtasks = previousSubtasks.map((item) =>
+        String(item.id) === String(subtaskId) ? { ...item, completed: !item.completed } : item
+      );
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, subtasks } : t))
+      );
+
+      const { error } = await supabase.from(TABLE).update({ subtasks }).eq('id', taskId);
+
+      if (error) {
+        console.error(error);
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, subtasks: previousSubtasks } : t))
+        );
+        showToast?.('تعذّر تحديث المهمة الفرعية', 'ph-x-circle', 'error');
+      }
     },
     [tasks, showToast]
   );
@@ -322,11 +368,15 @@ export function useTasks(showToast) {
       const rows = importedTasks.map((t, i) => ({
         title: t.title,
         quadrant: t.quadrant,
+        context: normalizeTaskContext(t.context),
+        subtasks: normalizeSubtasks(t.subtasks),
         completed: t.completed,
         notes: t.notes || '',
         due_date: t.dueDate || null,
         duration: t.duration || 1,
         sort_order: i,
+        recurrence: t.recurrence || null,
+        recurrence_days: t.recurrence === 'weekly' ? t.recurrenceDays || [] : null,
         completed_at: t.completed ? new Date().toISOString() : null,
       }));
 
@@ -351,6 +401,7 @@ export function useTasks(showToast) {
     updateTask,
     deleteTask,
     toggleComplete,
+    toggleSubtask,
     moveTask,
     rescheduleTask,
     reorderInQuadrant,
