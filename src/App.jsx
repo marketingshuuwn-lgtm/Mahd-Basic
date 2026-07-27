@@ -6,9 +6,11 @@ import TimelineView from './components/TimelineView';
 import GanttView from './components/GanttView';
 import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
+import TrelloView from './components/TrelloView';
 import TaskModal from './components/TaskModal';
 import ViewSwitcher from './components/ViewSwitcher';
 import { useTasks } from './hooks/useTasks';
+import { useTrello } from './hooks/useTrello';
 import { useToast } from './hooks/useToast';
 import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/importExport';
 
@@ -32,6 +34,8 @@ export default function App() {
     refetch,
   } = useTasks(showToast);
 
+  const trello = useTrello(showToast, () => refetch());
+
   const [view, setView] = useState('Matrix');
   const [subview, setSubview] = useState('Board');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,12 +56,22 @@ export default function App() {
     localStorage.setItem(SIDEBAR_KEY, sidebarCompact ? '1' : '0');
   }, [sidebarCompact]);
 
+  // مزامنة تريلو عند فتح التطبيق إن كان مربوطاً
+  useEffect(() => {
+    if (trello.isConnected && !trello.loading) {
+      trello.syncNow();
+    }
+    // مرة عند اكتمال تحميل الإعداد فقط
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trello.isConnected, trello.loading]);
+
   const editingTask = useMemo(
     () => tasks.find((t) => t.id === editingTaskId) || null,
     [tasks, editingTaskId]
   );
 
   const pendingCount = tasks.filter((t) => !t.completed).length;
+  const trelloCount = tasks.filter((t) => t.externalSource === 'trello' && !t.completed).length;
 
   const openAddModal = () => {
     setEditingTaskId(null);
@@ -155,6 +169,7 @@ export default function App() {
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
         pendingCount={pendingCount}
+        trelloCount={trelloCount}
         totalCount={tasks.length}
         connected={connected}
         onExport={handleExport}
@@ -205,6 +220,17 @@ export default function App() {
             onToggleComplete={toggleComplete}
             onEdit={openEditModal}
             onDelete={deleteTask}
+          />
+        )}
+
+        {view === 'Trello' && (
+          <TrelloView
+            tasks={tasks}
+            trello={trello}
+            onToggleComplete={toggleComplete}
+            onEdit={openEditModal}
+            onDelete={deleteTask}
+            onMoveTask={moveTask}
           />
         )}
 
