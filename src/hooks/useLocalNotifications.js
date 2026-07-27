@@ -24,11 +24,10 @@ function markSent(type, dayIso, time) {
   localStorage.setItem(storageKey(type, dayIso, time), '1');
 }
 
-function notify(title, body) {
+export function notify(title, body) {
   if (!canNotify()) return;
   new Notification(title, {
     body,
-    tag: `mahd-${title}`,
     icon:
       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234f6bed'/%3E%3Cpath d='M18 34l10 10 18-22' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
   });

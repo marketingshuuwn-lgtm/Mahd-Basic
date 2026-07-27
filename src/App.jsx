@@ -6,6 +6,8 @@ import TimelineView from './components/TimelineView';
 import GanttView from './components/GanttView';
 import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
+import MotivationView from './components/MotivationView';
+import FloatingTimer from './components/FloatingTimer';
 import TrelloView from './components/TrelloView';
 import SettingsView from './components/SettingsView';
 import TaskModal from './components/TaskModal';
@@ -332,6 +334,8 @@ export default function App() {
 
         {view === 'Kpi' && <KpiView tasks={tasks} />}
 
+        {view === 'Motivation' && <MotivationView tasks={tasks} />}
+
         {view === 'Settings' && (
           <SettingsView
             workDays={workDays}
@@ -356,6 +360,8 @@ export default function App() {
         onSave={handleSaveTask}
         workDays={workDays}
       />
+
+      <FloatingTimer />
     </div>
   );
 }
