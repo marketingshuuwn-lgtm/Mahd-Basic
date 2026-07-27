@@ -23,23 +23,22 @@ export function isRecurringTask(task) {
 }
 
 /**
- * due_date = تاريخ البداية (أو مرساة التكرار)
- * للمهام غير المتكررة: الانتهاء = البداية + (المدة - 1)
- * للمتكررة: كل حدوثة يوم واحد — المدة لا تمد الشريط على أيام متتالية
+ * due_date = البداية / مرساة التكرار
+ * duration للمهام العادية = أيام متصلة للمشروع
+ * duration للمتكرر = عمر السلسلة بالأيام من البداية (مثلاً 40 يوم)
+ *   داخل هذا العمر فقط تظهر أيام التكرار المحددة — لا تمدد لانهائي
  */
 export function getTaskStartDate(task) {
   return parseLocalDate(task?.dueDate);
 }
 
+/** نهاية عمر المهمة (مشروع متصل أو نهاية سلسلة التكرار) */
 export function getTaskEndDate(task) {
   const start = getTaskStartDate(task);
   if (!start) return null;
-  if (isRecurringTask(task)) {
-    return new Date(start);
-  }
-  const duration = Math.max(1, Number(task.duration) || 1);
+  const lifetime = Math.max(1, Number(task.duration) || 1);
   const end = new Date(start);
-  end.setDate(end.getDate() + (duration - 1));
+  end.setDate(end.getDate() + (lifetime - 1));
   return end;
 }
 
@@ -51,36 +50,39 @@ export function getTaskEndISO(task) {
 const DAY_LABELS = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
 
 /**
- * تواريخ الحدوث داخل نافذة [fromDate, toDate] شاملة.
- * - daily: كل يوم (مع تخطي الجمعة افتراضياً)
+ * تواريخ الحدوث داخل تقاطع:
+ *   [نافذة العرض] ∩ [عمر المهمة من البداية]
  * - weekly: أيام recurrenceDays فقط
- * - غير متكرر: من البداية بطول المدة كأيام متصلة
+ * - daily: كل يوم عدا الجمعة (اختياري)
+ * - مرة واحدة: أيام متصلة بطول المدة
  */
 export function getOccurrenceDates(task, fromDate, toDate, { skipFriday = true } = {}) {
   const out = [];
   if (!task) return out;
 
-  const from = new Date(fromDate);
-  from.setHours(12, 0, 0, 0);
-  const to = new Date(toDate);
-  to.setHours(12, 0, 0, 0);
+  const windowFrom = new Date(fromDate);
+  windowFrom.setHours(12, 0, 0, 0);
+  const windowTo = new Date(toDate);
+  windowTo.setHours(12, 0, 0, 0);
 
-  if (task.recurrence === 'daily') {
-    const cursor = new Date(from);
-    while (cursor <= to) {
-      if (!(skipFriday && cursor.getDay() === 5)) {
-        out.push(toLocalISO(cursor));
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return out;
-  }
+  const start = getTaskStartDate(task);
+  const end = getTaskEndDate(task);
+
+  // بدون تاريخ بداية: لا حدوثات مجدولة
+  if (!start) return out;
+
+  // نطاق فعال = تقاطع عمر المهمة مع نافذة العرض
+  const rangeFrom = start > windowFrom ? start : windowFrom;
+  const rangeTo = end && end < windowTo ? end : windowTo;
+  if (rangeFrom > rangeTo) return out;
 
   if (task.recurrence === 'weekly') {
-    const days = Array.isArray(task.recurrenceDays) ? task.recurrenceDays.map(Number) : [];
+    const days = Array.isArray(task.recurrenceDays)
+      ? task.recurrenceDays.map(Number).filter((n) => n >= 0 && n <= 6)
+      : [];
     if (days.length === 0) return out;
-    const cursor = new Date(from);
-    while (cursor <= to) {
+    const cursor = new Date(rangeFrom);
+    while (cursor <= rangeTo) {
       if (days.includes(cursor.getDay())) {
         out.push(toLocalISO(cursor));
       }
@@ -89,29 +91,31 @@ export function getOccurrenceDates(task, fromDate, toDate, { skipFriday = true }
     return out;
   }
 
-  // مشروع متصل: بداية + مدة
-  const start = getTaskStartDate(task);
-  if (!start) return out;
-  const duration = Math.max(1, Number(task.duration) || 1);
-  for (let i = 0; i < duration; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    if (d >= from && d <= to) out.push(toLocalISO(d));
+  if (task.recurrence === 'daily') {
+    const cursor = new Date(rangeFrom);
+    while (cursor <= rangeTo) {
+      if (!(skipFriday && cursor.getDay() === 5)) {
+        out.push(toLocalISO(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }
+
+  // مرة واحدة — أيام متصلة ضمن العمر
+  const cursor = new Date(rangeFrom);
+  while (cursor <= rangeTo) {
+    out.push(toLocalISO(cursor));
+    cursor.setDate(cursor.getDate() + 1);
   }
   return out;
 }
 
 export function isTaskOverdue(task) {
   if (!task || task.completed) return false;
-  // متكررة: متأخرة فقط إذا مرّ يوم حدوث قبل اليوم دون إنجاز (تبسيط: مرساة dueDate في الماضي)
-  if (isRecurringTask(task)) {
-    const start = getTaskStartDate(task);
-    if (!start) return false;
-    // لا نعتبرها متأخرة لمجرد المرساة — التكرار مستمر
-    return false;
-  }
   const end = getTaskEndDate(task);
   if (!end) return false;
+  // انتهت سلسلة التكرار / المشروع ولم تُنجز
   return end < startOfToday();
 }
 
@@ -133,19 +137,26 @@ export function formatDate(dateStr) {
 export function formatTaskSchedule(task) {
   if (!task) return 'بدون تاريخ';
 
+  const life = Math.max(1, Number(task.duration) || 1);
+  const range =
+    task.dueDate && life > 1
+      ? ` · ${formatDate(task.dueDate)} → ${formatDate(getTaskEndISO(task))}`
+      : task.dueDate
+        ? ` · ${formatDate(task.dueDate)}`
+        : '';
+
   if (task.recurrence === 'daily') {
-    return 'يومياً (عدا الجمعة)';
+    return `يومياً عدا الجمعة${range}`;
   }
   if (task.recurrence === 'weekly') {
     const days = Array.isArray(task.recurrenceDays) ? task.recurrenceDays : [];
-    if (days.length === 0) return 'أسبوعياً';
+    if (days.length === 0) return `أسبوعياً${range}`;
     const labels = [...days].sort((a, b) => a - b).map((d) => DAY_LABELS[d] || d);
-    return `كل: ${labels.join('، ')}`;
+    return `كل ${labels.join('، ')}${range}`;
   }
 
   if (!task.dueDate) return 'بدون تاريخ';
-  const duration = Math.max(1, Number(task.duration) || 1);
-  if (duration <= 1) return formatDate(task.dueDate);
+  if (life <= 1) return formatDate(task.dueDate);
   return `${formatDate(task.dueDate)} → ${formatDate(getTaskEndISO(task))}`;
 }
 
@@ -156,20 +167,16 @@ export function taskScheduleSortKey(task) {
   }
   const start = getTaskStartDate(task);
   const end = getTaskEndDate(task);
-  if (!start && !isRecurringTask(task)) return { bucket: 50, time: Infinity };
+  if (!start) return { bucket: 50, time: Infinity };
   const today = startOfToday();
-  if (!isRecurringTask(task) && end && end < today) {
-    return { bucket: 0, time: start.getTime() };
-  }
-  // متكررة: أول حدوث قادم أو اليوم
+  if (end && end < today) return { bucket: 0, time: start.getTime() };
+
   if (isRecurringTask(task)) {
     const windowEnd = new Date(today);
     windowEnd.setDate(today.getDate() + 14);
     const occ = getOccurrenceDates(task, today, windowEnd);
-    if (occ.length) {
-      return { bucket: 10, time: parseLocalDate(occ[0]).getTime() };
-    }
-    return { bucket: 40, time: 0 };
+    if (occ.length) return { bucket: 10, time: parseLocalDate(occ[0]).getTime() };
+    return { bucket: 40, time: end ? end.getTime() : 0 };
   }
   return { bucket: 10, time: start.getTime() };
 }
