@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { toLocalISO } from '../utils/dateUtils';
+import { getTaskStartDate, toLocalISO } from '../utils/dateUtils';
 
 const DAY_NAMES = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
 
@@ -9,13 +9,13 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
 
   const today = useMemo(() => {
     const d = new Date();
-    d.setHours(0, 0, 0, 0);
+    d.setHours(12, 0, 0, 0);
     return d;
   }, []);
 
   const days = useMemo(
     () =>
-      Array.from({ length: 7 }, (_, i) => {
+      Array.from({ length: 14 }, (_, i) => {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
         return { iso: toLocalISO(d), date: d };
@@ -23,47 +23,46 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
     [today]
   );
 
+  // مهام تتقاطع مع نافذة العرض (بداية أو جزء من المدة داخل 14 يوماً)
   const rows = tasks
     .filter((t) => t.dueDate)
     .map((t) => {
-      const d = new Date(t.dueDate + 'T12:00:00');
-      const diff = Math.round((d - today) / 86400000);
-      return { task: t, diff };
+      const start = getTaskStartDate(t);
+      if (!start) return null;
+      const duration = Math.max(1, Number(t.duration) || 1);
+      const end = new Date(start);
+      end.setDate(start.getDate() + duration - 1);
+      const windowEnd = new Date(today);
+      windowEnd.setDate(today.getDate() + 13);
+      if (end < today || start > windowEnd) return null;
+      const startOffset = Math.round((start - today) / 86400000);
+      const visibleStart = Math.max(0, startOffset);
+      const visibleEnd = Math.min(13, Math.round((end - today) / 86400000));
+      const visibleLen = Math.max(1, visibleEnd - visibleStart + 1);
+      return { task: t, visibleStart, visibleLen, startOffset };
     })
-    .filter((r) => r.diff >= 0 && r.diff < 7);
-
-  const onDragStart = (e, id) => {
-    e.dataTransfer.setData('text/plain', String(id));
-    e.dataTransfer.effectAllowed = 'move';
-    // بعض المتصفحات تحتاج setDragImage أو تأخير بسيط
-    requestAnimationFrame(() => setDragId(id));
-  };
-
-  const onDragEnd = () => {
-    setDragId(null);
-    setOverDay(null);
-  };
+    .filter(Boolean);
 
   const dropOn = (e, iso) => {
     e.preventDefault();
     e.stopPropagation();
     const raw = e.dataTransfer.getData('text/plain') || String(dragId || '');
-    if (!raw) return;
-    onReschedule(raw, iso);
     setDragId(null);
     setOverDay(null);
+    if (!raw) return;
+    onReschedule(raw, iso);
   };
 
   return (
     <div className="card gantt-card">
       <p className="gantt-hint">
         <i className="ph ph-hand-grabbing"></i>
-        اسحب الشريط الملون وأفلته فوق عمود اليوم — أو انقر اليوم ثم أكّد
+        الشريط = من تاريخ البداية بطول المدة — اسحبه إلى يوم لتغيير البداية
       </p>
 
       <div className="gantt-scroll">
-        <div className="gantt-table">
-          <div className="gantt-head">
+        <div className="gantt-table" style={{ minWidth: 1100 }}>
+          <div className="gantt-head" style={{ gridTemplateColumns: `200px repeat(${days.length}, 1fr)` }}>
             <div className="gantt-name-col">المهمة</div>
             {days.map(({ iso, date }) => (
               <div
@@ -74,7 +73,6 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
                   e.dataTransfer.dropEffect = 'move';
                   setOverDay(iso);
                 }}
-                onDragLeave={() => setOverDay((d) => (d === iso ? null : d))}
                 onDrop={(e) => dropOn(e, iso)}
               >
                 <span>{DAY_NAMES[date.getDay()]}</span>
@@ -86,57 +84,70 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
           </div>
 
           {rows.length === 0 && (
-            <div className="empty-state">لا مهام مجدولة خلال الأيام السبعة القادمة</div>
+            <div className="empty-state">لا مهام مجدولة في الأسابيع الظاهرة</div>
           )}
 
-          {rows.map(({ task, diff }) => {
-            const dur = Math.min(task.duration || 1, 7 - diff);
-            return (
-              <div key={task.id} className="gantt-line">
-                <div className="gantt-name-col">
-                  <button
-                    type="button"
-                    className={`task-checkbox ${task.completed ? 'checked' : ''}`}
-                    style={{ width: 18, height: 18 }}
-                    onClick={() => onToggleComplete(task.id)}
-                  >
-                    {task.completed && <i className="ph ph-check" style={{ fontSize: 10 }}></i>}
-                  </button>
-                  <button type="button" className="gantt-title-btn" onClick={() => onEdit(task.id)}>
-                    {task.title}
-                  </button>
-                </div>
-
-                <div className="gantt-days-track">
-                  {days.map(({ iso }, i) => (
-                    <div
-                      key={iso}
-                      className={`gantt-cell ${overDay === iso && dragId ? 'is-over' : ''}`}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                        setOverDay(iso);
-                      }}
-                      onDrop={(e) => dropOn(e, iso)}
-                    >
-                      {i === diff && (
-                        <div
-                          className={`gantt-pill ${task.quadrant} ${task.completed ? 'done' : ''}`}
-                          draggable
-                          onDragStart={(e) => onDragStart(e, task.id)}
-                          onDragEnd={onDragEnd}
-                          style={{ width: `calc(${dur * 100}% - 6px)` }}
-                          title="اسحب لتغيير اليوم"
-                        >
-                          {task.title}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+          {rows.map(({ task, visibleStart, visibleLen }) => (
+            <div
+              key={task.id}
+              className="gantt-line"
+              style={{ gridTemplateColumns: '200px 1fr' }}
+            >
+              <div className="gantt-name-col">
+                <button
+                  type="button"
+                  className={`task-checkbox ${task.completed ? 'checked' : ''}`}
+                  style={{ width: 18, height: 18 }}
+                  onClick={() => onToggleComplete(task.id)}
+                >
+                  {task.completed && <i className="ph ph-check" style={{ fontSize: 10 }}></i>}
+                </button>
+                <button type="button" className="gantt-title-btn" onClick={() => onEdit(task.id)}>
+                  {task.title}
+                </button>
               </div>
-            );
-          })}
+
+              <div
+                className="gantt-days-track"
+                style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}
+              >
+                {days.map(({ iso }, i) => (
+                  <div
+                    key={iso}
+                    className={`gantt-cell ${overDay === iso && dragId ? 'is-over' : ''}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setOverDay(iso);
+                    }}
+                    onDrop={(e) => dropOn(e, iso)}
+                  >
+                    {i === visibleStart && (
+                      <div
+                        className={`gantt-pill ${task.quadrant} ${task.completed ? 'done' : ''}`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('text/plain', String(task.id));
+                          e.dataTransfer.effectAllowed = 'move';
+                          setDragId(task.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setOverDay(null);
+                        }}
+                        style={{
+                          width: `calc(${visibleLen * 100}% - 6px)`,
+                        }}
+                        title="اسحب لتغيير تاريخ البداية"
+                      >
+                        {task.title}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
