@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 const NAV_ITEMS = [
   { id: 'Matrix', label: 'مصفوفة الأولويات', icon: 'ph-squares-four' },
   { id: 'Pending', label: 'المهام المعلقة', icon: 'ph-hourglass' },
+  { id: 'Trello', label: 'تريلو', icon: 'ph-kanban' },
   { id: 'Kpi', label: 'التقارير', icon: 'ph-chart-bar' },
 ];
 
@@ -14,6 +15,7 @@ export default function Sidebar({
   theme,
   onToggleTheme,
   pendingCount,
+  trelloCount,
   totalCount,
   connected,
   onExport,
@@ -42,24 +44,30 @@ export default function Sidebar({
       </div>
 
       <nav>
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`nav-item ${view === item.id ? 'active' : ''}`}
-            title={item.label}
-            onClick={() => {
-              onSwitchView(item.id);
-              onClose();
-            }}
-          >
-            <i className={`ph ${item.icon}`}></i>
-            {!compact && <span className="nav-label">{item.label}</span>}
-            {item.id === 'Pending' && pendingCount > 0 && (
-              <span className="nav-badge">{pendingCount}</span>
-            )}
-          </button>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const badge =
+            item.id === 'Pending' && pendingCount > 0
+              ? pendingCount
+              : item.id === 'Trello' && trelloCount > 0
+                ? trelloCount
+                : null;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`nav-item ${view === item.id ? 'active' : ''}`}
+              title={item.label}
+              onClick={() => {
+                onSwitchView(item.id);
+                onClose();
+              }}
+            >
+              <i className={`ph ${item.icon}`}></i>
+              {!compact && <span className="nav-label">{item.label}</span>}
+              {badge != null && <span className="nav-badge">{badge}</span>}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">
