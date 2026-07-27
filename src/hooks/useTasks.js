@@ -15,6 +15,11 @@ function fromRow(row) {
     sortOrder: row.sort_order ?? 0,
     recurrence: row.recurrence ?? null,
     recurrenceDays: row.recurrence_days ?? [],
+    externalSource: row.external_source ?? null,
+    externalId: row.external_id ?? null,
+    externalUrl: row.external_url ?? null,
+    externalMeta: row.external_meta ?? null,
+    lastSyncedAt: row.last_synced_at ?? null,
     createdAt: row.created_at,
     completedAt: row.completed_at,
   };
@@ -90,6 +95,9 @@ export function useTasks(showToast) {
         sortOrder: 0,
         recurrence,
         recurrenceDays,
+        externalSource: null,
+        externalId: null,
+        externalUrl: null,
         createdAt: new Date().toISOString(),
         completedAt: null,
       };
@@ -260,10 +268,7 @@ export function useTasks(showToast) {
   const rescheduleTask = useCallback(
     async (id, newDate) => {
       const task = tasks.find((t) => String(t.id) === String(id));
-      if (!task) {
-        console.warn('reschedule: task not found', id);
-        return;
-      }
+      if (!task) return;
 
       const previousDate = task.dueDate;
 
@@ -290,27 +295,20 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  /** إعادة ترتيب داخل نفس الربع */
-  const reorderInQuadrant = useCallback(
-    async (quadrant, orderedIds) => {
-      setTasks((prev) => {
-        const map = new Map(orderedIds.map((id, i) => [String(id), i]));
-        return prev.map((t) =>
-          t.quadrant === quadrant && map.has(String(t.id))
-            ? { ...t, sortOrder: map.get(String(t.id)) }
-            : t
-        );
-      });
-
-      // تحديث متوازٍ خفيف
-      await Promise.all(
-        orderedIds.map((id, i) =>
-          supabase.from(TABLE).update({ sort_order: i }).eq('id', id)
-        )
+  const reorderInQuadrant = useCallback(async (quadrant, orderedIds) => {
+    setTasks((prev) => {
+      const map = new Map(orderedIds.map((id, i) => [String(id), i]));
+      return prev.map((t) =>
+        t.quadrant === quadrant && map.has(String(t.id))
+          ? { ...t, sortOrder: map.get(String(t.id)) }
+          : t
       );
-    },
-    []
-  );
+    });
+
+    await Promise.all(
+      orderedIds.map((id, i) => supabase.from(TABLE).update({ sort_order: i }).eq('id', id))
+    );
+  }, []);
 
   const replaceAllTasks = useCallback(
     async (importedTasks) => {
@@ -357,6 +355,6 @@ export function useTasks(showToast) {
     rescheduleTask,
     reorderInQuadrant,
     replaceAllTasks,
-    refetch: () => fetchTasks(true),
+    refetch: () => fetchTasks(false),
   };
 }
