@@ -17,6 +17,9 @@ import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/imp
 const THEME_KEY = 'mahd_theme_react_v1';
 const SIDEBAR_KEY = 'mahd_sidebar_compact';
 
+/** إيقاف مؤقت لمزامنة تريلو التلقائية — الكود والواجهة يبقيان */
+const TRELLO_SYNC_ENABLED = false;
+
 export default function App() {
   const showToast = useToast();
   const {
@@ -56,12 +59,12 @@ export default function App() {
     localStorage.setItem(SIDEBAR_KEY, sidebarCompact ? '1' : '0');
   }, [sidebarCompact]);
 
-  // مزامنة تريلو عند فتح التطبيق إن كان مربوطاً
+  // مزامنة تريلو متوقفة مؤقتاً
   useEffect(() => {
+    if (!TRELLO_SYNC_ENABLED) return;
     if (trello.isConnected && !trello.loading) {
       trello.syncNow();
     }
-    // مرة عند اكتمال تحميل الإعداد فقط
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trello.isConnected, trello.loading]);
 
@@ -201,6 +204,7 @@ export default function App() {
                 onToggleComplete={toggleComplete}
                 onEdit={openEditModal}
                 onDelete={deleteTask}
+                onReschedule={rescheduleTask}
               />
             )}
             {subview === 'Gantt' && (
@@ -226,7 +230,15 @@ export default function App() {
         {view === 'Trello' && (
           <TrelloView
             tasks={tasks}
-            trello={trello}
+            trello={{
+              ...trello,
+              syncNow: TRELLO_SYNC_ENABLED
+                ? trello.syncNow
+                : async () => {
+                    showToast('مزامنة تريلو متوقفة مؤقتاً', 'ph-pause');
+                    return { created: 0, updated: 0 };
+                  },
+            }}
             onToggleComplete={toggleComplete}
             onEdit={openEditModal}
             onDelete={deleteTask}
