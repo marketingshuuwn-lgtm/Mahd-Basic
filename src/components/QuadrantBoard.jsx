@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import TaskCard from './TaskCard';
+import { compareTasksBySchedule } from '../utils/dateUtils';
 
 const QUADRANTS = [
   { id: 'important-urgent', title: 'مهم ومستعجل', color: 'var(--danger)' },
@@ -15,10 +16,7 @@ function parseDragId(raw) {
 }
 
 function sortItems(items) {
-  return [...items].sort((a, b) => {
-    if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-  });
+  return [...items].sort(compareTasksBySchedule);
 }
 
 export default function QuadrantBoard({
@@ -63,7 +61,6 @@ export default function QuadrantBoard({
     const task = tasks.find((t) => String(t.id) === String(id));
     if (!task) return;
 
-    // إسقاط فوق مهمة أخرى داخل نفس الربع = إعادة ترتيب
     if (dragOverTaskId && task.quadrant === qId && onReorderInQuadrant) {
       const list = byQ[qId].map((t) => t.id);
       const from = list.findIndex((x) => String(x) === String(id));
