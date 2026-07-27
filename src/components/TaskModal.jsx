@@ -55,17 +55,24 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
     e.preventDefault();
     const title = form.title.trim();
     if (!title) return;
+    // المتكرر: مدة كل حدوثة = 1 (لا تمد شريطاً على أيام متتالية)
+    const duration =
+      form.recurrence === 'daily' || form.recurrence === 'weekly'
+        ? 1
+        : parseInt(form.duration, 10) || 1;
     onSave(
       {
         ...form,
         title,
-        duration: parseInt(form.duration, 10) || 1,
+        duration,
         recurrence: form.recurrence || null,
         recurrenceDays: form.recurrence === 'weekly' ? form.recurrenceDays : [],
       },
       task?.id ?? null
     );
   };
+
+  const isRecurring = form.recurrence === 'daily' || form.recurrence === 'weekly';
 
   return (
     <div
@@ -107,41 +114,25 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
             </select>
           </div>
 
-          <div className="form-row">
-            <div className="form-field" style={{ flex: 1 }}>
-              <label>الموعد</label>
-              <input
-                type="date"
-                className="form-input"
-                value={form.dueDate}
-                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              />
-            </div>
-            <div className="form-field" style={{ flex: 1 }}>
-              <label>المدة (أيام)</label>
-              <input
-                type="number"
-                min="1"
-                className="form-input"
-                value={form.duration}
-                onChange={(e) => setForm({ ...form, duration: e.target.value })}
-              />
-            </div>
-          </div>
-
           <div className="form-field">
             <label>التكرار</label>
             <div className="recurrence-options">
               {[
                 { id: null, label: 'مرة واحدة' },
                 { id: 'daily', label: 'يومياً' },
-                { id: 'weekly', label: 'أسبوعياً' },
+                { id: 'weekly', label: 'أيام محددة أسبوعياً' },
               ].map((opt) => (
                 <button
                   key={String(opt.id)}
                   type="button"
                   className={`chip-btn ${(form.recurrence || null) === opt.id ? 'active' : ''}`}
-                  onClick={() => setForm({ ...form, recurrence: opt.id })}
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      recurrence: opt.id,
+                      duration: opt.id ? 1 : form.duration,
+                    })
+                  }
                 >
                   {opt.label}
                 </button>
@@ -159,6 +150,34 @@ export default function TaskModal({ isOpen, task, onClose, onSave }) {
                     {d.label}
                   </button>
                 ))}
+              </div>
+            )}
+            {form.recurrence === 'daily' && (
+              <p className="form-hint">يُجدول كل يوم عدا الجمعة</p>
+            )}
+          </div>
+
+          <div className="form-row">
+            <div className="form-field" style={{ flex: 1 }}>
+              <label>{isRecurring ? 'تاريخ البداية (مرساة)' : 'تاريخ البداية'}</label>
+              <input
+                type="date"
+                className="form-input"
+                value={form.dueDate}
+                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              />
+            </div>
+            {!isRecurring && (
+              <div className="form-field" style={{ flex: 1 }}>
+                <label>مدة المشروع (أيام متصلة)</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-input"
+                  value={form.duration}
+                  onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                />
+                <p className="form-hint">للمشاريع المتصلة فقط — ليست عدد مرات التكرار</p>
               </div>
             )}
           </div>
