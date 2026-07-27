@@ -1,9 +1,11 @@
-import { formatDate } from '../utils/dateUtils';
+import { formatTaskSchedule, isTaskOverdue } from '../utils/dateUtils';
 
 export default function TaskCard({ task, onToggleComplete, onEdit, onDelete, draggable = true }) {
+  const overdue = isTaskOverdue(task);
+
   return (
     <div
-      className={`task-item ${task.completed ? 'completed' : ''}`}
+      className={`task-item ${task.completed ? 'completed' : ''} ${overdue ? 'overdue' : ''}`}
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', String(task.id));
@@ -23,9 +25,9 @@ export default function TaskCard({ task, onToggleComplete, onEdit, onDelete, dra
       </div>
       <div className="task-content" onClick={() => onEdit(task.id)}>
         <div className="task-title">{task.title}</div>
-        <div className="task-deadline">
-          <i className="ph ph-calendar-blank"></i> {formatDate(task.dueDate)}
-          {task.duration > 1 ? ` (المدة: ${task.duration} أيام)` : ''}
+        <div className={`task-deadline ${overdue ? 'is-overdue' : ''}`}>
+          <i className="ph ph-calendar-blank"></i> {formatTaskSchedule(task)}
+          {overdue && <span className="overdue-tag">متأخرة</span>}
         </div>
         {task.notes && (
           <div className="task-notes">
