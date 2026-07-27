@@ -49,3 +49,19 @@
   padding: 8px 12px;
   font-size: var(--fs-sm);
 }
+
+.task-deadline.is-overdue {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+.overdue-tag {
+  margin-right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.timeline-drop-over {
+  background: var(--accent-light);
+  border-radius: 12px;
+  outline: 2px dashed var(--accent);
+  padding: 8px;
+}
