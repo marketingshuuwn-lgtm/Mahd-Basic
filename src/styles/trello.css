@@ -65,3 +65,27 @@
   outline: 2px dashed var(--accent);
   padding: 8px;
 }
+
+.gantt-pill-dot {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  top: 50% !important;
+  right: 50% !important;
+  transform: translate(50%, -50%);
+  left: auto;
+}
+.gantt-recurring-badge {
+  margin-right: 6px;
+  color: var(--accent);
+  font-size: 14px;
+  vertical-align: middle;
+}
+.form-hint {
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 300;
+}
