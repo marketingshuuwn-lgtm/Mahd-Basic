@@ -358,7 +358,7 @@ export function useTasks(showToast) {
 
   const replaceAllTasks = useCallback(
     async (importedTasks) => {
-      const { error: deleteError } = await supabase.from(TABLE).delete().neq('id', 0);
+      const { error: deleteError } = await supabase.from(TABLE).delete().not('id', 'is', null);
       if (deleteError) {
         console.error(deleteError);
         showToast?.('حدث خطأ أثناء استبدال المهام', 'ph-x-circle', 'error');

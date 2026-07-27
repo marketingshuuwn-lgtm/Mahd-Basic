@@ -14,12 +14,12 @@ import { useTasks } from './hooks/useTasks';
 import { sendNotificationPreview, useLocalNotifications } from './hooks/useLocalNotifications';
 import { useTrello } from './hooks/useTrello';
 import { useToast } from './hooks/useToast';
+import { useWorkDaysSetting } from './hooks/useWorkDaysSetting';
 import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/importExport';
 import { DEFAULT_WORK_DAYS, normalizeWorkDays } from './utils/taskMeta';
 
 const THEME_KEY = 'mahd_theme_react_v1';
 const SIDEBAR_KEY = 'mahd_sidebar_compact';
-const WORK_DAYS_KEY = 'mahd_work_days_v1';
 const NOTIFICATION_SETTINGS_KEY = 'mahd_notification_settings_v1';
 
 const DEFAULT_NOTIFICATION_SETTINGS = {
@@ -30,16 +30,6 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   eveningTime: '20:00',
   activeDays: DEFAULT_WORK_DAYS,
 };
-
-function readSavedWorkDays() {
-  try {
-    const raw = localStorage.getItem(WORK_DAYS_KEY);
-    if (!raw) return DEFAULT_WORK_DAYS;
-    return normalizeWorkDays(JSON.parse(raw));
-  } catch {
-    return DEFAULT_WORK_DAYS;
-  }
-}
 
 function normalizeNotificationSettings(value) {
   return {
@@ -94,7 +84,7 @@ export default function App() {
     () => localStorage.getItem(SIDEBAR_KEY) === '1'
   );
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
-  const [workDays, setWorkDays] = useState(readSavedWorkDays);
+  const { workDays, setWorkDays } = useWorkDaysSetting(showToast);
   const [notificationSettings, setNotificationSettings] = useState(readSavedNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission);
   const [modalOpen, setModalOpen] = useState(false);
@@ -109,10 +99,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, sidebarCompact ? '1' : '0');
   }, [sidebarCompact]);
-
-  useEffect(() => {
-    localStorage.setItem(WORK_DAYS_KEY, JSON.stringify(normalizeWorkDays(workDays)));
-  }, [workDays]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -349,7 +335,7 @@ export default function App() {
         {view === 'Settings' && (
           <SettingsView
             workDays={workDays}
-            onChangeWorkDays={(days) => setWorkDays(normalizeWorkDays(days))}
+            onChangeWorkDays={(days) => setWorkDays(days)}
             notificationSettings={notificationSettings}
             onChangeNotificationSettings={(next) =>
               setNotificationSettings((prev) => normalizeNotificationSettings({ ...prev, ...next }))
