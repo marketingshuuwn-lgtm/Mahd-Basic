@@ -1,22 +1,40 @@
 import * as XLSX from 'xlsx';
+import { normalizeSubtasks } from './subtasks';
+import { normalizeTaskContext } from './taskMeta';
+
+const HEADERS = [
+  'Title',
+  'Quadrant',
+  'Context',
+  'Completed',
+  'Notes',
+  'Subtasks',
+  'DueDate',
+  'Duration',
+  'Recurrence',
+  'RecurrenceDays',
+];
 
 function tasksToRows(tasks) {
   return tasks.map((t) => ({
     Title: t.title,
     Quadrant: t.quadrant,
+    Context: normalizeTaskContext(t.context),
     Completed: t.completed,
     Notes: t.notes || '',
+    Subtasks: JSON.stringify(normalizeSubtasks(t.subtasks)),
     DueDate: t.dueDate || '',
     Duration: t.duration || 1,
+    Recurrence: t.recurrence || '',
+    RecurrenceDays: Array.isArray(t.recurrenceDays) ? t.recurrenceDays.join('|') : '',
   }));
 }
 
 export function exportTasksAsCsv(tasks) {
   const rows = tasksToRows(tasks);
-  const header = ['Title', 'Quadrant', 'Completed', 'Notes', 'DueDate', 'Duration'];
   const escape = (v) => `"${String(v).replace(/"/g, '""')}"`;
-  const lines = [header.join(',')].concat(
-    rows.map((r) => header.map((h) => escape(r[h])).join(','))
+  const lines = [HEADERS.join(',')].concat(
+    rows.map((r) => HEADERS.map((h) => escape(r[h])).join(','))
   );
   const csv = '\uFEFF' + lines.join('\n');
   downloadBlob(csv, 'text/csv;charset=utf-8;', 'مهام-مهد.csv');
@@ -66,6 +84,45 @@ function parseCsvLine(line) {
   return result;
 }
 
+function parseRecurrenceDays(value) {
+  if (Array.isArray(value)) return value.map(Number).filter((n) => n >= 0 && n <= 6);
+  if (value == null || value === '') return [];
+  return String(value)
+    .split(/[|،,;\s]+/)
+    .map(Number)
+    .filter((n) => n >= 0 && n <= 6);
+}
+
+function parseSubtasks(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return normalizeSubtasks(value);
+  try {
+    return normalizeSubtasks(JSON.parse(String(value)));
+  } catch {
+    return normalizeSubtasks(
+      String(value)
+        .split(/[|؛;\n]+/)
+        .map((title, index) => ({ id: `imported-${index}-${title}`, title, completed: false, sortOrder: index }))
+    );
+  }
+}
+
+function normalizeImportedTask(row) {
+  const recurrence = row.recurrence === 'daily' || row.recurrence === 'weekly' ? row.recurrence : null;
+  return {
+    title: row.title || 'مهمة',
+    quadrant: row.quadrant || 'important-urgent',
+    context: normalizeTaskContext(row.context),
+    subtasks: parseSubtasks(row.subtasks),
+    completed: row.completed === true || String(row.completed).toLowerCase() === 'true',
+    notes: row.notes || '',
+    dueDate: row.dueDate || '',
+    duration: parseInt(row.duration, 10) || 1,
+    recurrence,
+    recurrenceDays: recurrence === 'weekly' ? parseRecurrenceDays(row.recurrenceDays) : [],
+  };
+}
+
 // يقرأ ملف مستورد (csv أو xlsx) ويرجّع Promise بمصفوفة مهام موحّدة الشكل
 export function readImportFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
@@ -77,18 +134,46 @@ export function readImportFile(file) {
         let importedData = [];
         if (ext === 'csv') {
           const text = e.target.result.replace(/^\uFEFF/, '');
-          const lines = text.split('\n').filter((l) => l.trim() !== '');
+          const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
+          if (lines.length === 0) {
+            resolve([]);
+            return;
+          }
+          const header = parseCsvLine(lines[0]).map((h) => h.trim());
+          const hasNamedHeader = header.includes('Title') || header.includes('title');
+
           for (let i = 1; i < lines.length; i++) {
             const parts = parseCsvLine(lines[i]);
-            if (parts.length >= 5) {
-              importedData.push({
-                title: parts[0] || 'مهمة',
-                quadrant: parts[1] || 'important-urgent',
-                completed: parts[2] === 'true',
-                notes: parts[3] || '',
-                dueDate: parts[4] || '',
-                duration: parseInt(parts[5]) || 1,
-              });
+            if (parts.length < 2) continue;
+
+            if (hasNamedHeader) {
+              const row = Object.fromEntries(header.map((h, idx) => [h, parts[idx] ?? '']));
+              importedData.push(
+                normalizeImportedTask({
+                  title: row.Title || row.title,
+                  quadrant: row.Quadrant || row.quadrant,
+                  context: row.Context || row.context,
+                  completed: row.Completed || row.completed,
+                  notes: row.Notes || row.notes,
+                  subtasks: row.Subtasks || row.subtasks,
+                  dueDate: row.DueDate || row.dueDate,
+                  duration: row.Duration || row.duration,
+                  recurrence: row.Recurrence || row.recurrence,
+                  recurrenceDays: row.RecurrenceDays || row.recurrenceDays,
+                })
+              );
+            } else if (parts.length >= 5) {
+              // توافق مع الصيغة القديمة: Title, Quadrant, Completed, Notes, DueDate, Duration
+              importedData.push(
+                normalizeImportedTask({
+                  title: parts[0],
+                  quadrant: parts[1],
+                  completed: parts[2],
+                  notes: parts[3],
+                  dueDate: parts[4],
+                  duration: parts[5],
+                })
+              );
             }
           }
         } else if (ext === 'xlsx') {
@@ -97,14 +182,20 @@ export function readImportFile(file) {
           const ws = wb.Sheets[wb.SheetNames[0]];
           const json = XLSX.utils.sheet_to_json(ws);
           json.forEach((row) => {
-            importedData.push({
-              title: row.Title || row.title || 'مهمة',
-              quadrant: row.Quadrant || row.quadrant || 'important-urgent',
-              completed: String(row.Completed ?? row.completed).toLowerCase() === 'true',
-              notes: row.Notes || row.notes || '',
-              dueDate: row.DueDate || row.dueDate || '',
-              duration: parseInt(row.Duration || row.duration) || 1,
-            });
+            importedData.push(
+              normalizeImportedTask({
+                title: row.Title || row.title,
+                quadrant: row.Quadrant || row.quadrant,
+                context: row.Context || row.context,
+                completed: row.Completed ?? row.completed,
+                notes: row.Notes || row.notes,
+                subtasks: row.Subtasks || row.subtasks,
+                dueDate: row.DueDate || row.dueDate,
+                duration: row.Duration || row.duration,
+                recurrence: row.Recurrence || row.recurrence,
+                recurrenceDays: row.RecurrenceDays || row.recurrenceDays,
+              })
+            );
           });
         } else {
           reject(new Error('صيغة الملف غير مدعومة (csv أو xlsx فقط)'));

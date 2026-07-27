@@ -10,6 +10,9 @@ create table if not exists public.tasks (
                  'not-important-urgent',
                  'not-important-not-urgent'
                )),
+  context      text not null default 'work'
+               check (context in ('work', 'personal')),
+  subtasks     jsonb not null default '[]'::jsonb,
   completed    boolean not null default false,
   notes        text default '',
   due_date     date,
@@ -27,6 +30,10 @@ create table if not exists public.tasks (
 );
 
 -- ترحيل
+alter table public.tasks add column if not exists context text not null default 'work';
+alter table public.tasks add column if not exists subtasks jsonb not null default '[]'::jsonb;
+alter table public.tasks drop constraint if exists tasks_context_check;
+alter table public.tasks add constraint tasks_context_check check (context in ('work', 'personal'));
 alter table public.tasks add column if not exists sort_order integer not null default 0;
 alter table public.tasks add column if not exists recurrence text default null;
 alter table public.tasks add column if not exists recurrence_days integer[] default null;
@@ -42,6 +49,7 @@ create unique index if not exists tasks_external_unique
 
 create index if not exists tasks_created_at_idx on public.tasks (created_at desc);
 create index if not exists tasks_quadrant_sort_idx on public.tasks (quadrant, sort_order);
+create index if not exists tasks_context_idx on public.tasks (context);
 
 -- إعدادات الربط (تريلو وغيرها)
 create table if not exists public.integrations (

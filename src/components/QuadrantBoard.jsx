@@ -15,17 +15,19 @@ function parseDragId(raw) {
   return Number.isNaN(n) ? raw : n;
 }
 
-function sortItems(items) {
-  return [...items].sort(compareTasksBySchedule);
+function sortItems(items, workDays) {
+  return [...items].sort((a, b) => compareTasksBySchedule(a, b, { workDays }));
 }
 
 export default function QuadrantBoard({
   tasks,
   onToggleComplete,
+  onToggleSubtask,
   onEdit,
   onDelete,
   onMoveTask,
   onReorderInQuadrant,
+  workDays,
 }) {
   const [collapsed, setCollapsed] = useState({});
   const [dragOverZone, setDragOverZone] = useState(null);
@@ -34,10 +36,10 @@ export default function QuadrantBoard({
   const byQ = useMemo(() => {
     const map = {};
     QUADRANTS.forEach((q) => {
-      map[q.id] = sortItems(tasks.filter((t) => t.quadrant === q.id));
+      map[q.id] = sortItems(tasks.filter((t) => t.quadrant === q.id), workDays);
     });
     return map;
-  }, [tasks]);
+  }, [tasks, workDays]);
 
   const toggleCollapse = (id) => setCollapsed((p) => ({ ...p, [id]: !p[id] }));
   const anyCollapsed = QUADRANTS.some((q) => collapsed[q.id]);
@@ -143,8 +145,10 @@ export default function QuadrantBoard({
                           <TaskCard
                             task={task}
                             onToggleComplete={onToggleComplete}
+                            onToggleSubtask={onToggleSubtask}
                             onEdit={onEdit}
                             onDelete={onDelete}
+                            workDays={workDays}
                           />
                         </div>
                       ))

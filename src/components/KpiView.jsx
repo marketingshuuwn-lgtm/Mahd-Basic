@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { TASK_CONTEXTS } from '../utils/taskMeta';
 
 const Q_NAMES = {
   'important-urgent': 'مهم ومستعجل',
@@ -192,6 +193,36 @@ export default function KpiView({ tasks }) {
                     <div
                       className="dist-bar-fill"
                       style={{ width: `${qPercent}%`, background: Q_COLORS[q] }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <h3 className="kpi-section-title" style={{ marginTop: 26 }}>
+            التوزيع حسب المساحة
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {TASK_CONTEXTS.map((ctx) => {
+              const cTasks = tasks.filter((t) => (t.context || 'work') === ctx.id).length;
+              const cDone = tasks.filter((t) => (t.context || 'work') === ctx.id && t.completed).length;
+              const cPercent = tasks.length > 0 ? (cTasks / tasks.length) * 100 : 0;
+              return (
+                <div key={ctx.id}>
+                  <div className="dist-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className={`ph ${ctx.icon}`}></i>
+                      {ctx.label}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>
+                      {cDone}/{cTasks}
+                    </span>
+                  </div>
+                  <div className="dist-bar-bg">
+                    <div
+                      className="dist-bar-fill"
+                      style={{ width: `${cPercent}%`, background: ctx.color }}
                     />
                   </div>
                 </div>

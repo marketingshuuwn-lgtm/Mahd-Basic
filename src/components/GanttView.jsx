@@ -3,7 +3,7 @@ import { getOccurrenceDates, isRecurringTask, toLocalISO } from '../utils/dateUt
 
 const DAY_NAMES = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
 
-export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedule }) {
+export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedule, workDays }) {
   const [dragId, setDragId] = useState(null);
   const [overDay, setOverDay] = useState(null);
 
@@ -31,7 +31,7 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
 
   const rows = tasks
     .map((t) => {
-      const occ = getOccurrenceDates(t, today, windowEnd);
+      const occ = getOccurrenceDates(t, today, windowEnd, { workDays });
       if (!occ.length) return null;
       const indices = occ
         .map((iso) => days.findIndex((d) => d.iso === iso))

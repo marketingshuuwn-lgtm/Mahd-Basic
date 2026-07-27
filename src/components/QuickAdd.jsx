@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { parseSmartInput } from '../utils/dateUtils';
+import { TASK_CONTEXTS } from '../utils/taskMeta';
 
 const QUADRANTS = [
   { id: 'important-urgent', color: 'var(--danger)', label: 'مهم ومستعجل' },
@@ -11,6 +12,7 @@ const QUADRANTS = [
 export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
   const [value, setValue] = useState('');
   const [quadrant, setQuadrant] = useState('important-urgent');
+  const [context, setContext] = useState('work');
   const [minimized, setMinimized] = useState(false);
 
   const submit = (e) => {
@@ -18,7 +20,7 @@ export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
     const text = value.trim();
     if (!text) return;
     const { title, dueDate } = parseSmartInput(text);
-    onAddTask(title || text, quadrant, dueDate, '', 1);
+    onAddTask(title || text, quadrant, dueDate, '', 1, { context });
     setValue('');
   };
 
@@ -50,7 +52,7 @@ export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
           <i className="ph ph-caret-down"></i>
         </button>
 
-        <div className="floating-quad-dots" title="تصنيف المهمة">
+        <div className="floating-quad-dots" title="أولوية المهمة">
           {QUADRANTS.map((q) => (
             <button
               key={q.id}
@@ -61,6 +63,21 @@ export default function FloatingSmartBar({ onAddTask, onOpenAdvanced }) {
               onClick={() => setQuadrant(q.id)}
               aria-label={q.label}
             />
+          ))}
+        </div>
+
+        <div className="floating-context-toggle" title="مساحة المهمة">
+          {TASK_CONTEXTS.map((ctx) => (
+            <button
+              key={ctx.id}
+              type="button"
+              className={`floating-context-btn ${context === ctx.id ? 'active' : ''}`}
+              onClick={() => setContext(ctx.id)}
+              title={ctx.label}
+              aria-label={ctx.label}
+            >
+              <i className={`ph ${ctx.icon}`}></i>
+            </button>
           ))}
         </div>
 
