@@ -41,32 +41,39 @@ export default function Sidebar({
           type="button"
           className="sidebar-pin-btn"
           title={compact ? 'إظهار النص' : 'أيقونات فقط'}
+          aria-label={compact ? 'إظهار نص الشريط' : 'أيقونات فقط'}
           onClick={onToggleCompact}
         >
           <i className={`ph ${compact ? 'ph-sidebar-simple' : 'ph-sidebar'}`}></i>
         </button>
       </div>
 
-      <nav>
+      <nav aria-label="التنقل الرئيسي">
         {NAV_ITEMS.map((item) => {
           let badge = null;
           if (item.id === 'Pending' && pendingCount > 0) badge = pendingCount;
           else if (item.id === 'Trello' && trelloCount > 0) badge = trelloCount;
           else if (item.id === 'Archive' && archiveCount > 0) badge = archiveCount;
+          const active = view === item.id;
           return (
             <button
               key={item.id}
               type="button"
-              className={`nav-item ${view === item.id ? 'active' : ''}`}
+              className={`nav-item ${active ? 'active' : ''}`}
               title={item.label}
+              aria-current={active ? 'page' : undefined}
               onClick={() => {
                 onSwitchView(item.id);
                 onClose();
               }}
             >
-              <i className={`ph ${item.icon}`}></i>
+              <i className={`ph ${item.icon}`} aria-hidden="true"></i>
               {!compact && <span className="nav-label">{item.label}</span>}
-              {badge != null && <span className="nav-badge">{badge}</span>}
+              {badge != null && (
+                <span className="nav-badge" aria-label={`${badge} عنصر`}>
+                  {badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -82,15 +89,22 @@ export default function Sidebar({
           type="button"
           className="theme-toggle-btn"
           onClick={onToggleTheme}
-          title={theme === 'dark' ? 'نهاري' : 'ليلي'}
+          title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
+          aria-label={theme === 'dark' ? 'التبديل للنهاري' : 'التبديل لليلي'}
         >
           {!compact && <span>{theme === 'dark' ? 'نهاري' : 'ليلي'}</span>}
-          <i className={`ph ${theme === 'dark' ? 'ph-sun' : 'ph-moon'}`}></i>
+          <i className={`ph ${theme === 'dark' ? 'ph-sun' : 'ph-moon'}`} aria-hidden="true"></i>
         </button>
 
         <div className="data-actions">
-          <button type="button" className="data-btn" title="تصدير" onClick={() => setMenuOpen((v) => !v)}>
-            <i className="ph ph-download-simple"></i>
+          <button
+            type="button"
+            className="data-btn"
+            title="تصدير"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <i className="ph ph-download-simple" aria-hidden="true"></i>
             {!compact && 'تصدير'}
           </button>
           <button
@@ -99,7 +113,7 @@ export default function Sidebar({
             title="استيراد"
             onClick={() => fileInputRef.current?.click()}
           >
-            <i className="ph ph-upload-simple"></i>
+            <i className="ph ph-upload-simple" aria-hidden="true"></i>
             {!compact && 'استيراد'}
           </button>
           <input
@@ -115,9 +129,13 @@ export default function Sidebar({
             }}
           />
           {menuOpen && (
-            <div className="dropdown-menu">
-              <button type="button" onClick={() => { onExport('csv'); setMenuOpen(false); }}>CSV</button>
-              <button type="button" onClick={() => { onExport('xlsx'); setMenuOpen(false); }}>Excel</button>
+            <div className="dropdown-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => { onExport('csv'); setMenuOpen(false); }}>
+                CSV
+              </button>
+              <button type="button" role="menuitem" onClick={() => { onExport('xlsx'); setMenuOpen(false); }}>
+                Excel
+              </button>
             </div>
           )}
         </div>
