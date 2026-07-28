@@ -36,26 +36,33 @@ export function useTasks(showToast) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(true);
+  const [initialError, setInitialError] = useState(false);
 
   const fetchTasks = useCallback(async (isInitial = false) => {
-    if (isInitial) setLoading(true);
-
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      setConnected(false);
-      showToast?.('تعذّر الاتصال بقاعدة البيانات', 'ph-x-circle', 'error');
-    } else {
-      setConnected(true);
-      setTasks((data ?? []).map(fromRow));
+    if (isInitial) {
+      setLoading(true);
+      setInitialError(false);
     }
 
-    if (isInitial) setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setConnected(true);
+      setTasks((data ?? []).map(fromRow));
+    } catch (err) {
+      console.error(err);
+      setConnected(false);
+      if (isInitial) setInitialError(true);
+      showToast?.('تعذّر الاتصال بقاعدة البيانات', 'ph-x-circle', 'error');
+    } finally {
+      if (isInitial) setLoading(false);
+    }
   }, [showToast]);
 
   useEffect(() => {
@@ -504,5 +511,7 @@ export function useTasks(showToast) {
     reorderInQuadrant,
     replaceTasksInContext,
     refetch: () => fetchTasks(false),
+    initialError,
+    retry: () => fetchTasks(true),
   };
 }

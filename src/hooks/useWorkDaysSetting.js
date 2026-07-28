@@ -35,19 +35,25 @@ export function useWorkDaysSetting(showToast) {
     let active = true;
 
     (async () => {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('work_days')
-        .eq('id', 1)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('work_days')
+          .eq('id', 1)
+          .single();
 
-      if (!active) return;
-      if (!error && data?.work_days) {
-        const normalized = normalizeWorkDays(data.work_days);
-        setWorkDaysState(normalized);
-        writeCache(normalized);
+        if (!active) return;
+        if (error) throw error;
+        if (data?.work_days) {
+          const normalized = normalizeWorkDays(data.work_days);
+          setWorkDaysState(normalized);
+          writeCache(normalized);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoaded(true);
       }
-      setLoaded(true);
     })();
 
     const channel = supabase

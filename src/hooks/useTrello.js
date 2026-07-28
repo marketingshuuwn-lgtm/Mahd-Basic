@@ -17,20 +17,22 @@ export function useTrello(showToast, onSynced) {
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('integrations')
-      .select('*')
-      .eq('provider', PROVIDER)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('provider', PROVIDER)
+        .maybeSingle();
 
-    if (error) {
-      console.error(error);
-      // الجدول قد لا يكون موجوداً بعد
-      setConfig(null);
-    } else {
+      if (error) throw error;
       setConfig(data);
+    } catch (err) {
+      console.error(err);
+      // الجدول قد لا يكون موجوداً بعد، أو فشل الاتصال بالكامل
+      setConfig(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
