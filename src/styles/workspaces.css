@@ -11,9 +11,9 @@
 }
 
 .workspace-tab-wrap {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
 }
 
 .workspace-tab {
@@ -45,6 +45,73 @@
   color: var(--ws-color, var(--accent));
   font-weight: var(--fw-bold);
   box-shadow: var(--shadow-soft);
+  padding-inline-end: 10px;
+}
+
+.workspace-tab-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-inline-start: 2px;
+  opacity: 0.75;
+  font-size: 12px;
+}
+
+.workspace-tab-more:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.workspace-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  z-index: 40;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-hover);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  text-align: start;
+}
+
+.workspace-menu button:hover {
+  background: var(--bg-color);
+}
+
+.workspace-menu-danger {
+  color: var(--danger) !important;
+}
+
+.workspace-archive-btn {
+  flex: 1 1 100%;
+  color: var(--danger) !important;
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border-color)) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .workspace-all-tab.active {
@@ -53,30 +120,13 @@
   color: var(--text-primary);
 }
 
-.workspace-tab-gear {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: inline-flex;
+.workspace-trait-line {
+  margin: 10px 0 0;
+  font-size: var(--fs-sm);
+  display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  opacity: 0.55;
-}
-
-.workspace-tab-wrap:hover .workspace-tab-gear,
-.workspace-tab.active + .workspace-tab-gear {
-  opacity: 1;
-}
-
-.workspace-tab-gear:hover {
-  background: var(--card-bg);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+  gap: 6px;
+  opacity: 0.9;
 }
 
 .workspace-all-hint {
