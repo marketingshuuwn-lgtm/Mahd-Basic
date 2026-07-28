@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { formatTaskSchedule, isTaskOverdue } from '../utils/dateUtils';
 import { getSubtaskStats, normalizeSubtasks } from '../utils/subtasks';
 import { getTaskContextMeta } from '../utils/taskMeta';
@@ -15,6 +16,16 @@ export default function TaskCard({
   const contextMeta = getTaskContextMeta(task.context);
   const subtasks = normalizeSubtasks(task.subtasks);
   const subtaskStats = getSubtaskStats(subtasks);
+
+  const [trackingState, setTrackingState] = useState({ activeTaskId: null, label: '0:00' });
+
+  useEffect(() => {
+    const handler = (e) => setTrackingState(e.detail);
+    window.addEventListener('time-tracking-state', handler);
+    return () => window.removeEventListener('time-tracking-state', handler);
+  }, []);
+
+  const isTracking = trackingState.activeTaskId === task.id;
 
   return (
     <div
@@ -52,6 +63,15 @@ export default function TaskCard({
           <i className="ph ph-calendar-blank"></i> {formatTaskSchedule(task, { workDays })}
           {overdue && <span className="overdue-tag">متأخرة</span>}
         </div>
+        {task.timeSpentSeconds > 0 && (
+          <div className="task-time-spent">
+            <i className="ph ph-hourglass-medium"></i>
+            {Math.floor(task.timeSpentSeconds / 3600) > 0
+              ? `${Math.floor(task.timeSpentSeconds / 3600)}س ${Math.floor((task.timeSpentSeconds % 3600) / 60)}د`
+              : `${Math.floor(task.timeSpentSeconds / 60)}د`}{' '}
+            مصروفة
+          </div>
+        )}
         {subtaskStats.total > 0 && (
           <div className="task-subtasks" onClick={(e) => e.stopPropagation()}>
             <div className="subtask-progress-row">
@@ -94,6 +114,22 @@ export default function TaskCard({
         )}
       </div>
       <div className="task-actions" onMouseDown={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className={`btn-icon ${isTracking ? 'time-tracking-active' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(
+              new CustomEvent('toggle-time-tracking', {
+                detail: { taskId: task.id, title: task.title },
+              })
+            );
+          }}
+          title={isTracking ? 'إيقاف تتبع الوقت' : 'بدء تتبع الوقت'}
+        >
+          <i className={`ph ${isTracking ? 'ph-pause-circle' : 'ph-clock-countdown'}`} style={{ fontSize: 16 }}></i>
+        </button>
+        {isTracking && <span className="time-tracking-badge">{trackingState.label}</span>}
         <button
           type="button"
           className="btn-icon"

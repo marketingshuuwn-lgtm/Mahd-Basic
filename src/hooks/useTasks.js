@@ -19,6 +19,7 @@ function fromRow(row) {
     dueDate: row.due_date ?? '',
     duration: row.duration ?? 1,
     sortOrder: row.sort_order ?? 0,
+    timeSpentSeconds: row.time_spent_seconds ?? 0,
     recurrence: row.recurrence ?? null,
     recurrenceDays: row.recurrence_days ?? [],
     externalSource: row.external_source ?? null,

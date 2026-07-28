@@ -90,6 +90,8 @@ export default function KpiView({ tasks, workspaces }) {
     const scopeTotal = period === 'all' ? tasks.length : Math.max(createdInPeriod.length, done);
     const completionRate = scopeTotal > 0 ? Math.round((done / scopeTotal) * 100) : 0;
 
+    const totalTimeSpentSeconds = tasks.reduce((sum, t) => sum + (t.timeSpentSeconds || 0), 0);
+
     return {
       total: period === 'all' ? tasks.length : createdInPeriod.length,
       done,
@@ -97,6 +99,7 @@ export default function KpiView({ tasks, workspaces }) {
       overdue: overdue.length,
       completionRate,
       completedInPeriod,
+      totalTimeSpentSeconds,
     };
   }, [tasks, period]);
 
@@ -158,6 +161,21 @@ export default function KpiView({ tasks, workspaces }) {
           <div>
             <div className="stat-label">متأخرة</div>
             <div className="stat-value">{stats.overdue}</div>
+          </div>
+        </div>
+        <div className="card stat-item">
+          <div className="stat-icon" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+            <i className="ph ph-hourglass-medium"></i>
+          </div>
+          <div>
+            <div className="stat-label">إجمالي الوقت المصروف (كل الوقت)</div>
+            <div className="stat-value">
+              {(() => {
+                const h = Math.floor(stats.totalTimeSpentSeconds / 3600);
+                const m = Math.floor((stats.totalTimeSpentSeconds % 3600) / 60);
+                return h > 0 ? `${h}س ${m}د` : `${m}د`;
+              })()}
+            </div>
           </div>
         </div>
       </div>

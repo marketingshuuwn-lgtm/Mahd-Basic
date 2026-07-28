@@ -147,3 +147,26 @@ alter table public.app_settings add column if not exists push_enabled boolean no
 -- Edge Function اسمها "send-push" مسؤولة عن الإرسال الفعلي (تستخدم npm:web-push + مفاتيح VAPID).
 -- مجدولة عبر pg_cron (jobs: mahd-morning-push 07:00 UTC، mahd-evening-push 17:00 UTC = 10ص/8م بتوقيت السعودية)
 -- تُستدعى أيضاً يدوياً من التطبيق لإرسال إشعار تجريبي.
+
+-- ============================================================
+-- المرحلة (هـ) — الجزء الثاني: تتبع الوقت الفعلي
+-- (مُطبّقة فعلاً على قاعدة بيانات Supabase الحالية عبر MCP، هذا توثيق فقط)
+-- ============================================================
+
+alter table public.tasks
+  add column if not exists time_spent_seconds integer not null default 0;
+
+-- سجل بكل جلسة عمل فعلية (بدء/إيقاف) لكل مهمة، يُستخدم للتقارير التفصيلية لاحقاً
+create table if not exists public.time_sessions (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.tasks(id) on delete cascade,
+  started_at timestamptz not null default now(),
+  ended_at timestamptz,
+  duration_seconds integer
+);
+create index if not exists time_sessions_task_idx on public.time_sessions (task_id);
+create index if not exists time_sessions_started_idx on public.time_sessions (started_at);
+alter table public.time_sessions enable row level security;
+drop policy if exists "Allow all for development" on public.time_sessions;
+create policy "Allow all for development"
+  on public.time_sessions for all using (true) with check (true);

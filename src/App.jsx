@@ -8,6 +8,7 @@ import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
 import MotivationView from './components/MotivationView';
 import FloatingTimer from './components/FloatingTimer';
+import TimeTrackingSync from './components/TimeTrackingSync';
 import TrelloView from './components/TrelloView';
 import SettingsView from './components/SettingsView';
 import ArchiveView from './components/ArchiveView';
@@ -462,6 +463,7 @@ export default function App() {
       />
 
       <FloatingTimer />
+      <TimeTrackingSync />
     </div>
   );
 }

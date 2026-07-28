@@ -273,6 +273,12 @@ body {
   padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
 }
 .task-notes { font-size: var(--fs-sm); color: var(--text-muted); margin-top: 4px; font-weight: var(--fw-light); }
+.task-time-spent { font-size: var(--fs-sm); color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.time-tracking-active { color: var(--danger) !important; }
+.time-tracking-badge {
+  font-size: 12px; font-weight: var(--fw-bold); color: var(--danger); background: var(--danger-light);
+  padding: 3px 8px; border-radius: 6px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 .task-subtasks { margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
 .subtask-progress-row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); color: var(--text-muted); }
 .subtask-progress-row span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
