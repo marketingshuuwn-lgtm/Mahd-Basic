@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePomodoro } from '../hooks/usePomodoro';
 import { notify } from '../hooks/useLocalNotifications';
 
 export default function FloatingTimer() {
   const { running, mode, remaining, taskTitle, start, toggle, reset } = usePomodoro();
+  const [visible, setVisible] = useState(false);
 
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
@@ -17,6 +18,7 @@ export default function FloatingTimer() {
         taskTitle: title || null,
         context: context || 'work',
       });
+      setVisible(true);
       notify(
         'بومودورو — مهد',
         `بدأت جلسة تركيز${title ? `: ${title}` : ''}`
@@ -26,31 +28,20 @@ export default function FloatingTimer() {
     return () => window.removeEventListener('start-pomodoro-task', handle);
   }, [start]);
 
+  // إظهار اللوحة تلقائياً عند التشغيل من أي مصدر
+  useEffect(() => {
+    if (running) setVisible(true);
+  }, [running]);
+
+  if (!visible) return null;
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        zIndex: 100,
-        background: 'var(--card-bg)',
-        border: '1px solid var(--border-color)',
-        borderRadius: 16,
-        padding: '14px 20px',
-        boxShadow: 'var(--shadow-hover)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        minWidth: 180,
-        maxWidth: 280,
-        direction: 'rtl',
-      }}
-    >
+    <div className="floating-timer-panel" role="timer" aria-label="مؤقت بومودورو">
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>
           {label} — بومودورو
         </div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
         </div>
         {taskTitle && (
@@ -69,24 +60,28 @@ export default function FloatingTimer() {
           </div>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="floating-timer-actions">
         <button
           type="button"
           className="btn-icon"
           onClick={toggle}
           title={running ? 'إيقاف مؤقت' : 'تشغيل'}
-          style={{ fontSize: 16 }}
         >
           <i className={`ph ${running ? 'ph-pause' : 'ph-play'}`}></i>
+        </button>
+        <button type="button" className="btn-icon" onClick={reset} title="إعادة ضبط">
+          <i className="ph ph-arrow-counter-clockwise"></i>
         </button>
         <button
           type="button"
           className="btn-icon danger"
-          onClick={reset}
-          title="إعادة ضبط"
-          style={{ fontSize: 16 }}
+          onClick={() => {
+            if (running) toggle();
+            setVisible(false);
+          }}
+          title="إخفاء المؤقت"
         >
-          <i className="ph ph-arrow-counter-clockwise"></i>
+          <i className="ph ph-x"></i>
         </button>
       </div>
     </div>
