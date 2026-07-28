@@ -15,6 +15,12 @@ export default function SettingsView({
   notificationPermission,
   onRequestNotificationPermission,
   onSendTestNotification,
+  pushSupported,
+  pushSubscribed,
+  pushLoading,
+  onSubscribePush,
+  onUnsubscribePush,
+  onSendTestPush,
 }) {
   const normalizedWorkDays = normalizeWorkDays(workDays);
   const activeNotificationDays = normalizeWorkDays(notificationSettings?.activeDays || DEFAULT_WORK_DAYS);
@@ -192,7 +198,67 @@ export default function SettingsView({
           </div>
 
           <p className="form-hint">
-            المرحلة الحالية لا تستخدم خادم Push؛ لذلك لن تصل التنبيهات إذا كان المتصفح مغلقاً بالكامل أو الجهاز نائماً.
+            هذي تنبيهات محلية تعمل فقط والتبويب مفتوح. لإشعارات تصل حتى والمتصفح مغلق، فعّل
+            "إشعارات الدفع (Web Push)" أسفل.
+          </p>
+        </section>
+
+        <section className="card settings-card">
+          <div className="settings-card-head">
+            <div className="settings-icon">
+              <i className="ph ph-broadcast"></i>
+            </div>
+            <div>
+              <h2 className="settings-title">إشعارات الدفع (Web Push)</h2>
+              <p className="settings-desc">
+                تصل حتى لو كان المتصفح مغلقاً تماماً — تُرسل من خادم عبر Supabase Edge Function
+                وتُعرض بواسطة Service Worker على جهازك.
+              </p>
+            </div>
+          </div>
+
+          <div className="settings-summary">
+            <i className="ph ph-shield-check"></i>
+            حالة هذا الجهاز:{' '}
+            <strong>
+              {!pushSupported
+                ? 'غير مدعوم بهذا المتصفح'
+                : pushSubscribed
+                ? 'مفعّل ويستقبل الإشعارات'
+                : 'غير مفعّل'}
+            </strong>
+          </div>
+
+          <div className="notification-master-row">
+            {!pushSubscribed ? (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={onSubscribePush}
+                disabled={!pushSupported || pushLoading}
+              >
+                <i className="ph ph-bell-ringing"></i>
+                تفعيل على هذا الجهاز
+              </button>
+            ) : (
+              <button type="button" className="btn-secondary" onClick={onUnsubscribePush} disabled={pushLoading}>
+                <i className="ph ph-bell-slash"></i>
+                إيقاف على هذا الجهاز
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onSendTestPush}
+              disabled={!pushSubscribed}
+            >
+              إرسال إشعار تجريبي
+            </button>
+          </div>
+
+          <p className="form-hint">
+            الملخص الصباحي (10:00) والمراجعة المسائية (20:00) يُرسلان تلقائياً عبر Web Push
+            لكل الأجهزة المفعّلة، بغض النظر إذا كان المتصفح مفتوحاً أو لا.
           </p>
         </section>
       </div>

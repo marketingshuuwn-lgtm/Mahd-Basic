@@ -112,3 +112,38 @@ begin
   alter publication supabase_realtime add table public.tasks;
 exception when duplicate_object then null;
 end $$;
+
+-- ============================================================
+-- المرحلة (هـ) — الجزء الأول: Web Push
+-- (مُطبّقة فعلاً على قاعدة بيانات Supabase الحالية عبر MCP، هذا توثيق فقط)
+-- ============================================================
+
+-- اشتراكات الأجهزة بالإشعارات (Push Subscription objects من متصفح كل جهاز)
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  device_label text default null,
+  created_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "Allow all for development" on public.push_subscriptions;
+create policy "Allow all for development"
+  on public.push_subscriptions for all using (true) with check (true);
+
+-- مفاتيح VAPID + أي أسرار مستقبلية. RLS مفعّل بدون أي سياسة = وصول حصري
+-- لـ service_role (يُستخدم فقط داخل Edge Functions)، ممنوع تماماً على anon/authenticated.
+create table if not exists public.app_secrets (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_secrets enable row level security;
+-- لا تُضف أي policy هنا عمداً — هذا الجدول يجب أن يبقى غير قابل للقراءة من anon key.
+
+alter table public.app_settings add column if not exists push_enabled boolean not null default false;
+
+-- Edge Function اسمها "send-push" مسؤولة عن الإرسال الفعلي (تستخدم npm:web-push + مفاتيح VAPID).
+-- مجدولة عبر pg_cron (jobs: mahd-morning-push 07:00 UTC، mahd-evening-push 17:00 UTC = 10ص/8م بتوقيت السعودية)
+-- تُستدعى أيضاً يدوياً من التطبيق لإرسال إشعار تجريبي.

@@ -19,6 +19,7 @@ import { sendNotificationPreview, useLocalNotifications } from './hooks/useLocal
 import { useTrello } from './hooks/useTrello';
 import { useToast } from './hooks/useToast';
 import { useWorkDaysSetting } from './hooks/useWorkDaysSetting';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import { useWorkspaces } from './hooks/useWorkspaces';
 import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/importExport';
 import {
@@ -145,6 +146,7 @@ export default function App() {
   }, [notificationSettings]);
 
   useLocalNotifications(visibleTasks, workDays, notificationSettings);
+  const push = usePushNotifications(showToast);
 
   useEffect(() => {
     if (!TRELLO_SYNC_ENABLED) return;
@@ -433,6 +435,12 @@ export default function App() {
             notificationPermission={notificationPermission}
             onRequestNotificationPermission={requestNotificationPermission}
             onSendTestNotification={sendTestNotification}
+            pushSupported={push.supported}
+            pushSubscribed={push.subscribed}
+            pushLoading={push.loading}
+            onSubscribePush={push.subscribe}
+            onUnsubscribePush={push.unsubscribe}
+            onSendTestPush={push.sendTestPush}
           />
         )}
       </main>
