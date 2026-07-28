@@ -1,209 +1,79 @@
 /**
- * نظام بصري موجّه لإطار 1400×900
- * يُحمَّل بعد index.css لضبط الكثافة والمسافات دون كسر المنطق
+ * تحسينات خفيفة بدون قيد عرض/ارتفاع ثابت.
+ * التخطيط يمتد مع الشاشة (مناسب لـ Full HD وما فوق).
  */
 
 :root {
-  --layout-frame-w: 1400px;
-  --layout-frame-h: 900px;
-  --sidebar-w: 220px;
-  --sidebar-compact-w: 72px;
-  --content-max: 1120px;
-  --page-pad-x: 28px;
-  --page-pad-y: 22px;
-  --page-pad-bottom: 100px;
+  --sidebar-w: 248px;
+  --sidebar-compact-w: 76px;
+  --page-pad-x: clamp(16px, 2.2vw, 40px);
+  --page-pad-y: clamp(16px, 1.8vh, 32px);
+  --page-pad-bottom: 110px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --gap-md: 14px;
-  --gap-lg: 18px;
+  --gap-lg: 20px;
 }
 
-/* إطار التطبيق: على الشاشات العريضة يبقى مريحاً حول 1400 */
+/* عرض كامل — بدون max-width يقيّد الإطار */
 .app-container {
   min-height: 100vh;
   min-height: 100dvh;
-  max-width: var(--layout-frame-w);
-  margin-inline: auto;
   width: 100%;
-  background: var(--bg-color);
+  max-width: none;
+  margin: 0;
 }
 
-/* الشريط الجانبي — أخف وأضيق */
 .sidebar {
   width: var(--sidebar-w);
-  padding: 20px 14px;
-  border-left: 1px solid var(--border-color);
+  padding: 22px 16px;
 }
 
 .sidebar.compact {
   width: var(--sidebar-compact-w);
-  padding: 18px 10px;
+  padding: 20px 10px;
 }
 
 .logo-area {
-  margin-bottom: 22px;
-  gap: 10px;
-}
-
-.logo-icon {
-  width: 36px;
-  height: 36px;
-}
-
-.logo-text {
-  font-size: var(--fs-xl);
+  margin-bottom: 28px;
 }
 
 .nav-item {
-  padding: 10px 12px;
+  padding: 11px 12px;
   border-radius: var(--radius-md);
-  margin-bottom: 2px;
-  font-size: var(--fs-sm);
-  gap: 10px;
-}
-
-.nav-item i {
-  font-size: 20px;
-}
-
-.nav-badge {
-  left: 8px;
-  min-width: 18px;
-  height: 18px;
-  font-size: 10px;
-}
-
-.sidebar-footer {
-  padding-top: 14px;
-}
-
-.theme-toggle-btn {
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  margin-bottom: 10px;
   font-size: var(--fs-sm);
 }
 
-.data-btn {
-  padding: 8px;
-  border-radius: 10px;
-  font-size: var(--fs-xs);
-}
-
-/* المحتوى الرئيسي */
 .main-content {
   flex: 1;
   min-width: 0;
-  max-width: none;
   width: 100%;
+  max-width: none;
   padding: var(--page-pad-y) var(--page-pad-x) var(--page-pad-bottom);
 }
 
-.page-header {
-  margin-bottom: 18px;
-}
-
-.page-title {
-  font-size: var(--fs-2xl);
-  letter-spacing: -0.02em;
-}
-
-.page-desc {
-  font-size: var(--fs-sm);
-}
-
-/* البطاقات والمصفوفة */
 .card {
   border-radius: var(--radius-lg);
-  padding: 18px 20px;
 }
 
 .matrix-grid {
   gap: var(--gap-lg);
 }
 
-.quadrant-card:not(.collapsed) {
-  min-height: 280px;
-}
-
-.quadrant-inner {
-  padding: 12px 14px 14px;
-}
-
 .drop-zone {
-  min-height: 160px;
-  max-height: calc(var(--layout-frame-h) - 320px);
+  max-height: calc(100vh - 280px);
 }
 
-.task-item {
-  padding: 11px 12px;
-  border-radius: var(--radius-md);
-  margin-bottom: 8px;
-  gap: 10px;
-}
-
-.task-title {
-  font-size: var(--fs-sm);
-  min-width: 120px;
-}
-
-.matrix-topbar {
-  margin-bottom: 14px;
-}
-
-.view-tab {
-  padding: 8px 12px;
-  font-size: var(--fs-xs);
-}
-
-.view-tab i {
-  font-size: 16px;
-}
-
-/* شريط المساحات */
-.workspace-switcher {
-  margin-bottom: 14px;
-}
-
-.workspace-tab {
-  padding: 7px 12px;
-  font-size: var(--fs-xs);
-  gap: 6px;
-}
-
-.workspace-tab i {
-  font-size: 14px;
-}
-
-/* الشريط العائم — لا يغطي المؤقت */
 .floating-smart-bar {
-  bottom: 16px;
-  width: min(560px, calc(100vw - 32px));
+  bottom: 18px;
+  width: min(640px, calc(100vw - 32px));
 }
 
-.floating-smart-inner {
-  padding: 8px 10px;
-  border-radius: 14px;
-}
-
-.floating-input {
-  padding: 9px 32px 9px 10px;
-  font-size: var(--fs-sm);
-}
-
-.floating-icon-btn,
-.floating-submit {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  font-size: 16px;
-}
-
-/* مؤقت عائم — موضع لا يتعارض مع الشريط */
+/* مؤقت — يسار أسفل، لا يقيّد العرض */
 .floating-timer-panel {
   position: fixed;
-  bottom: 16px;
-  left: 16px;
+  bottom: 18px;
+  left: 18px;
   z-index: 70;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -214,56 +84,14 @@
   align-items: center;
   gap: 12px;
   min-width: 168px;
-  max-width: 260px;
+  max-width: 280px;
   direction: rtl;
-}
-
-.floating-timer-panel.hidden-timer {
-  display: none;
 }
 
 .floating-timer-actions {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
-}
-
-/* شبكة الإحصائيات أوضح على 1400 */
-.stats-grid {
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.stat-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  font-size: 20px;
-}
-
-.stat-value {
-  font-size: var(--fs-xl);
-}
-
-/* شاشات أوسع من 1400: إطار متمركز بظل خفيف */
-@media (min-width: 1440px) {
-  body {
-    background: color-mix(in srgb, var(--bg-color) 88%, #000 4%);
-  }
-  .app-container {
-    box-shadow: 0 0 0 1px var(--border-color);
-    min-height: 100vh;
-  }
-}
-
-/* أقل من 1400: مرونة بدون كسر */
-@media (max-width: 1399px) {
-  .app-container {
-    max-width: 100%;
-  }
-  .drop-zone {
-    max-height: calc(100vh - 300px);
-  }
 }
 
 @media (max-width: 900px) {
