@@ -7,6 +7,8 @@ import {
   normalizeTaskContext,
 } from '../utils/taskMeta';
 
+const DEFAULT_RECURRENCE_LIFETIME_DAYS = 365;
+
 const EMPTY_FORM = {
   title: '',
   quadrant: 'important-urgent',
@@ -181,7 +183,17 @@ export default function TaskModal({
                   key={String(opt.id)}
                   type="button"
                   className={`chip-btn ${(form.recurrence || null) === opt.id ? 'active' : ''}`}
-                  onClick={() => setForm({ ...form, recurrence: opt.id })}
+                  onClick={() => {
+                    const wasRecurring = form.recurrence === 'daily' || form.recurrence === 'weekly';
+                    const willBeRecurring = opt.id === 'daily' || opt.id === 'weekly';
+                    // لو كان يتحوّل من "مرة واحدة" لمتكرر، والقيمة لسا بالافتراضي (1) ولم يعدّلها المستخدم،
+                    // نرفعها تلقائياً لقيمة عملية حتى لا يتوقف التكرار بعد يوم واحد بدون أن يلاحظ.
+                    const nextDuration =
+                      !wasRecurring && willBeRecurring && Number(form.duration) <= 1
+                        ? DEFAULT_RECURRENCE_LIFETIME_DAYS
+                        : form.duration;
+                    setForm({ ...form, recurrence: opt.id, duration: nextDuration });
+                  }}
                 >
                   {opt.label}
                 </button>
@@ -237,6 +249,12 @@ export default function TaskModal({
                   ? 'مثال: 40 = تنزل في الأيام المحددة لمدة 40 يوماً من البداية ثم تتوقف'
                   : 'أيام متصلة لمشروع واحد'}
               </p>
+              {isRecurring && Number(form.duration) <= 1 && (
+                <p className="form-hint" style={{ color: 'var(--danger)', fontWeight: 700 }}>
+                  ⚠️ بهذي القيمة (يوم واحد) المهمة راح تظهر مرة وحدة بس ولن تتكرر فعلياً — ارفع
+                  الرقم (مثلاً 365) حتى يشتغل التكرار.
+                </p>
+              )}
             </div>
           </div>
 
