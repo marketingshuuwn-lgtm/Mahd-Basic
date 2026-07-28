@@ -7,6 +7,7 @@ import './styles/trello.css';
 import './styles/workspaces.css';
 import './styles/archive.css';
 import './styles/layout-1400.css';
+import './styles/design-system.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
