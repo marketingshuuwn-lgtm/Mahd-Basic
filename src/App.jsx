@@ -188,8 +188,8 @@ export default function App() {
     closeModal();
   };
 
-  const handleCreateWorkspace = ({ name, icon, colorIndex }) => {
-    const created = addWorkspace({ name, icon, colorIndex });
+  const handleCreateWorkspace = ({ name, icon, colorIndex, trait }) => {
+    const created = addWorkspace({ name, icon, colorIndex, trait });
     if (created) {
       showToast(`أُنشئت مساحة "${created.label}"`, 'ph-folder-plus');
     }
@@ -406,7 +406,9 @@ export default function App() {
           />
         )}
 
-        {view === 'Kpi' && <KpiView tasks={visibleTasks} />}
+        {view === 'Kpi' && (
+          <KpiView tasks={visibleTasks} workspaces={visibleWorkspaces} />
+        )}
 
         {view === 'Motivation' && <MotivationView tasks={visibleTasks} />}
 
