@@ -1,5 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ALL_WORKSPACES_ID, WORKSPACE_COLORS, WORKSPACE_ICONS } from '../utils/taskMeta';
+
+function isSystemSpace(ws) {
+  return ws?.id === 'work' || ws?.id === 'personal' || ws?.isDefault;
+}
 
 export default function WorkspaceSwitcher({
   workspaces,
@@ -12,18 +16,32 @@ export default function WorkspaceSwitcher({
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [menuId, setMenuId] = useState(null);
   const [name, setName] = useState('');
+  const [trait, setTrait] = useState('');
   const [icon, setIcon] = useState(WORKSPACE_ICONS[2]);
   const [colorIndex, setColorIndex] = useState(2);
+  const menuRef = useRef(null);
 
   const editing = useMemo(
     () => workspaces.find((w) => w.id === editId) || null,
     [workspaces, editId]
   );
 
+  useEffect(() => {
+    if (!menuId) return;
+    const close = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuId(null);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuId]);
+
   const openEdit = (ws) => {
+    setMenuId(null);
     setEditId(ws.id);
     setName(ws.label);
+    setTrait(ws.trait || '');
     setIcon(ws.icon || WORKSPACE_ICONS[0]);
     const idx = WORKSPACE_COLORS.findIndex(
       (c) => c.color === ws.color || c.bg === ws.bg
@@ -33,9 +51,10 @@ export default function WorkspaceSwitcher({
 
   const submitCreate = (e) => {
     e?.preventDefault?.();
-    const created = onCreate?.({ name, icon, colorIndex });
+    const created = onCreate?.({ name, icon, colorIndex, trait });
     if (created) {
       setName('');
+      setTrait('');
       setShowCreate(false);
     }
   };
@@ -43,15 +62,17 @@ export default function WorkspaceSwitcher({
   const submitEdit = (e) => {
     e?.preventDefault?.();
     if (!editId || !name.trim()) return;
-    onUpdate?.(editId, { label: name.trim(), icon, colorIndex });
+    onUpdate?.(editId, {
+      label: name.trim(),
+      icon,
+      colorIndex,
+      trait: trait.trim(),
+    });
     setEditId(null);
   };
 
   const handleArchive = () => {
-    if (!editing) return;
-    if (editing.isDefault || editing.id === 'work' || editing.id === 'personal') {
-      return;
-    }
+    if (!editing || isSystemSpace(editing)) return;
     const ok = window.confirm(
       `أرشفة مساحة «${editing.label}»؟\n\nستُخفى من الشريط وتُؤرشف مهامها النشطة.\nلا يُحذف شيء من قاعدة البيانات.`
     );
@@ -59,6 +80,10 @@ export default function WorkspaceSwitcher({
     onArchiveSpace?.(editing.id);
     setEditId(null);
   };
+
+  const activeWs = !isAllMode
+    ? workspaces.find((w) => w.id === activeWorkspaceId)
+    : null;
 
   return (
     <div className="workspace-switcher">
@@ -75,39 +100,81 @@ export default function WorkspaceSwitcher({
           <span>الكل</span>
         </button>
 
-        {workspaces.map((ws) => (
-          <div key={ws.id} className="workspace-tab-wrap">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!isAllMode && ws.id === activeWorkspaceId}
-              className={`workspace-tab ${!isAllMode && ws.id === activeWorkspaceId ? 'active' : ''}`}
-              style={{ '--ws-color': ws.color, '--ws-bg': ws.bg }}
-              onClick={() => onSwitch(ws.id)}
-              title={ws.label}
-            >
-              <i className={`ph ${ws.icon}`}></i>
-              <span>{ws.label}</span>
-            </button>
-            <button
-              type="button"
-              className="workspace-tab-gear"
-              title="تحرير المساحة"
-              onClick={(e) => {
-                e.stopPropagation();
-                openEdit(ws);
-              }}
-            >
-              <i className="ph ph-gear"></i>
-            </button>
-          </div>
-        ))}
+        {workspaces.map((ws) => {
+          const active = !isAllMode && ws.id === activeWorkspaceId;
+          return (
+            <div key={ws.id} className="workspace-tab-wrap" ref={menuId === ws.id ? menuRef : null}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={`workspace-tab ${active ? 'active' : ''}`}
+                style={{ '--ws-color': ws.color, '--ws-bg': ws.bg }}
+                onClick={() => onSwitch(ws.id)}
+                onDoubleClick={() => openEdit(ws)}
+                title={ws.trait ? `${ws.label} — ${ws.trait}` : ws.label}
+              >
+                <i className={`ph ${ws.icon}`}></i>
+                <span className="workspace-tab-label">{ws.label}</span>
+                {active && (
+                  <span
+                    className="workspace-tab-more"
+                    role="button"
+                    tabIndex={0}
+                    title="خيارات المساحة"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuId((id) => (id === ws.id ? null : ws.id));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setMenuId((id) => (id === ws.id ? null : ws.id));
+                      }
+                    }}
+                  >
+                    <i className="ph ph-caret-down"></i>
+                  </span>
+                )}
+              </button>
+
+              {menuId === ws.id && (
+                <div className="workspace-menu">
+                  <button type="button" onClick={() => openEdit(ws)}>
+                    <i className="ph ph-pencil-simple"></i>
+                    تحرير المساحة
+                  </button>
+                  {!isSystemSpace(ws) && (
+                    <button
+                      type="button"
+                      className="workspace-menu-danger"
+                      onClick={() => {
+                        setMenuId(null);
+                        openEdit(ws);
+                        // يفتح التحرير ثم المستخدم يرى زر الأرشفة — أو مباشرة:
+                        const ok = window.confirm(
+                          `أرشفة مساحة «${ws.label}»؟\n\nستُخفى من الشريط وتُؤرشف مهامها النشطة.`
+                        );
+                        if (ok) onArchiveSpace?.(ws.id);
+                      }}
+                    >
+                      <i className="ph ph-archive"></i>
+                      أرشفة المساحة
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         <button
           type="button"
           className="workspace-tab workspace-add-tab"
           onClick={() => {
             setName('');
+            setTrait('');
             setIcon(WORKSPACE_ICONS[2]);
             setColorIndex(2);
             setShowCreate(true);
@@ -119,27 +186,44 @@ export default function WorkspaceSwitcher({
         </button>
       </div>
 
-      {isAllMode && (
-        <p className="workspace-all-hint">
-          عرض شامل لكل المهام النشطة — التقارير هنا للمنصة كاملة. الإضافة تُسجَّل في أول مساحة نشطة.
+      {activeWs?.trait && !isAllMode && (
+        <p className="workspace-trait-line" style={{ color: activeWs.color }}>
+          <i className={`ph ${activeWs.icon}`}></i>
+          {activeWs.trait}
         </p>
       )}
 
-      {showCreate && (
+      {isAllMode && (
+        <p className="workspace-all-hint">
+          عرض شامل لكل المهام النشطة — التقارير للمنصة كاملة. الإضافة تُسجَّل في أول مساحة نشطة.
+        </p>
+      )}
+
+      {(showCreate || editing) && (
         <div
           className="modal-overlay open workspace-create-overlay"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCreate(false);
+            if (e.target === e.currentTarget) {
+              setShowCreate(false);
+              setEditId(null);
+            }
           }}
         >
           <div className="modal-box card workspace-create-modal">
             <div className="modal-header">
-              <h3>مساحة جديدة</h3>
-              <button type="button" className="btn-icon" onClick={() => setShowCreate(false)}>
+              <h3>{editing ? 'تحرير المساحة' : 'مساحة جديدة'}</h3>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => {
+                  setShowCreate(false);
+                  setEditId(null);
+                }}
+              >
                 <i className="ph ph-x" style={{ fontSize: 20 }}></i>
               </button>
             </div>
-            <form onSubmit={submitCreate}>
+            <form onSubmit={editing ? submitEdit : submitCreate}>
               <div className="form-field">
                 <label>اسم المساحة</label>
                 <input
@@ -153,73 +237,18 @@ export default function WorkspaceSwitcher({
                 />
               </div>
               <div className="form-field">
-                <label>الأيقونة</label>
-                <div className="workspace-icon-picks">
-                  {WORKSPACE_ICONS.map((ic) => (
-                    <button
-                      key={ic}
-                      type="button"
-                      className={`workspace-icon-pick ${icon === ic ? 'active' : ''}`}
-                      onClick={() => setIcon(ic)}
-                    >
-                      <i className={`ph ${ic}`}></i>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="form-field">
-                <label>اللون</label>
-                <div className="workspace-color-picks">
-                  {WORKSPACE_COLORS.map((c, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className={`workspace-color-pick ${colorIndex === i ? 'active' : ''}`}
-                      style={{ background: c.color }}
-                      onClick={() => setColorIndex(i)}
-                      aria-label={`لون ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={!name.trim()}>
-                  إنشاء المساحة
-                </button>
-                <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)}>
-                  إلغاء
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {editing && (
-        <div
-          className="modal-overlay open workspace-create-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEditId(null);
-          }}
-        >
-          <div className="modal-box card workspace-create-modal">
-            <div className="modal-header">
-              <h3>تحرير المساحة</h3>
-              <button type="button" className="btn-icon" onClick={() => setEditId(null)}>
-                <i className="ph ph-x" style={{ fontSize: 20 }}></i>
-              </button>
-            </div>
-            <form onSubmit={submitEdit}>
-              <div className="form-field">
-                <label>الاسم</label>
+                <label>السمة / الشعار القصير</label>
                 <input
                   type="text"
                   className="form-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoFocus
-                  required
+                  value={trait}
+                  onChange={(e) => setTrait(e.target.value)}
+                  placeholder="مثال: تركيز عميق · عملاء · عائلة"
+                  maxLength={80}
                 />
+                <small style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                  جملة قصيرة تميّز المساحة تحت الشريط
+                </small>
               </div>
               <div className="form-field">
                 <label>الأيقونة</label>
@@ -252,19 +281,26 @@ export default function WorkspaceSwitcher({
               </div>
               <div className="modal-footer" style={{ flexWrap: 'wrap' }}>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={!name.trim()}>
-                  حفظ
+                  {editing ? 'حفظ' : 'إنشاء المساحة'}
                 </button>
-                <button type="button" className="btn-secondary" onClick={() => setEditId(null)}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowCreate(false);
+                    setEditId(null);
+                  }}
+                >
                   إلغاء
                 </button>
-                {!editing.isDefault && editing.id !== 'work' && editing.id !== 'personal' && (
+                {editing && !isSystemSpace(editing) && (
                   <button
                     type="button"
-                    className="btn-secondary"
-                    style={{ flex: '1 1 100%', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    className="btn-secondary workspace-archive-btn"
                     onClick={handleArchive}
                   >
-                    <i className="ph ph-archive"></i> أرشفة المساحة
+                    <i className="ph ph-archive"></i>
+                    أرشفة المساحة
                   </button>
                 )}
               </div>

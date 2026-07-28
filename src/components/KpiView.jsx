@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TASK_CONTEXTS } from '../utils/taskMeta';
+import { DEFAULT_WORKSPACES, normalizeTaskContext } from '../utils/taskMeta';
 
 const Q_NAMES = {
   'important-urgent': 'مهم ومستعجل',
@@ -42,7 +42,7 @@ function isInPeriod(dateStr, period) {
   if (period === 'week') {
     const start = new Date(today);
     const day = start.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // Monday start
+    const diff = day === 0 ? -6 : 1 - day;
     start.setDate(start.getDate() + diff);
     const end = new Date(start);
     end.setDate(start.getDate() + 7);
@@ -54,8 +54,27 @@ function isInPeriod(dateStr, period) {
   return true;
 }
 
-export default function KpiView({ tasks }) {
+export default function KpiView({ tasks, workspaces }) {
   const [period, setPeriod] = useState('week');
+
+  const spaceList = useMemo(() => {
+    const list = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces : DEFAULT_WORKSPACES;
+    const byId = new Map(list.map((w) => [w.id, w]));
+    // أضف أي context موجود في المهام وغير مسجّل في القائمة
+    for (const t of tasks) {
+      const id = normalizeTaskContext(t.context);
+      if (!byId.has(id)) {
+        byId.set(id, {
+          id,
+          label: id,
+          icon: 'ph-folder',
+          color: 'var(--accent)',
+          bg: 'var(--accent-light)',
+        });
+      }
+    }
+    return [...byId.values()];
+  }, [workspaces, tasks]);
 
   const stats = useMemo(() => {
     const completedInPeriod = tasks.filter(
@@ -67,11 +86,7 @@ export default function KpiView({ tasks }) {
       (t) => t.dueDate && new Date(t.dueDate + 'T00:00:00') < startOfDay(new Date())
     );
 
-    const total = period === 'all' ? tasks.length : createdInPeriod.length;
     const done = completedInPeriod.length;
-    const percent = total > 0 ? Math.round((done / Math.max(total, done)) * 100) : 0;
-
-    // completion rate among tasks that exist in period scope
     const scopeTotal = period === 'all' ? tasks.length : Math.max(createdInPeriod.length, done);
     const completionRate = scopeTotal > 0 ? Math.round((done / scopeTotal) * 100) : 0;
 
@@ -204,15 +219,20 @@ export default function KpiView({ tasks }) {
             التوزيع حسب المساحة
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {TASK_CONTEXTS.map((ctx) => {
-              const cTasks = tasks.filter((t) => (t.context || 'work') === ctx.id).length;
-              const cDone = tasks.filter((t) => (t.context || 'work') === ctx.id && t.completed).length;
+            {spaceList.map((ctx) => {
+              const cTasks = tasks.filter(
+                (t) => normalizeTaskContext(t.context) === ctx.id
+              ).length;
+              const cDone = tasks.filter(
+                (t) => normalizeTaskContext(t.context) === ctx.id && t.completed
+              ).length;
               const cPercent = tasks.length > 0 ? (cTasks / tasks.length) * 100 : 0;
+              if (cTasks === 0 && spaceList.length > 8) return null;
               return (
                 <div key={ctx.id}>
                   <div className="dist-row">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <i className={`ph ${ctx.icon}`}></i>
+                      <i className={`ph ${ctx.icon}`} style={{ color: ctx.color }}></i>
                       {ctx.label}
                     </span>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>
