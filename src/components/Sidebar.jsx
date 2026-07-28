@@ -34,7 +34,7 @@ export default function Sidebar({
     <aside className={`sidebar ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}>
       <div className="logo-area">
         <div className="logo-icon">
-          <i className="ph ph-tree-evergreen"></i>
+          <img src="/logo.svg" alt="مهد" className="logo-icon-img" />
         </div>
         {!compact && <div className="logo-text">مهد</div>}
         <button

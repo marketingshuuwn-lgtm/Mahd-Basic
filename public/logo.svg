@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 397.38 397.38">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: url(#Foliage_2);
+        stroke: #fff;
+        stroke-miterlimit: 10;
+      }
+    </style>
+    <linearGradient id="Foliage_2" data-name="Foliage 2" x1=".5" y1="198.69" x2="396.88" y2="198.69" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#54ae6f"/>
+      <stop offset=".49" stop-color="#00aa4f"/>
+      <stop offset="1" stop-color="#007736"/>
+    </linearGradient>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <path class="cls-2" d="M396.88,198.69c0,60.22-26.86,114.17-69.25,150.51-17.03,14.61-36.57,26.37-57.88,34.56-22.06,8.48-46.02,13.12-71.06,13.12C89.23,396.88.5,308.15.5,198.69c0-60.22,26.86-114.17,69.25-150.51,17.03-14.61,36.57-26.37,57.88-34.56C149.69,5.14,173.65.5,198.69.5c109.46,0,198.19,88.73,198.19,198.19Z"/>
+    <path class="cls-1" d="M127.63,13.62v261.46c0,15.98-12.96,28.94-28.94,28.94h0c-15.98,0-28.94-12.96-28.94-28.94V48.18c17.03-14.61,36.57-26.37,57.88-34.56Z"/>
+    <path class="cls-1" d="M327.63,122.3v226.9c-17.03,14.61-36.57,26.37-57.88,34.56V122.3c0-15.98,12.96-28.94,28.94-28.94h0c15.98,0,28.94,12.96,28.94,28.94Z"/>
+    <rect class="cls-1" x="146.91" y="83.36" width="103.56" height="230.67" rx="28.94" ry="28.94"/>
+  </g>
+</svg>
