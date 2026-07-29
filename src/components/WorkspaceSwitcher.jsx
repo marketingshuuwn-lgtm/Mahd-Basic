@@ -12,8 +12,11 @@ export default function WorkspaceSwitcher({
   onCreate,
   onUpdate,
   onArchiveSpace,
+  onReorder,
   isAllMode,
 }) {
+  const [dragId, setDragId] = useState(null);
+  const [overId, setOverId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState(null);
   const [menuId, setMenuId] = useState(null);
@@ -103,7 +106,33 @@ export default function WorkspaceSwitcher({
         {workspaces.map((ws) => {
           const active = !isAllMode && ws.id === activeWorkspaceId;
           return (
-            <div key={ws.id} className="workspace-tab-wrap" ref={menuId === ws.id ? menuRef : null}>
+            <div
+              key={ws.id}
+              className={`workspace-tab-wrap ${dragId === ws.id ? 'dragging' : ''} ${
+                overId === ws.id ? 'drag-over' : ''
+              }`}
+              ref={menuId === ws.id ? menuRef : null}
+              draggable
+              onDragStart={(e) => {
+                setDragId(ws.id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setOverId(null);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (dragId && dragId !== ws.id) setOverId(ws.id);
+              }}
+              onDragLeave={() => setOverId((id) => (id === ws.id ? null : id))}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId && dragId !== ws.id) onReorder?.(dragId, ws.id);
+                setDragId(null);
+                setOverId(null);
+              }}
+            >
               <button
                 type="button"
                 role="tab"

@@ -14,6 +14,19 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  cursor: grab;
+  transition: opacity 0.15s;
+}
+.workspace-tab-wrap.dragging { opacity: 0.4; }
+.workspace-tab-wrap.drag-over::before {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 999px;
 }
 
 .workspace-tab {

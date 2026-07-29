@@ -17,11 +17,6 @@ const QUADRANTS = [
   { id: 'not-important-not-urgent', label: 'غير مهم غير مستعجل', color: 'var(--text-secondary)' },
 ];
 
-const CONTEXT_FILTERS = [
-  { id: 'all', label: 'الكل', icon: 'ph-squares-four' },
-  ...TASK_CONTEXTS,
-];
-
 const DATE_FILTERS = [
   { id: 'all', label: 'الكل' },
   { id: 'overdue', label: 'متأخر' },
@@ -44,10 +39,16 @@ export default function PendingView({
   onEdit,
   onDelete,
   workDays,
+  workspaces,
 }) {
   const [qFilter, setQFilter] = useState('all');
   const [contextFilter, setContextFilter] = useState('all');
   const [dFilter, setDFilter] = useState('all');
+
+  const contextFilters = useMemo(() => {
+    const list = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces : TASK_CONTEXTS;
+    return [{ id: 'all', label: 'الكل', icon: 'ph-squares-four' }, ...list];
+  }, [workspaces]);
 
   const today = useMemo(() => startOfToday(), []);
 
@@ -135,7 +136,7 @@ export default function PendingView({
         <div className="filter-group">
           <span className="filter-label">المساحة</span>
           <div className="filter-chips">
-            {CONTEXT_FILTERS.map((ctx) => (
+            {contextFilters.map((ctx) => (
               <button
                 key={ctx.id}
                 type="button"

@@ -172,6 +172,20 @@ export function useWorkspaces() {
     );
   }, []);
 
+  const reorderWorkspaces = useCallback((draggedId, targetId) => {
+    if (draggedId === targetId) return;
+    setWorkspaces((prev) => {
+      const list = [...prev];
+      const fromIdx = list.findIndex((w) => w.id === draggedId);
+      const toIdx = list.findIndex((w) => w.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const [moved] = list.splice(fromIdx, 1);
+      const insertAt = list.findIndex((w) => w.id === targetId);
+      list.splice(insertAt, 0, moved);
+      return list;
+    });
+  }, []);
+
   return {
     workspaces,
     visibleWorkspaces,
@@ -184,5 +198,6 @@ export function useWorkspaces() {
     updateWorkspace,
     archiveWorkspace,
     restoreWorkspace,
+    reorderWorkspaces,
   };
 }

@@ -99,6 +99,7 @@ export default function App() {
     addWorkspace,
     updateWorkspace,
     archiveWorkspace,
+    reorderWorkspaces,
   } = useWorkspaces();
 
   const [view, setView] = useState('Matrix');
@@ -333,6 +334,7 @@ export default function App() {
           onCreate={handleCreateWorkspace}
           onUpdate={handleUpdateWorkspace}
           onArchiveSpace={handleArchiveSpace}
+          onReorder={reorderWorkspaces}
           isAllMode={isAllMode}
         />
 
@@ -385,6 +387,7 @@ export default function App() {
             onEdit={openEditModal}
             onDelete={archiveTask}
             workDays={workDays}
+            workspaces={visibleWorkspaces}
           />
         )}
 
