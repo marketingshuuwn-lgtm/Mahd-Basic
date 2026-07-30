@@ -28,7 +28,6 @@ export function useTrello(showToast, onSynced) {
       setConfig(data);
     } catch (err) {
       console.error(err);
-      // الجدول قد لا يكون موجوداً بعد، أو فشل الاتصال بالكامل
       setConfig(null);
     } finally {
       setLoading(false);
@@ -48,31 +47,43 @@ export function useTrello(showToast, onSynced) {
         updated_at: new Date().toISOString(),
       };
 
-      // اختبار قبل الحفظ
-      const me = await trelloTestConnection(payload.api_key, payload.access_token);
-      setMember(me);
+      try {
+        const me = await trelloTestConnection(payload.api_key, payload.access_token);
+        setMember(me);
 
-      const { data: existing } = await supabase
-        .from('integrations')
-        .select('id')
-        .eq('provider', PROVIDER)
-        .maybeSingle();
+        const { data: existing, error: selectErr } = await supabase
+          .from('integrations')
+          .select('id')
+          .eq('provider', PROVIDER)
+          .maybeSingle();
 
-      let error;
-      if (existing?.id) {
-        ({ error } = await supabase.from('integrations').update(payload).eq('id', existing.id));
-      } else {
-        ({ error } = await supabase.from('integrations').insert(payload));
+        if (selectErr) {
+          throw new Error(
+            selectErr.message +
+              ' — تأكد من وجود جدول integrations في Supabase.'
+          );
+        }
+
+        let error;
+        if (existing?.id) {
+          ({ error } = await supabase.from('integrations').update(payload).eq('id', existing.id));
+        } else {
+          ({ error } = await supabase.from('integrations').insert(payload));
+        }
+
+        if (error) {
+          throw new Error(error.message || 'تعذّر حفظ بيانات تريلو في قاعدة البيانات');
+        }
+
+        await loadConfig();
+        showToast?.('تم الربط: ' + (me.fullName || me.username), 'ph-link');
+        return me;
+      } catch (err) {
+        console.error(err);
+        const msg = err?.message || 'فشل ربط تريلو';
+        showToast?.(msg, 'ph-x-circle', 'error');
+        throw err;
       }
-
-      if (error) {
-        console.error(error);
-        throw new Error(error.message || 'تعذّر حفظ بيانات تريلو');
-      }
-
-      await loadConfig();
-      showToast?.(`تم الربط: ${me.fullName || me.username}`, 'ph-link');
-      return me;
     },
     [loadConfig, showToast]
   );
@@ -98,7 +109,6 @@ export function useTrello(showToast, onSynced) {
     try {
       const cards = await trelloFetchMyOpenCards(config.api_key, config.access_token);
 
-      // المهام المرتبطة بتريلو حالياً
       const { data: existingRows, error: fetchErr } = await supabase
         .from('tasks')
         .select('id, external_id, quadrant, completed')
@@ -106,9 +116,7 @@ export function useTrello(showToast, onSynced) {
 
       if (fetchErr) throw fetchErr;
 
-      const byExternal = new Map(
-        (existingRows || []).map((r) => [r.external_id, r])
-      );
+      const byExternal = new Map((existingRows || []).map((r) => [r.external_id, r]));
 
       let created = 0;
       let updated = 0;
@@ -128,7 +136,6 @@ export function useTrello(showToast, onSynced) {
               external_url: fields.external_url,
               external_meta: fields.external_meta,
               last_synced_at: now,
-              // لا نغيّر quadrant أو completed التي ضبطها المستخدم في مهد
             })
             .eq('id', prev.id);
           if (error) console.error(error);
@@ -164,7 +171,7 @@ export function useTrello(showToast, onSynced) {
       onSynced?.();
 
       showToast?.(
-        `مزامنة تريلو: ${created} جديدة، ${updated} محدّثة`,
+        'مزامنة تريلو: ' + created + ' جديدة، ' + updated + ' محدّثة',
         'ph-arrows-clockwise'
       );
       return { created, updated, total: cards.length };
