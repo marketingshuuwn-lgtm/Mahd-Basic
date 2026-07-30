@@ -116,7 +116,7 @@ export default function App() {
   const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
-  const [notesTarget, setNotesTarget] = useState(null); // { taskId, title } | null
+  const [notesTarget, setNotesTarget] = useState(null);
 
   useEffect(() => {
     const handler = (e) => setNotesTarget(e.detail);
@@ -132,6 +132,12 @@ export default function App() {
   const visibleTasks = useMemo(
     () => spaceTasks.filter((t) => !t.archived),
     [spaceTasks]
+  );
+
+  // صفحة تريلو تعرض كل مهام تريلو غير المؤرشفة بغض النظر عن المساحة النشطة
+  const trelloPageTasks = useMemo(
+    () => tasks.filter((t) => !t.archived && t.externalSource === 'trello'),
+    [tasks]
   );
 
   const archivedTasks = useMemo(
@@ -173,7 +179,7 @@ export default function App() {
   );
 
   const pendingCount = visibleTasks.filter((t) => !t.completed).length;
-  const trelloCount = visibleTasks.filter((t) => t.externalSource === 'trello' && !t.completed).length;
+  const trelloCount = trelloPageTasks.filter((t) => !t.completed).length;
   const archiveCount = archivedTasks.length;
 
   const openAddModal = () => {
@@ -406,7 +412,7 @@ export default function App() {
 
         {view === 'Trello' && (
           <TrelloView
-            tasks={visibleTasks}
+            tasks={trelloPageTasks}
             trello={{
               ...trello,
               syncNow: TRELLO_SYNC_ENABLED
@@ -417,7 +423,7 @@ export default function App() {
                   },
             }}
             onToggleComplete={toggleComplete}
-                onSetStatus={setTaskStatus}
+            onSetStatus={setTaskStatus}
             onToggleSubtask={toggleSubtask}
             onEdit={openEditModal}
             onDelete={archiveTask}
