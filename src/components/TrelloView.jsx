@@ -22,6 +22,7 @@ export default function TrelloView({
   const [apiKey, setApiKey] = useState('');
   const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const inbox = tasks.filter((t) => t.externalSource === 'trello' && !t.completed);
 
@@ -29,12 +30,14 @@ export default function TrelloView({
     e.preventDefault();
     if (!apiKey.trim() || !token.trim()) return;
     setSaving(true);
+    setFormError('');
     try {
       await trello.saveCredentials(apiKey, token);
       setApiKey('');
       setToken('');
     } catch (err) {
       console.error(err);
+      setFormError(err?.message || 'فشل الربط');
     } finally {
       setSaving(false);
     }
@@ -85,11 +88,13 @@ export default function TrelloView({
         ) : (
           <form onSubmit={handleSave} className="trello-form">
             <p className="trello-muted" style={{ marginBottom: 16 }}>
-              من{' '}
+              1) من{' '}
               <a href="https://trello.com/power-ups/admin" target="_blank" rel="noreferrer">
                 Trello Power-Ups Admin
               </a>{' '}
-              انسخ API Key ثم أنشئ Token والصقهما هنا. يُحفظان في Supabase.
+              انسخ <strong>API Key</strong> فقط (ليس Secret).
+              <br />
+              2) أنشئ <strong>Token</strong> من رابط التفويض تحت الـ Key (Generate a Token) — الصقه في الحقل الثاني.
             </p>
             <div className="form-field">
               <label>API Key</label>
@@ -103,7 +108,7 @@ export default function TrelloView({
               />
             </div>
             <div className="form-field">
-              <label>Token</label>
+              <label>Token (وليس Secret)</label>
               <input
                 type="password"
                 className="form-input"
@@ -113,6 +118,11 @@ export default function TrelloView({
                 required
               />
             </div>
+            {formError && (
+              <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }} role="alert">
+                {formError}
+              </p>
+            )}
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? 'جاري التحقق…' : 'حفظ وربط'}
             </button>
@@ -143,7 +153,7 @@ export default function TrelloView({
                 <TaskCard
                   task={task}
                   onToggleComplete={onToggleComplete}
-                onSetStatus={onSetStatus}
+                  onSetStatus={onSetStatus}
                   onToggleSubtask={onToggleSubtask}
                   onEdit={onEdit}
                   onDelete={onDelete}
