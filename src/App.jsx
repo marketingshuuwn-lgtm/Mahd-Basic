@@ -67,7 +67,7 @@ function getNotificationPermission() {
   return Notification.permission;
 }
 
-const TRELLO_SYNC_ENABLED = false;
+const TRELLO_SYNC_ENABLED = true;
 
 export default function App() {
   const showToast = useToast();
