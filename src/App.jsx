@@ -13,6 +13,7 @@ import TrelloView from './components/TrelloView';
 import SettingsView from './components/SettingsView';
 import ArchiveView from './components/ArchiveView';
 import TaskModal from './components/TaskModal';
+import NotesModal from './components/NotesModal';
 import ViewSwitcher from './components/ViewSwitcher';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher';
 import { useTasks } from './hooks/useTasks';
@@ -114,6 +115,13 @@ export default function App() {
   const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [notesTarget, setNotesTarget] = useState(null); // { taskId, title } | null
+
+  useEffect(() => {
+    const handler = (e) => setNotesTarget(e.detail);
+    window.addEventListener('open-task-notes', handler);
+    return () => window.removeEventListener('open-task-notes', handler);
+  }, []);
 
   const spaceTasks = useMemo(() => {
     if (isAllMode) return tasks;
@@ -467,6 +475,13 @@ export default function App() {
 
       <FloatingTimer />
       <TimeTrackingSync />
+      <NotesModal
+        isOpen={Boolean(notesTarget)}
+        taskId={notesTarget?.taskId}
+        taskTitle={notesTarget?.title}
+        onClose={() => setNotesTarget(null)}
+        showToast={showToast}
+      />
     </div>
   );
 }

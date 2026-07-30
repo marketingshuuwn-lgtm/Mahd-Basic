@@ -149,6 +149,21 @@ export default function TaskCard({
           className="btn-icon"
           onClick={(e) => {
             e.stopPropagation();
+            window.dispatchEvent(
+              new CustomEvent('open-task-notes', {
+                detail: { taskId: task.id, title: task.title },
+              })
+            );
+          }}
+          title="المسودات والمراجع"
+        >
+          <i className="ph ph-note-pencil" style={{ fontSize: 16 }}></i>
+        </button>
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={(e) => {
+            e.stopPropagation();
             onEdit(task.id);
           }}
           title="تعديل"
