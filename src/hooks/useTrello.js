@@ -59,8 +59,7 @@ export function useTrello(showToast, onSynced) {
 
         if (selectErr) {
           throw new Error(
-            selectErr.message +
-              ' — تأكد من وجود جدول integrations في Supabase.'
+            selectErr.message + ' — تأكد من وجود جدول integrations في Supabase.'
           );
         }
 
@@ -102,7 +101,7 @@ export function useTrello(showToast, onSynced) {
   const syncNow = useCallback(async () => {
     if (!config?.api_key || !config?.access_token) {
       showToast?.('اربط حساب تريلو أولاً', 'ph-warning', 'error');
-      return { created: 0, updated: 0 };
+      return { created: 0, updated: 0, completed: 0 };
     }
 
     setSyncing(true);
@@ -111,7 +110,7 @@ export function useTrello(showToast, onSynced) {
 
       const { data: existingRows, error: fetchErr } = await supabase
         .from('tasks')
-        .select('id, external_id, quadrant, completed')
+        .select('id, external_id, quadrant, completed, status')
         .eq('external_source', 'trello');
 
       if (fetchErr) throw fetchErr;
@@ -120,6 +119,7 @@ export function useTrello(showToast, onSynced) {
 
       let created = 0;
       let updated = 0;
+      let completedFromTrello = 0;
       const now = new Date().toISOString();
 
       for (const card of cards) {
@@ -127,6 +127,7 @@ export function useTrello(showToast, onSynced) {
         const prev = byExternal.get(card.id);
 
         if (prev) {
+          // بطاقة ما زالت مفتوحة ومسندة: حدّث المحتوى؛ إن كانت مكتملة محلياً فقط بسبب مزامنة سابقة خاطئة لا نفتحها تلقائياً
           const { error } = await supabase
             .from('tasks')
             .update({
@@ -149,6 +150,7 @@ export function useTrello(showToast, onSynced) {
             quadrant: DEFAULT_QUADRANT,
             context: 'work',
             completed: false,
+            status: 'not_started',
             duration: 1,
             sort_order: 0,
             external_source: 'trello',
@@ -162,6 +164,22 @@ export function useTrello(showToast, onSynced) {
         }
       }
 
+      // ما تبقى في byExternal = كان مسنداً/مفتوحاً سابقاً ولم يعد في open → اعتبره مكتملاً من تريلو
+      for (const prev of byExternal.values()) {
+        if (prev.completed) continue;
+        const { error } = await supabase
+          .from('tasks')
+          .update({
+            completed: true,
+            status: 'completed',
+            completed_at: now,
+            last_synced_at: now,
+          })
+          .eq('id', prev.id);
+        if (error) console.error(error);
+        else completedFromTrello += 1;
+      }
+
       await supabase
         .from('integrations')
         .update({ last_sync_at: now, updated_at: now })
@@ -170,15 +188,23 @@ export function useTrello(showToast, onSynced) {
       await loadConfig();
       onSynced?.();
 
-      showToast?.(
-        'مزامنة تريلو: ' + created + ' جديدة، ' + updated + ' محدّثة',
-        'ph-arrows-clockwise'
-      );
-      return { created, updated, total: cards.length };
+      const parts = [
+        created + ' جديدة',
+        updated + ' محدّثة',
+      ];
+      if (completedFromTrello > 0) parts.push(completedFromTrello + ' مكتملة من تريلو');
+
+      showToast?.('مزامنة تريلو: ' + parts.join('، '), 'ph-arrows-clockwise');
+      return {
+        created,
+        updated,
+        completed: completedFromTrello,
+        total: cards.length,
+      };
     } catch (err) {
       console.error(err);
       showToast?.(err.message || 'فشلت المزامنة مع تريلو', 'ph-x-circle', 'error');
-      return { created: 0, updated: 0 };
+      return { created: 0, updated: 0, completed: 0 };
     } finally {
       setSyncing(false);
     }
