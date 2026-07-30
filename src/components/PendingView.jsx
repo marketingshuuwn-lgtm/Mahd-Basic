@@ -7,7 +7,6 @@ import {
   isTaskOverdue,
   startOfToday,
 } from '../utils/dateUtils';
-import { TASK_CONTEXTS } from '../utils/taskMeta';
 
 const QUADRANTS = [
   { id: 'all', label: 'الكل', color: '#111827' },
@@ -26,6 +25,7 @@ const DATE_FILTERS = [
   { id: 'week', label: 'هذا الأسبوع' },
   { id: 'nextweek', label: 'الأسبوع القادم' },
   { id: 'nodate', label: 'بدون تاريخ' },
+  { id: 'range', label: 'تاريخ محدد' },
 ];
 
 function hasOccurrenceInRange(task, fromDate, toDate, workDays) {
@@ -35,6 +35,7 @@ function hasOccurrenceInRange(task, fromDate, toDate, workDays) {
 export default function PendingView({
   tasks,
   onToggleComplete,
+  onSetStatus,
   onToggleSubtask,
   onEdit,
   onDelete,
@@ -42,13 +43,9 @@ export default function PendingView({
   workspaces,
 }) {
   const [qFilter, setQFilter] = useState('all');
-  const [contextFilter, setContextFilter] = useState('all');
   const [dFilter, setDFilter] = useState('all');
-
-  const contextFilters = useMemo(() => {
-    const list = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces : TASK_CONTEXTS;
-    return [{ id: 'all', label: 'الكل', icon: 'ph-squares-four' }, ...list];
-  }, [workspaces]);
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
 
   const today = useMemo(() => startOfToday(), []);
 
@@ -57,10 +54,6 @@ export default function PendingView({
 
     if (qFilter !== 'all') {
       list = list.filter((t) => t.quadrant === qFilter);
-    }
-
-    if (contextFilter !== 'all') {
-      list = list.filter((t) => (t.context || 'work') === contextFilter);
     }
 
     const yesterday = new Date(today);
@@ -100,17 +93,22 @@ export default function PendingView({
       );
     } else if (dFilter === 'nodate') {
       list = list.filter((t) => !getTaskStartDate(t));
+    } else if (dFilter === 'range' && rangeFrom && rangeTo) {
+      const from = new Date(rangeFrom + 'T12:00:00');
+      const to = new Date(rangeTo + 'T12:00:00');
+      list = list.filter((t) => hasOccurrenceInRange(t, from, to, workDays));
     }
 
     return [...list].sort((a, b) => compareTasksBySchedule(a, b, { workDays }));
-  }, [tasks, qFilter, contextFilter, dFilter, today, workDays]);
+  }, [tasks, qFilter, dFilter, rangeFrom, rangeTo, today, workDays]);
 
   return (
     <div>
       <div className="page-header">
         <div className="page-title">المهام المعلقة</div>
         <div className="page-desc">
-          تصفية حسب الأولوية والمساحة والتاريخ — المتكرر اليومي يحترم أيام العمل
+          تصفية حسب الأولوية والتاريخ — استخدم شريط المساحات بالأعلى للتصفية حسب المساحة —
+          المتكرر اليومي يحترم أيام العمل
         </div>
       </div>
 
@@ -134,24 +132,6 @@ export default function PendingView({
         </div>
 
         <div className="filter-group">
-          <span className="filter-label">المساحة</span>
-          <div className="filter-chips">
-            {contextFilters.map((ctx) => (
-              <button
-                key={ctx.id}
-                type="button"
-                className={`filter-chip ${contextFilter === ctx.id ? 'active' : ''}`}
-                onClick={() => setContextFilter(ctx.id)}
-                title={ctx.label}
-              >
-                <i className={`ph ${ctx.icon}`}></i>
-                {ctx.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-group">
           <span className="filter-label">التاريخ</span>
           <div className="filter-chips">
             {DATE_FILTERS.map((f) => (
@@ -165,6 +145,23 @@ export default function PendingView({
               </button>
             ))}
           </div>
+          {dFilter === 'range' && (
+            <div className="filter-range-inputs">
+              <input
+                type="date"
+                className="form-input"
+                value={rangeFrom}
+                onChange={(e) => setRangeFrom(e.target.value)}
+              />
+              <span>إلى</span>
+              <input
+                type="date"
+                className="form-input"
+                value={rangeTo}
+                onChange={(e) => setRangeTo(e.target.value)}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -178,6 +175,7 @@ export default function PendingView({
               key={task.id}
               task={task}
               onToggleComplete={onToggleComplete}
+                onSetStatus={onSetStatus}
               onToggleSubtask={onToggleSubtask}
               onEdit={onEdit}
               onDelete={onDelete}

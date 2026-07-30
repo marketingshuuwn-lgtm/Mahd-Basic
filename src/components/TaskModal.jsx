@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   title: '',
   quadrant: 'important-urgent',
   context: 'work',
+  status: 'not_started',
   subtasks: [],
   dueDate: '',
   notes: '',
@@ -39,6 +40,7 @@ export default function TaskModal({
         title: task.title,
         quadrant: task.quadrant,
         context: normalizeTaskContext(task.context),
+        status: task.status || (task.completed ? 'completed' : 'not_started'),
         subtasks: normalizeSubtasks(task.subtasks),
         dueDate: task.dueDate || '',
         notes: task.notes || '',
@@ -168,6 +170,26 @@ export default function TaskModal({
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label>المرحلة</label>
+            <div className="recurrence-options">
+              {[
+                { id: 'not_started', label: 'لم تبدأ', icon: 'ph-circle' },
+                { id: 'in_progress', label: 'قيد التنفيذ', icon: 'ph-circle-half' },
+                { id: 'completed', label: 'مكتملة', icon: 'ph-check-circle' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`chip-btn ${form.status === s.id ? 'active' : ''}`}
+                  onClick={() => setForm({ ...form, status: s.id })}
+                >
+                  <i className={`ph ${s.icon}`}></i> {s.label}
+                </button>
+              ))}
             </div>
           </div>
 

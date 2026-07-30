@@ -81,6 +81,7 @@ export default function App() {
     archiveTasksInContext,
     restoreTask,
     toggleComplete,
+    setTaskStatus,
     toggleSubtask,
     moveTask,
     rescheduleTask,
@@ -191,6 +192,7 @@ export default function App() {
       recurrenceDays: form.recurrenceDays || [],
       context: form.context || writeContextId,
       subtasks: form.subtasks || [],
+      status: form.status || 'not_started',
     };
     if (id) {
       updateTask(id, form.title, form.quadrant, form.dueDate, form.notes, form.duration, extra);
@@ -356,6 +358,7 @@ export default function App() {
               <QuadrantBoard
                 tasks={visibleTasks}
                 onToggleComplete={toggleComplete}
+                onSetStatus={setTaskStatus}
                 onToggleSubtask={toggleSubtask}
                 onEdit={openEditModal}
                 onDelete={archiveTask}
@@ -368,6 +371,7 @@ export default function App() {
               <TimelineView
                 tasks={visibleTasks}
                 onToggleComplete={toggleComplete}
+                onSetStatus={setTaskStatus}
                 onToggleSubtask={toggleSubtask}
                 onEdit={openEditModal}
                 onDelete={archiveTask}
@@ -391,6 +395,7 @@ export default function App() {
           <PendingView
             tasks={visibleTasks}
             onToggleComplete={toggleComplete}
+            onSetStatus={setTaskStatus}
             onToggleSubtask={toggleSubtask}
             onEdit={openEditModal}
             onDelete={archiveTask}
@@ -412,6 +417,7 @@ export default function App() {
                   },
             }}
             onToggleComplete={toggleComplete}
+                onSetStatus={setTaskStatus}
             onToggleSubtask={toggleSubtask}
             onEdit={openEditModal}
             onDelete={archiveTask}

@@ -5,6 +5,7 @@ import TaskCard from './TaskCard';
 export default function TimelineView({
   tasks,
   onToggleComplete,
+  onSetStatus,
   onToggleSubtask,
   onEdit,
   onDelete,
@@ -66,6 +67,7 @@ export default function TimelineView({
                   key={task.id}
                   task={task}
                   onToggleComplete={onToggleComplete}
+                onSetStatus={onSetStatus}
                   onToggleSubtask={onToggleSubtask}
                   onEdit={onEdit}
                   onDelete={onDelete}

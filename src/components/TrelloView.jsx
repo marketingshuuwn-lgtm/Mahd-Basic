@@ -12,6 +12,7 @@ export default function TrelloView({
   tasks,
   trello,
   onToggleComplete,
+  onSetStatus,
   onToggleSubtask,
   onEdit,
   onDelete,
@@ -142,6 +143,7 @@ export default function TrelloView({
                 <TaskCard
                   task={task}
                   onToggleComplete={onToggleComplete}
+                onSetStatus={onSetStatus}
                   onToggleSubtask={onToggleSubtask}
                   onEdit={onEdit}
                   onDelete={onDelete}

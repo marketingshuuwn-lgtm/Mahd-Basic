@@ -20,6 +20,7 @@ const PERIODS = [
   { id: 'week', label: 'هذا الأسبوع' },
   { id: 'month', label: 'هذا الشهر' },
   { id: 'all', label: 'الكل' },
+  { id: 'custom', label: 'تاريخ محدد' },
 ];
 
 function startOfDay(d) {
@@ -28,7 +29,7 @@ function startOfDay(d) {
   return x;
 }
 
-function isInPeriod(dateStr, period) {
+function isInPeriod(dateStr, period, customFrom, customTo) {
   if (!dateStr) return period === 'all';
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return false;
@@ -36,6 +37,12 @@ function isInPeriod(dateStr, period) {
   const today = startOfDay(now);
 
   if (period === 'all') return true;
+  if (period === 'custom') {
+    if (!customFrom || !customTo) return true;
+    const from = new Date(customFrom + 'T00:00:00');
+    const to = new Date(customTo + 'T23:59:59');
+    return d >= from && d <= to;
+  }
   if (period === 'today') {
     return startOfDay(d).getTime() === today.getTime();
   }
@@ -56,6 +63,8 @@ function isInPeriod(dateStr, period) {
 
 export default function KpiView({ tasks, workspaces }) {
   const [period, setPeriod] = useState('week');
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
 
   const spaceList = useMemo(() => {
     const list = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces : DEFAULT_WORKSPACES;
@@ -78,9 +87,9 @@ export default function KpiView({ tasks, workspaces }) {
 
   const stats = useMemo(() => {
     const completedInPeriod = tasks.filter(
-      (t) => t.completed && isInPeriod(t.completedAt || t.createdAt, period)
+      (t) => t.completed && isInPeriod(t.completedAt || t.createdAt, period, rangeFrom, rangeTo)
     );
-    const createdInPeriod = tasks.filter((t) => isInPeriod(t.createdAt, period));
+    const createdInPeriod = tasks.filter((t) => isInPeriod(t.createdAt, period, rangeFrom, rangeTo));
     const pending = tasks.filter((t) => !t.completed);
     const overdue = pending.filter(
       (t) => t.dueDate && new Date(t.dueDate + 'T00:00:00') < startOfDay(new Date())
@@ -101,7 +110,7 @@ export default function KpiView({ tasks, workspaces }) {
       completedInPeriod,
       totalTimeSpentSeconds,
     };
-  }, [tasks, period]);
+  }, [tasks, period, rangeFrom, rangeTo]);
 
   const periodLabel = PERIODS.find((p) => p.id === period)?.label || '';
 
@@ -124,6 +133,23 @@ export default function KpiView({ tasks, workspaces }) {
             </button>
           ))}
         </div>
+        {period === 'custom' && (
+          <div className="filter-range-inputs">
+            <input
+              type="date"
+              className="form-input"
+              value={rangeFrom}
+              onChange={(e) => setRangeFrom(e.target.value)}
+            />
+            <span>إلى</span>
+            <input
+              type="date"
+              className="form-input"
+              value={rangeTo}
+              onChange={(e) => setRangeTo(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <div className="stats-grid">

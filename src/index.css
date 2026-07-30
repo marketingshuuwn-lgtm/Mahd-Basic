@@ -266,6 +266,22 @@ body {
   cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .task-checkbox.checked { background: var(--success); border-color: var(--success); color: white; }
+
+.task-status-btn {
+  width: 20px; height: 20px; border-radius: 999px; flex-shrink: 0;
+  border: 2px solid var(--border-color); background: transparent;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  padding: 0; transition: border-color 0.15s, background 0.15s;
+}
+.task-status-btn:hover { border-color: var(--accent); }
+.task-status-btn.status-not_started { color: transparent; }
+.task-status-btn.status-in_progress { border-color: var(--accent); }
+.task-status-btn.status-in_progress .status-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+}
+.task-status-btn.status-completed {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
 .task-content { flex: 1; min-width: 0; cursor: pointer; }
 .task-title-row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .task-title { font-size: var(--fs-md); flex: 1; min-width: 160px; }
@@ -374,6 +390,11 @@ body {
 .filter-bar { display: flex; flex-direction: column; gap: 14px; margin-bottom: 8px; }
 .filter-label { font-size: var(--fs-xs); color: var(--text-muted); margin-bottom: 6px; }
 .filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-range-inputs {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  font-size: 13px; color: var(--text-secondary);
+}
+.filter-range-inputs .form-input { padding: 6px 10px; width: auto; }
 .filter-chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
   border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary);

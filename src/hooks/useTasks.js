@@ -13,6 +13,7 @@ function fromRow(row) {
     context: normalizeTaskContext(row.context),
     subtasks: normalizeSubtasks(row.subtasks),
     completed: row.completed,
+    status: row.status || (row.completed ? 'completed' : 'not_started'),
     archived: Boolean(row.archived),
     archivedAt: row.archived_at ?? null,
     notes: row.notes ?? '',
@@ -100,13 +101,16 @@ export function useTasks(showToast) {
       const recurrenceDays = extra.recurrenceDays || [];
       const context = normalizeTaskContext(extra.context);
       const subtasks = normalizeSubtasks(extra.subtasks);
+      const status = extra.status || 'not_started';
+      const completed = status === 'completed';
       const optimisticTask = {
         id: tempId,
         title,
         quadrant,
         context,
         subtasks,
-        completed: false,
+        status,
+        completed,
         archived: false,
         archivedAt: null,
         notes: notes || '',
@@ -119,7 +123,7 @@ export function useTasks(showToast) {
         externalId: null,
         externalUrl: null,
         createdAt: new Date().toISOString(),
-        completedAt: null,
+        completedAt: completed ? new Date().toISOString() : null,
       };
 
       setTasks((prev) => [optimisticTask, ...prev]);
@@ -129,6 +133,9 @@ export function useTasks(showToast) {
         quadrant,
         context,
         subtasks,
+        status,
+        completed,
+        completed_at: completed ? new Date().toISOString() : null,
         due_date: dueDate || null,
         notes: notes || '',
         duration: duration || 1,
@@ -166,6 +173,9 @@ export function useTasks(showToast) {
       );
       const subtasks =
         extra.subtasks !== undefined ? normalizeSubtasks(extra.subtasks) : normalizeSubtasks(previous.subtasks);
+      const status = extra.status !== undefined ? extra.status : (previous.status || 'not_started');
+      const completed = status === 'completed';
+      const completedAt = completed ? previous.completedAt || new Date().toISOString() : null;
 
       setTasks((prev) =>
         prev.map((t) =>
@@ -176,6 +186,9 @@ export function useTasks(showToast) {
                 quadrant,
                 context,
                 subtasks,
+                status,
+                completed,
+                completedAt,
                 dueDate: dueDate || '',
                 notes: notes || '',
                 duration: duration || 1,
@@ -193,6 +206,9 @@ export function useTasks(showToast) {
           quadrant,
           context,
           subtasks,
+          status,
+          completed,
+          completed_at: completedAt,
           due_date: dueDate || null,
           notes: notes || '',
           duration: duration || 1,
@@ -327,6 +343,47 @@ export function useTasks(showToast) {
       }
 
       if (completed) showToast?.(`✓ "${task.title}" مكتملة`, 'ph-check-circle');
+    },
+    [tasks, showToast]
+  );
+
+  const STATUS_LABELS = {
+    not_started: 'لم تبدأ',
+    in_progress: 'قيد التنفيذ',
+    completed: 'مكتملة',
+  };
+
+  const setTaskStatus = useCallback(
+    async (id, status) => {
+      const task = tasks.find((t) => t.id === id);
+      if (!task) return;
+
+      const completed = status === 'completed';
+      const completedAt = completed ? new Date().toISOString() : null;
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status, completed, completedAt } : t))
+      );
+
+      const { error } = await supabase
+        .from(TABLE)
+        .update({ status, completed, completed_at: completedAt })
+        .eq('id', id);
+
+      if (error) {
+        console.error(error);
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === id
+              ? { ...t, status: task.status, completed: task.completed, completedAt: task.completedAt }
+              : t
+          )
+        );
+        showToast?.('تعذّر تحديث مرحلة المهمة', 'ph-x-circle', 'error');
+        return;
+      }
+
+      showToast?.(`المرحلة الآن: ${STATUS_LABELS[status]}`, 'ph-flag');
     },
     [tasks, showToast]
   );
@@ -505,6 +562,7 @@ export function useTasks(showToast) {
     archiveTasksInContext,
     restoreTask,
     toggleComplete,
+    setTaskStatus,
     toggleSubtask,
     moveTask,
     rescheduleTask,

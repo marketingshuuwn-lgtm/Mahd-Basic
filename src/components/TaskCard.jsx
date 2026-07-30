@@ -6,6 +6,7 @@ import { getTaskContextMeta } from '../utils/taskMeta';
 export default function TaskCard({
   task,
   onToggleComplete,
+  onSetStatus,
   onToggleSubtask,
   onEdit,
   onDelete,
@@ -38,15 +39,28 @@ export default function TaskCard({
       }}
       onDragEnd={(e) => e.currentTarget.classList.remove('dragging')}
     >
-      <div
-        className={`task-checkbox ${task.completed ? 'checked' : ''}`}
+      <button
+        type="button"
+        className={`task-status-btn status-${task.status || 'not_started'}`}
         onClick={(e) => {
           e.stopPropagation();
-          onToggleComplete(task.id);
+          const order = ['not_started', 'in_progress', 'completed'];
+          const current = task.status || (task.completed ? 'completed' : 'not_started');
+          const next = order[(order.indexOf(current) + 1) % order.length];
+          if (onSetStatus) onSetStatus(task.id, next);
+          else onToggleComplete(task.id);
         }}
+        title={
+          { not_started: 'لم تبدأ — اضغط للبدء', in_progress: 'قيد التنفيذ — اضغط للإكمال', completed: 'مكتملة — اضغط لإعادة الفتح' }[
+            task.status || (task.completed ? 'completed' : 'not_started')
+          ]
+        }
       >
-        {task.completed && <i className="ph ph-check" style={{ fontSize: 14 }}></i>}
-      </div>
+        {(task.status || (task.completed ? 'completed' : 'not_started')) === 'completed' && (
+          <i className="ph ph-check" style={{ fontSize: 13 }}></i>
+        )}
+        {(task.status || 'not_started') === 'in_progress' && <span className="status-dot"></span>}
+      </button>
       <div className="task-content" onClick={() => onEdit(task.id)}>
         <div className="task-title-row">
           <div className="task-title">{task.title}</div>

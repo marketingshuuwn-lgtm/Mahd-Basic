@@ -22,6 +22,7 @@ function sortItems(items, workDays) {
 export default function QuadrantBoard({
   tasks,
   onToggleComplete,
+  onSetStatus,
   onToggleSubtask,
   onEdit,
   onDelete,
@@ -145,6 +146,7 @@ export default function QuadrantBoard({
                           <TaskCard
                             task={task}
                             onToggleComplete={onToggleComplete}
+                onSetStatus={onSetStatus}
                             onToggleSubtask={onToggleSubtask}
                             onEdit={onEdit}
                             onDelete={onDelete}
