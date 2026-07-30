@@ -5,7 +5,7 @@ const NAV_ITEMS = [
   { id: 'Pending', label: 'المهام المعلقة', icon: 'ph-hourglass' },
   { id: 'Trello', label: 'تريلو', icon: 'ph-kanban' },
   { id: 'Kpi', label: 'التقارير', icon: 'ph-chart-bar' },
-  { id: 'Motivation', label: 'مساحة التحفيز', icon: 'ph-rocket-launch' },
+  { id: 'Motivation', label: 'استراحة', icon: 'ph-coffee' },
   { id: 'Archive', label: 'الأرشيف', icon: 'ph-archive' },
   { id: 'Settings', label: 'الإعدادات', icon: 'ph-gear-six' },
 ];

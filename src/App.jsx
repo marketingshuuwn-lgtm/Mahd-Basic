@@ -6,7 +6,7 @@ import TimelineView from './components/TimelineView';
 import GanttView from './components/GanttView';
 import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
-import MotivationView from './components/MotivationView';
+import BreakSpace from './components/BreakSpace';
 import FloatingTimer from './components/FloatingTimer';
 import TimeTrackingSync from './components/TimeTrackingSync';
 import TrelloView from './components/TrelloView';
@@ -416,7 +416,7 @@ export default function App() {
           <KpiView tasks={visibleTasks} workspaces={visibleWorkspaces} />
         )}
 
-        {view === 'Motivation' && <MotivationView tasks={visibleTasks} />}
+        {view === 'Motivation' && <BreakSpace tasks={visibleTasks} showToast={showToast} />}
 
         {view === 'Archive' && (
           <ArchiveView

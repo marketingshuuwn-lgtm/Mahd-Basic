@@ -8,6 +8,7 @@ import './styles/workspaces.css';
 import './styles/archive.css';
 import './styles/layout-1400.css';
 import './styles/design-system.css';
+import './styles/break-space.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
