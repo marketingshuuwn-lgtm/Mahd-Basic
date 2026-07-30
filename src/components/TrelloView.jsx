@@ -8,6 +8,80 @@ const QUADRANTS = [
   { id: 'not-important-not-urgent', label: 'غير مهم غير مستعجل' },
 ];
 
+function AttachmentLinks({ task }) {
+  const attachments = task.externalMeta?.attachments || [];
+  if (!attachments.length) return null;
+  return (
+    <div className="trello-attachments">
+      <span className="trello-muted" style={{ marginLeft: 6 }}>
+        <i className="ph ph-paperclip"></i> مرفقات:
+      </span>
+      {attachments.map((a) => (
+        <a
+          key={a.id || a.url}
+          href={a.url}
+          target="_blank"
+          rel="noreferrer"
+          className="trello-link"
+          title={a.name}
+        >
+          {a.name || 'مرفق'}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function TrelloTaskRow({
+  task,
+  onToggleComplete,
+  onSetStatus,
+  onToggleSubtask,
+  onEdit,
+  onDelete,
+  onMoveTask,
+  workDays,
+  showQuadrantSelect,
+}) {
+  return (
+    <div className="trello-inbox-item">
+      <TaskCard
+        task={task}
+        onToggleComplete={onToggleComplete}
+        onSetStatus={onSetStatus}
+        onToggleSubtask={onToggleSubtask}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        draggable={false}
+        workDays={workDays}
+      />
+      <div className="trello-item-meta">
+        {task.externalUrl && (
+          <a href={task.externalUrl} target="_blank" rel="noreferrer" className="trello-link">
+            <i className="ph ph-arrow-square-out"></i>
+            فتح في تريلو
+          </a>
+        )}
+        <AttachmentLinks task={task} />
+        {showQuadrantSelect && (
+          <select
+            className="form-input trello-quad-select"
+            value={task.quadrant}
+            onChange={(e) => onMoveTask(task.id, e.target.value)}
+            title="نقل إلى ربع"
+          >
+            {QUADRANTS.map((q) => (
+              <option key={q.id} value={q.id}>
+                {q.label}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TrelloView({
   tasks,
   trello,
@@ -24,7 +98,9 @@ export default function TrelloView({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const inbox = tasks.filter((t) => t.externalSource === 'trello' && !t.completed);
+  const trelloTasks = tasks.filter((t) => t.externalSource === 'trello');
+  const inbox = trelloTasks.filter((t) => !t.completed);
+  const doneFromTrello = trelloTasks.filter((t) => t.completed);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -48,7 +124,8 @@ export default function TrelloView({
       <div className="page-header">
         <h1 className="page-title">تريلو</h1>
         <p className="page-desc">
-          البطاقات المسندة إليك في تريلو تصل إلى مهد — مزامنة من تريلو → مهد فقط حالياً
+          بطاقاتك المسندة في تريلو تظهر هنا. إغلاق البطاقة في تريلو → تُعلَّم مكتملة في مهد بعد
+          المزامنة. المرفقات تظهر كروابط.
         </p>
       </div>
 
@@ -94,7 +171,7 @@ export default function TrelloView({
               </a>{' '}
               انسخ <strong>API Key</strong> فقط (ليس Secret).
               <br />
-              2) أنشئ <strong>Token</strong> من رابط التفويض تحت الـ Key (Generate a Token) — الصقه في الحقل الثاني.
+              2) أنشئ <strong>Token</strong> من رابط التفويض تحت الـ Key — الصقه في الحقل الثاني.
             </p>
             <div className="form-field">
               <label>API Key</label>
@@ -130,10 +207,10 @@ export default function TrelloView({
         )}
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 className="kpi-section-title" style={{ marginBottom: 0 }}>
-            وارد تريلو
+            وارد تريلو (مفتوحة)
             <span className="q-count" style={{ marginRight: 10 }}>
               {inbox.length}
             </span>
@@ -143,48 +220,58 @@ export default function TrelloView({
         {inbox.length === 0 ? (
           <div className="empty-state">
             {trello.isConnected
-              ? 'لا بطاقات مسندة إليك حالياً — اضغط «مزامنة الآن» بعد إسناد بطاقة في تريلو'
+              ? 'لا بطاقات مسندة مفتوحة — اضغط «مزامنة الآن» بعد إسناد بطاقة في تريلو'
               : 'اربط تريلو أولاً ثم زامن'}
           </div>
         ) : (
           <div className="trello-inbox-list">
             {inbox.map((task) => (
-              <div key={task.id} className="trello-inbox-item">
-                <TaskCard
-                  task={task}
-                  onToggleComplete={onToggleComplete}
-                  onSetStatus={onSetStatus}
-                  onToggleSubtask={onToggleSubtask}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  draggable={false}
-                  workDays={workDays}
-                />
-                <div className="trello-item-meta">
-                  {task.externalUrl && (
-                    <a href={task.externalUrl} target="_blank" rel="noreferrer" className="trello-link">
-                      <i className="ph ph-arrow-square-out"></i>
-                      فتح في تريلو
-                    </a>
-                  )}
-                  <select
-                    className="form-input trello-quad-select"
-                    value={task.quadrant}
-                    onChange={(e) => onMoveTask(task.id, e.target.value)}
-                    title="نقل إلى ربع"
-                  >
-                    {QUADRANTS.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        {q.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <TrelloTaskRow
+                key={task.id}
+                task={task}
+                onToggleComplete={onToggleComplete}
+                onSetStatus={onSetStatus}
+                onToggleSubtask={onToggleSubtask}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onMoveTask={onMoveTask}
+                workDays={workDays}
+                showQuadrantSelect
+              />
             ))}
           </div>
         )}
       </div>
+
+      {doneFromTrello.length > 0 && (
+        <div className="card">
+          <h2 className="kpi-section-title">
+            مكتملة من تريلو / مهد
+            <span className="q-count" style={{ marginRight: 10 }}>
+              {doneFromTrello.length}
+            </span>
+          </h2>
+          <p className="trello-muted" style={{ marginBottom: 12 }}>
+            بعد إغلاق البطاقة في تريلو والمزامنة، تنتقل المهمة هنا وتُعلَّم مكتملة في مساحة عمل.
+          </p>
+          <div className="trello-inbox-list">
+            {doneFromTrello.map((task) => (
+              <TrelloTaskRow
+                key={task.id}
+                task={task}
+                onToggleComplete={onToggleComplete}
+                onSetStatus={onSetStatus}
+                onToggleSubtask={onToggleSubtask}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onMoveTask={onMoveTask}
+                workDays={workDays}
+                showQuadrantSelect={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
