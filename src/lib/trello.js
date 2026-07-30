@@ -41,7 +41,7 @@ export async function trelloTestConnection(apiKey, token) {
 }
 
 /**
- * كل البطاقات المفتوحة المسندة للعضو الحالي.
+ * البطاقات المفتوحة المسندة للعضو الحالي + المرفقات (روابط).
  */
 export async function trelloFetchMyOpenCards(apiKey, token) {
   const fields = [
@@ -56,15 +56,28 @@ export async function trelloFetchMyOpenCards(apiKey, token) {
     'idList',
     'labels',
     'dateLastActivity',
+    'closed',
   ].join(',');
 
   return trelloFetch(
     TRELLO_API +
       '/members/me/cards?' +
       authParams(apiKey, token) +
-      '&filter=open&fields=' +
+      '&filter=open&attachments=true&attachment_fields=id,name,url,bytes,mimeType,date&fields=' +
       fields
   );
+}
+
+function mapAttachments(card) {
+  const list = Array.isArray(card.attachments) ? card.attachments : [];
+  return list
+    .map((a) => ({
+      id: a.id,
+      name: a.name || 'مرفق',
+      url: a.url || a.bytes || null,
+      mimeType: a.mimeType || null,
+    }))
+    .filter((a) => a.url);
 }
 
 /** تحويل بطاقة تريلو إلى حقول مهمة مهد */
@@ -81,15 +94,23 @@ export function mapTrelloCardToTaskFields(card) {
   }
 
   const labelNames = (card.labels || []).map((l) => l.name).filter(Boolean);
+  const attachments = mapAttachments(card);
   const notesParts = [];
   if (card.desc) notesParts.push(card.desc);
   if (labelNames.length) notesParts.push('تسميات: ' + labelNames.join('، '));
+  if (attachments.length) {
+    notesParts.push(
+      'مرفقات تريلو:\n' +
+        attachments.map((a) => '- ' + a.name + ': ' + a.url).join('\n')
+    );
+  }
 
   return {
     title: (card.name || 'بطاقة تريلو').trim(),
     notes: notesParts.join('\n\n'),
     dueDate,
-    completed: !!card.dueComplete,
+    // dueComplete = تم تحديد الموعد فقط؛ الإنجاز الحقيقي عند اختفاء البطاقة من open
+    completed: false,
     external_source: 'trello',
     external_id: card.id,
     external_url: card.shortUrl || card.url || null,
@@ -97,6 +118,7 @@ export function mapTrelloCardToTaskFields(card) {
       boardId: card.idBoard,
       listId: card.idList,
       labels: labelNames,
+      attachments,
     },
   };
 }
