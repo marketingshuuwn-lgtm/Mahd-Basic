@@ -3,6 +3,15 @@ import { formatTaskSchedule, isTaskOverdue } from '../utils/dateUtils';
 import { getSubtaskStats, normalizeSubtasks } from '../utils/subtasks';
 import { getTaskContextMeta } from '../utils/taskMeta';
 
+function cleanNotesForDisplay(notes) {
+  if (!notes) return '';
+  // إخفاء بلوك مرفقات تريلو المكرر في النص — تظهر كأزرار منفصلة
+  return String(notes)
+    .replace(/مرفقات تريلو:\n(?:- .*\n?)*/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export default function TaskCard({
   task,
   onToggleComplete,
@@ -17,6 +26,8 @@ export default function TaskCard({
   const contextMeta = getTaskContextMeta(task.context);
   const subtasks = normalizeSubtasks(task.subtasks);
   const subtaskStats = getSubtaskStats(subtasks);
+  const attachments = task.externalMeta?.attachments || [];
+  const displayNotes = cleanNotesForDisplay(task.notes);
 
   const [trackingState, setTrackingState] = useState({ activeTaskId: null, label: '0:00' });
 
@@ -27,6 +38,7 @@ export default function TaskCard({
   }, []);
 
   const isTracking = trackingState.activeTaskId === task.id;
+  const status = task.status || (task.completed ? 'completed' : 'not_started');
 
   return (
     <div
@@ -41,25 +53,25 @@ export default function TaskCard({
     >
       <button
         type="button"
-        className={`task-status-btn status-${task.status || 'not_started'}`}
+        className={`task-status-btn status-${status}`}
         onClick={(e) => {
           e.stopPropagation();
           const order = ['not_started', 'in_progress', 'completed'];
-          const current = task.status || (task.completed ? 'completed' : 'not_started');
+          const current = status;
           const next = order[(order.indexOf(current) + 1) % order.length];
           if (onSetStatus) onSetStatus(task.id, next);
           else onToggleComplete(task.id);
         }}
         title={
-          { not_started: 'لم تبدأ — اضغط للبدء', in_progress: 'قيد التنفيذ — اضغط للإكمال', completed: 'مكتملة — اضغط لإعادة الفتح' }[
-            task.status || (task.completed ? 'completed' : 'not_started')
-          ]
+          {
+            not_started: 'لم تبدأ — اضغط للبدء',
+            in_progress: 'قيد التنفيذ — اضغط للإكمال',
+            completed: 'مكتملة — اضغط لإعادة الفتح',
+          }[status]
         }
       >
-        {(task.status || (task.completed ? 'completed' : 'not_started')) === 'completed' && (
-          <i className="ph ph-check" style={{ fontSize: 13 }}></i>
-        )}
-        {(task.status || 'not_started') === 'in_progress' && <span className="status-dot"></span>}
+        {status === 'completed' && <i className="ph ph-check" style={{ fontSize: 13 }}></i>}
+        {status === 'in_progress' && <span className="status-dot"></span>}
       </button>
       <div className="task-content" onClick={() => onEdit(task.id)}>
         <div className="task-title-row">
@@ -72,6 +84,11 @@ export default function TaskCard({
             <i className={`ph ${contextMeta.icon}`}></i>
             {contextMeta.label}
           </span>
+          {task.externalSource === 'trello' && (
+            <span className="task-source-badge" title="من تريلو">
+              <i className="ph ph-kanban"></i>
+            </span>
+          )}
         </div>
         <div className={`task-deadline ${overdue ? 'is-overdue' : ''}`}>
           <i className="ph ph-calendar-blank"></i> {formatTaskSchedule(task, { workDays })}
@@ -121,13 +138,46 @@ export default function TaskCard({
             </div>
           </div>
         )}
-        {task.notes && (
+        {displayNotes && (
           <div className="task-notes">
-            <i className="ph ph-note-pencil"></i> {task.notes}
+            <i className="ph ph-note-pencil"></i>{' '}
+            {displayNotes.length > 140 ? displayNotes.slice(0, 140) + '…' : displayNotes}
+          </div>
+        )}
+        {attachments.length > 0 && (
+          <div className="task-attachments" onClick={(e) => e.stopPropagation()}>
+            {attachments.slice(0, 4).map((a) => (
+              <a
+                key={a.id || a.url}
+                href={a.url}
+                target="_blank"
+                rel="noreferrer"
+                className="task-attach-chip"
+                title={a.name}
+              >
+                <i className="ph ph-paperclip"></i>
+                <span>{a.name || 'مرفق'}</span>
+              </a>
+            ))}
+            {attachments.length > 4 && (
+              <span className="subtask-more">+{attachments.length - 4}</span>
+            )}
           </div>
         )}
       </div>
       <div className="task-actions" onMouseDown={(e) => e.stopPropagation()}>
+        {task.externalUrl && (
+          <a
+            href={task.externalUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-icon"
+            title="فتح في تريلو"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <i className="ph ph-arrow-square-out" style={{ fontSize: 16 }}></i>
+          </a>
+        )}
         <button
           type="button"
           className={`btn-icon ${isTracking ? 'time-tracking-active' : ''}`}
