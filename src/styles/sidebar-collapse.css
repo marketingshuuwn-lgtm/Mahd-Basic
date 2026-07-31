@@ -1,13 +1,9 @@
-/* طي الشريط — سكة رفيعة على الحافة الداخلية */
-.sidebar {
-  position: sticky;
-}
+/* سكة الطي فقط — عرض الشريط من design-system + visual-polish */
 
 .sidebar-collapse-rail {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  /* في RTL الشريط يمين الصفحة؛ الحافة الداخلية باتجاه المحتوى = اليسار */
   left: -1px;
   z-index: 5;
   width: 18px;
@@ -43,7 +39,6 @@
   line-height: 1;
 }
 
-/* في الوضع المطوي تظهر السكة دائماً بخفة */
 .sidebar.compact .sidebar-collapse-rail {
   opacity: 0.72;
 }
@@ -74,10 +69,8 @@
 
 .sidebar.compact .logo-area {
   justify-content: center;
-  margin-bottom: 28px;
 }
 
-/* إخفاء الزر القديم تحت الشعار إن وُجد في كاش قديم */
 .sidebar-pin-btn {
   display: none !important;
 }
