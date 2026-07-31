@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import ReactDOM from 'react-portal/client';
 import App from './App.jsx';
 import { ToastProvider } from './hooks/useToast.jsx';
 import './index.css';
@@ -13,6 +13,7 @@ import './styles/task-notes.css';
 import './styles/sidebar-collapse.css';
 import './styles/notepad.css';
 import './styles/nav-data.css';
+import './styles/visual-polish.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
