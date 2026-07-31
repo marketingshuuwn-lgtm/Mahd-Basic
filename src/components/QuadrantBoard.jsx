@@ -6,7 +6,7 @@ const QUADRANTS = [
   { id: 'important-urgent', title: 'مهم ومستعجل', color: 'var(--danger)' },
   { id: 'important-not-urgent', title: 'مهم غير مستعجل', color: 'var(--accent)' },
   { id: 'not-important-urgent', title: 'غير مهم ومستعجل', color: 'var(--warning)' },
-  { id: 'not-important-not-urgent', title: 'غير مهم غير مستعجل', color: 'var(--text-secondary)' },
+  { id: 'not-important-not-urgent', title: 'غير مهم غير مستعجل', color: 'var(--q4)' },
 ];
 
 function parseDragId(raw) {
@@ -146,7 +146,7 @@ export default function QuadrantBoard({
                           <TaskCard
                             task={task}
                             onToggleComplete={onToggleComplete}
-                onSetStatus={onSetStatus}
+                            onSetStatus={onSetStatus}
                             onToggleSubtask={onToggleSubtask}
                             onEdit={onEdit}
                             onDelete={onDelete}
