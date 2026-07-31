@@ -12,6 +12,7 @@ import TimeTrackingSync from './components/TimeTrackingSync';
 import TrelloView from './components/TrelloView';
 import SettingsView from './components/SettingsView';
 import ArchiveView from './components/ArchiveView';
+import NotepadView from './components/NotepadView';
 import TaskModal from './components/TaskModal';
 import NotesModal from './components/NotesModal';
 import ViewSwitcher from './components/ViewSwitcher';
@@ -125,6 +126,23 @@ export default function App() {
     return () => window.removeEventListener('open-task-notes', handler);
   }, []);
 
+  // Alt+G → استراحة
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.altKey && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        setView('Motivation');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // تريلو لم يعد صفحة منفصلة — حوّل الروابط القديمة إلى الإعدادات
+  useEffect(() => {
+    if (view === 'Trello') setView('Settings');
+  }, [view]);
+
   const spaceTasks = useMemo(() => {
     if (isAllMode) return tasks;
     return tasks.filter((t) => normalizeTaskContext(t.context) === activeWorkspaceId);
@@ -165,7 +183,6 @@ export default function App() {
   useLocalNotifications(visibleTasks, workDays, notificationSettings);
   const push = usePushNotifications(showToast);
 
-  // مزامنة تلقائية مرة واحدة عند الربط — صامتة وبلا حلقة
   useEffect(() => {
     if (!TRELLO_SYNC_ENABLED) return;
     if (!trello.isConnected || trello.loading) return;
@@ -183,6 +200,16 @@ export default function App() {
   const pendingCount = visibleTasks.filter((t) => !t.completed).length;
   const trelloCount = trelloPageTasks.filter((t) => !t.completed).length;
   const archiveCount = archivedTasks.length;
+
+  const trelloForUi = {
+    ...trello,
+    syncNow: TRELLO_SYNC_ENABLED
+      ? trello.syncNow
+      : async () => {
+          showToast('مزامنة تريلو متوقفة مؤقتاً', 'ph-pause');
+          return { created: 0, updated: 0 };
+        },
+  };
 
   const openAddModal = () => {
     setEditingTaskId(null);
@@ -412,33 +439,13 @@ export default function App() {
           />
         )}
 
-        {view === 'Trello' && (
-          <TrelloView
-            tasks={trelloPageTasks}
-            trello={{
-              ...trello,
-              syncNow: TRELLO_SYNC_ENABLED
-                ? trello.syncNow
-                : async () => {
-                    showToast('مزامنة تريلو متوقفة مؤقتاً', 'ph-pause');
-                    return { created: 0, updated: 0 };
-                  },
-            }}
-            onToggleComplete={toggleComplete}
-            onSetStatus={setTaskStatus}
-            onToggleSubtask={toggleSubtask}
-            onEdit={openEditModal}
-            onDelete={archiveTask}
-            onMoveTask={moveTask}
-            workDays={workDays}
-          />
-        )}
-
         {view === 'Kpi' && (
           <KpiView tasks={visibleTasks} workspaces={visibleWorkspaces} />
         )}
 
         {view === 'Motivation' && <BreakSpace tasks={visibleTasks} showToast={showToast} />}
+
+        {view === 'Notepad' && <NotepadView showToast={showToast} />}
 
         {view === 'Archive' && (
           <ArchiveView
@@ -467,6 +474,15 @@ export default function App() {
             onSubscribePush={push.subscribe}
             onUnsubscribePush={push.unsubscribe}
             onSendTestPush={push.sendTestPush}
+            trello={trelloForUi}
+            trelloTasks={trelloPageTasks}
+            onToggleComplete={toggleComplete}
+            onSetStatus={setTaskStatus}
+            onToggleSubtask={toggleSubtask}
+            onEdit={openEditModal}
+            onDelete={archiveTask}
+            onMoveTask={moveTask}
+            workDaysForTrello={workDays}
           />
         )}
       </main>
