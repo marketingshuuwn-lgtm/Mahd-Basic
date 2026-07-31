@@ -11,6 +11,7 @@ import './styles/design-system.css';
 import './styles/break-space.css';
 import './styles/task-notes.css';
 import './styles/sidebar-collapse.css';
+import './styles/notepad.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
