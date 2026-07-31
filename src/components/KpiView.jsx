@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { DEFAULT_WORKSPACES, normalizeTaskContext } from '../utils/taskMeta';
+import { DEFAULT_WORKSPACES, TRELLO_WORKSPACE_ID, normalizeTaskContext } from '../utils/taskMeta';
 
 const Q_NAMES = {
   'important-urgent': 'مهم ومستعجل',
@@ -69,7 +69,6 @@ export default function KpiView({ tasks, workspaces }) {
   const spaceList = useMemo(() => {
     const list = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces : DEFAULT_WORKSPACES;
     const byId = new Map(list.map((w) => [w.id, w]));
-    // أضف أي context موجود في المهام وغير مسجّل في القائمة
     for (const t of tasks) {
       const id = normalizeTaskContext(t.context);
       if (!byId.has(id)) {
@@ -234,7 +233,7 @@ export default function KpiView({ tasks, workspaces }) {
         </div>
 
         <div className="card" style={{ flex: 1 }}>
-          <h3 className="kpi-section-title">التوزيع حسب الأولوية (كل المهام)</h3>
+          <h3 className="kpi-section-title">التوزيع حسب الأولوية</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {QUADRANTS.map((q) => {
               const qTasks = tasks.filter((t) => t.quadrant === q).length;
@@ -258,41 +257,47 @@ export default function KpiView({ tasks, workspaces }) {
               );
             })}
           </div>
+        </div>
+      </div>
 
-          <h3 className="kpi-section-title" style={{ marginTop: 26 }}>
-            التوزيع حسب المساحة
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {spaceList.map((ctx) => {
-              const cTasks = tasks.filter(
-                (t) => normalizeTaskContext(t.context) === ctx.id
-              ).length;
-              const cDone = tasks.filter(
-                (t) => normalizeTaskContext(t.context) === ctx.id && t.completed
-              ).length;
-              const cPercent = tasks.length > 0 ? (cTasks / tasks.length) * 100 : 0;
-              if (cTasks === 0 && spaceList.length > 8) return null;
-              return (
-                <div key={ctx.id}>
-                  <div className="dist-row">
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <i className={`ph ${ctx.icon}`} style={{ color: ctx.color }}></i>
-                      {ctx.label}
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>
-                      {cDone}/{cTasks}
-                    </span>
-                  </div>
-                  <div className="dist-bar-bg">
-                    <div
-                      className="dist-bar-fill"
-                      style={{ width: `${cPercent}%`, background: ctx.color }}
-                    />
-                  </div>
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="kpi-section-title">التوزيع حسب المساحة</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {spaceList.map((ctx) => {
+            const cTasks = tasks.filter(
+              (t) => normalizeTaskContext(t.context) === ctx.id
+            ).length;
+            const cDone = tasks.filter(
+              (t) => normalizeTaskContext(t.context) === ctx.id && t.completed
+            ).length;
+            const cPercent = tasks.length > 0 ? (cTasks / tasks.length) * 100 : 0;
+            if (cTasks === 0 && spaceList.length > 8) return null;
+            const isTrelloSpace = ctx.id === TRELLO_WORKSPACE_ID;
+            return (
+              <div key={ctx.id}>
+                <div className="dist-row">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <i className={`ph ${ctx.icon}`} style={{ color: ctx.color }}></i>
+                    {ctx.label}
+                    {isTrelloSpace && (
+                      <span className="kpi-trello-managed-badge" title="تُدار تلقائياً من تريلو">
+                        تريلو
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>
+                    {cDone}/{cTasks}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="dist-bar-bg">
+                  <div
+                    className="dist-bar-fill"
+                    style={{ width: `${cPercent}%`, background: ctx.color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
