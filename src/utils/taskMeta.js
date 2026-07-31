@@ -14,6 +14,9 @@ export const ALL_WEEK_DAYS = [0, 1, 2, 3, 4, 5, 6];
 /** وضع عرض كل المساحات (ليس context في قاعدة البيانات) */
 export const ALL_WORKSPACES_ID = '__all__';
 
+/** مساحة مهام تريلو الافتراضية */
+export const TRELLO_WORKSPACE_ID = 'alama';
+
 /** المساحات الافتراضية — يمكن للمستخدم إضافة مساحات أخرى محلياً */
 export const DEFAULT_WORKSPACES = [
   {
@@ -32,6 +35,15 @@ export const DEFAULT_WORKSPACES = [
     bg: 'var(--success-light)',
     isDefault: true,
   },
+  {
+    id: TRELLO_WORKSPACE_ID,
+    label: 'علامة',
+    icon: 'ph-kanban',
+    color: '#0079bf',
+    bg: 'rgba(0, 121, 191, 0.12)',
+    isDefault: true,
+    trait: 'مهام تريلو',
+  },
 ];
 
 /** للتوافق مع الكود القديم */
@@ -46,11 +58,13 @@ export const WORKSPACE_COLORS = [
   { color: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)' },
   { color: '#db2777', bg: 'rgba(219, 39, 119, 0.12)' },
   { color: '#ea580c', bg: 'rgba(234, 88, 12, 0.12)' },
+  { color: '#0079bf', bg: 'rgba(0, 121, 191, 0.12)' },
 ];
 
 export const WORKSPACE_ICONS = [
   'ph-briefcase',
   'ph-house-line',
+  'ph-kanban',
   'ph-book-open',
   'ph-folder',
   'ph-star',
