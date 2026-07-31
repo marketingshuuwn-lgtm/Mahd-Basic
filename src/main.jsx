@@ -10,6 +10,7 @@ import './styles/layout-1400.css';
 import './styles/design-system.css';
 import './styles/break-space.css';
 import './styles/task-notes.css';
+import './styles/sidebar-collapse.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
