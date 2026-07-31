@@ -16,8 +16,8 @@ export function useTrello(showToast, onSynced) {
   const [syncing, setSyncing] = useState(false);
   const [member, setMember] = useState(null);
 
-  const loadConfig = useCallback(async () => {
-    setLoading(true);
+  const loadConfig = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
     try {
       const { data, error } = await supabase
         .from('integrations')
@@ -31,7 +31,7 @@ export function useTrello(showToast, onSynced) {
       console.error(err);
       setConfig(null);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }, []);
 
@@ -99,114 +99,132 @@ export function useTrello(showToast, onSynced) {
     showToast?.('تم قطع ربط تريلو', 'ph-link-break');
   }, [showToast]);
 
-  const syncNow = useCallback(async () => {
-    if (!config?.api_key || !config?.access_token) {
-      showToast?.('اربط حساب تريلو أولاً', 'ph-warning', 'error');
-      return { created: 0, updated: 0, completed: 0 };
-    }
+  /**
+   * @param {{ silent?: boolean }} [opts]
+   * silent: مزامنة خلفية بلا إشعار (الافتراضي للإقلاع التلقائي)
+   */
+  const syncNow = useCallback(
+    async (opts = {}) => {
+      const silent = opts.silent === true;
 
-    setSyncing(true);
-    try {
-      const cards = await trelloFetchMyOpenCards(config.api_key, config.access_token);
+      if (!config?.api_key || !config?.access_token) {
+        if (!silent) showToast?.('اربط حساب تريلو أولاً', 'ph-warning', 'error');
+        return { created: 0, updated: 0, completed: 0 };
+      }
 
-      const { data: existingRows, error: fetchErr } = await supabase
-        .from('tasks')
-        .select('id, external_id, quadrant, completed, status')
-        .eq('external_source', 'trello');
+      if (syncing) return { created: 0, updated: 0, completed: 0 };
 
-      if (fetchErr) throw fetchErr;
+      setSyncing(true);
+      try {
+        const cards = await trelloFetchMyOpenCards(config.api_key, config.access_token);
 
-      const byExternal = new Map((existingRows || []).map((r) => [r.external_id, r]));
+        const { data: existingRows, error: fetchErr } = await supabase
+          .from('tasks')
+          .select('id, external_id, quadrant, completed, status')
+          .eq('external_source', 'trello');
 
-      let created = 0;
-      let updated = 0;
-      let completedFromTrello = 0;
-      const now = new Date().toISOString();
+        if (fetchErr) throw fetchErr;
 
-      for (const card of cards) {
-        const fields = mapTrelloCardToTaskFields(card);
-        const prev = byExternal.get(card.id);
+        const byExternal = new Map((existingRows || []).map((r) => [r.external_id, r]));
 
-        if (prev) {
-          const { error } = await supabase
-            .from('tasks')
-            .update({
+        let created = 0;
+        let updated = 0;
+        let completedFromTrello = 0;
+        const now = new Date().toISOString();
+
+        for (const card of cards) {
+          const fields = mapTrelloCardToTaskFields(card);
+          const prev = byExternal.get(card.id);
+
+          if (prev) {
+            const { error } = await supabase
+              .from('tasks')
+              .update({
+                title: fields.title,
+                notes: fields.notes,
+                due_date: fields.dueDate || null,
+                context: TRELLO_WORKSPACE_ID,
+                external_url: fields.external_url,
+                external_meta: fields.external_meta,
+                last_synced_at: now,
+              })
+              .eq('id', prev.id);
+            if (error) console.error(error);
+            else updated += 1;
+            byExternal.delete(card.id);
+          } else {
+            const { error } = await supabase.from('tasks').insert({
               title: fields.title,
               notes: fields.notes,
               due_date: fields.dueDate || null,
+              quadrant: DEFAULT_QUADRANT,
               context: TRELLO_WORKSPACE_ID,
+              completed: false,
+              status: 'not_started',
+              duration: 1,
+              sort_order: 0,
+              external_source: 'trello',
+              external_id: fields.external_id,
               external_url: fields.external_url,
               external_meta: fields.external_meta,
+              last_synced_at: now,
+            });
+            if (error) console.error(error);
+            else created += 1;
+          }
+        }
+
+        for (const prev of byExternal.values()) {
+          if (prev.completed) continue;
+          const { error } = await supabase
+            .from('tasks')
+            .update({
+              completed: true,
+              status: 'completed',
+              completed_at: now,
+              context: TRELLO_WORKSPACE_ID,
               last_synced_at: now,
             })
             .eq('id', prev.id);
           if (error) console.error(error);
-          else updated += 1;
-          byExternal.delete(card.id);
-        } else {
-          const { error } = await supabase.from('tasks').insert({
-            title: fields.title,
-            notes: fields.notes,
-            due_date: fields.dueDate || null,
-            quadrant: DEFAULT_QUADRANT,
-            context: TRELLO_WORKSPACE_ID,
-            completed: false,
-            status: 'not_started',
-            duration: 1,
-            sort_order: 0,
-            external_source: 'trello',
-            external_id: fields.external_id,
-            external_url: fields.external_url,
-            external_meta: fields.external_meta,
-            last_synced_at: now,
-          });
-          if (error) console.error(error);
-          else created += 1;
+          else completedFromTrello += 1;
         }
+
+        await supabase
+          .from('integrations')
+          .update({ last_sync_at: now, updated_at: now })
+          .eq('provider', PROVIDER);
+
+        // quiet: لا يقلب loading فيعيد تشغيل useEffect في App
+        await loadConfig({ quiet: true });
+        onSynced?.();
+
+        // إشعار فقط عند حدث يهم المستخدم (جديد أو مكتمل) — وليس «0 جديدة، 23 محدّثة»
+        if (!silent && (created > 0 || completedFromTrello > 0)) {
+          const parts = [];
+          if (created > 0) parts.push(created + ' جديدة');
+          if (completedFromTrello > 0) parts.push(completedFromTrello + ' مكتملة من تريلو');
+          showToast?.('مزامنة تريلو: ' + parts.join('، '), 'ph-arrows-clockwise');
+        }
+
+        return {
+          created,
+          updated,
+          completed: completedFromTrello,
+          total: cards.length,
+        };
+      } catch (err) {
+        console.error(err);
+        if (!silent) {
+          showToast?.(err.message || 'فشلت المزامنة مع تريلو', 'ph-x-circle', 'error');
+        }
+        return { created: 0, updated: 0, completed: 0 };
+      } finally {
+        setSyncing(false);
       }
-
-      for (const prev of byExternal.values()) {
-        if (prev.completed) continue;
-        const { error } = await supabase
-          .from('tasks')
-          .update({
-            completed: true,
-            status: 'completed',
-            completed_at: now,
-            context: TRELLO_WORKSPACE_ID,
-            last_synced_at: now,
-          })
-          .eq('id', prev.id);
-        if (error) console.error(error);
-        else completedFromTrello += 1;
-      }
-
-      await supabase
-        .from('integrations')
-        .update({ last_sync_at: now, updated_at: now })
-        .eq('provider', PROVIDER);
-
-      await loadConfig();
-      onSynced?.();
-
-      const parts = [created + ' جديدة', updated + ' محدّثة'];
-      if (completedFromTrello > 0) parts.push(completedFromTrello + ' مكتملة من تريلو');
-
-      showToast?.('مزامنة تريلو: ' + parts.join('، '), 'ph-arrows-clockwise');
-      return {
-        created,
-        updated,
-        completed: completedFromTrello,
-        total: cards.length,
-      };
-    } catch (err) {
-      console.error(err);
-      showToast?.(err.message || 'فشلت المزامنة مع تريلو', 'ph-x-circle', 'error');
-      return { created: 0, updated: 0, completed: 0 };
-    } finally {
-      setSyncing(false);
-    }
-  }, [config, loadConfig, onSynced, showToast]);
+    },
+    [config, loadConfig, onSynced, showToast, syncing]
+  );
 
   return {
     config,
