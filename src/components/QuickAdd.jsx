@@ -5,7 +5,7 @@ const QUADRANTS = [
   { id: 'important-urgent', color: 'var(--danger)', label: 'مهم ومستعجل' },
   { id: 'important-not-urgent', color: 'var(--accent)', label: 'مهم غير مستعجل' },
   { id: 'not-important-urgent', color: 'var(--warning)', label: 'غير مهم ومستعجل' },
-  { id: 'not-important-not-urgent', color: 'var(--text-secondary)', label: 'غير مهم غير مستعجل' },
+  { id: 'not-important-not-urgent', color: 'var(--q4)', label: 'غير مهم غير مستعجل' },
 ];
 
 export default function FloatingSmartBar({ onAddTask, onOpenAdvanced, activeContext = 'work' }) {
