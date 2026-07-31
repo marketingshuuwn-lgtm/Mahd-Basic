@@ -1,3 +1,4 @@
+import TrelloView from './TrelloView';
 import { ALL_WEEK_DAYS, DEFAULT_WORK_DAYS, WEEK_DAYS, formatWorkDays, normalizeWorkDays } from '../utils/taskMeta';
 
 const PERMISSION_LABELS = {
@@ -21,6 +22,15 @@ export default function SettingsView({
   onSubscribePush,
   onUnsubscribePush,
   onSendTestPush,
+  trello,
+  trelloTasks = [],
+  onToggleComplete,
+  onSetStatus,
+  onToggleSubtask,
+  onEdit,
+  onDelete,
+  onMoveTask,
+  workDaysForTrello,
 }) {
   const normalizedWorkDays = normalizeWorkDays(workDays);
   const activeNotificationDays = normalizeWorkDays(notificationSettings?.activeDays || DEFAULT_WORK_DAYS);
@@ -32,8 +42,6 @@ export default function SettingsView({
     const next = hasDay
       ? normalizedWorkDays.filter((d) => d !== dayId)
       : [...normalizedWorkDays, dayId].sort((a, b) => a - b);
-
-    // لا نترك القائمة فارغة حتى لا تختفي كل المهام اليومية بالخطأ.
     if (next.length === 0) return;
     onChangeWorkDays(next);
   };
@@ -43,7 +51,6 @@ export default function SettingsView({
     const next = hasDay
       ? activeNotificationDays.filter((d) => d !== dayId)
       : [...activeNotificationDays, dayId].sort((a, b) => a - b);
-
     if (next.length === 0) return;
     onChangeNotificationSettings({ activeDays: next });
   };
@@ -52,7 +59,7 @@ export default function SettingsView({
     <div>
       <div className="page-header">
         <div className="page-title">الإعدادات</div>
-        <div className="page-desc">ضبط السلوك العام لمهد — أيام العمل والتنبيهات المحلية</div>
+        <div className="page-desc">ضبط السلوك العام لمهد — أيام العمل والتنبيهات وربط تريلو</div>
       </div>
 
       <div className="settings-grid">
@@ -262,6 +269,22 @@ export default function SettingsView({
           </p>
         </section>
       </div>
+
+      {trello && (
+        <section className="settings-trello-block" style={{ marginTop: 28 }}>
+          <TrelloView
+            tasks={trelloTasks}
+            trello={trello}
+            onToggleComplete={onToggleComplete}
+            onSetStatus={onSetStatus}
+            onToggleSubtask={onToggleSubtask}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onMoveTask={onMoveTask}
+            workDays={workDaysForTrello || workDays}
+          />
+        </section>
+      )}
     </div>
   );
 }
