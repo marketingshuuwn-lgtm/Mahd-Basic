@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+/** ترتيب: مهام → معلقة → تقارير → استراحة → مفكرة → أرشيف → إعدادات (تريلو داخل الإعدادات) */
 const NAV_ITEMS = [
-  { id: 'Matrix', label: 'مصفوفة الأولويات', icon: 'ph-squares-four' },
-  { id: 'Pending', label: 'المهام المعلقة', icon: 'ph-hourglass' },
-  { id: 'Trello', label: 'تريلو', icon: 'ph-kanban' },
+  { id: 'Matrix', label: 'المهام', icon: 'ph-squares-four' },
+  { id: 'Pending', label: 'المعلقة', icon: 'ph-hourglass' },
   { id: 'Kpi', label: 'التقارير', icon: 'ph-chart-bar' },
-  { id: 'Motivation', label: 'استراحة', icon: 'ph-coffee' },
+  { id: 'Motivation', label: 'استراحة', icon: 'ph-coffee', hint: 'Alt+G' },
   { id: 'Notepad', label: 'المفكرة', icon: 'ph-notebook' },
   { id: 'Archive', label: 'الأرشيف', icon: 'ph-archive' },
   { id: 'Settings', label: 'الإعدادات', icon: 'ph-gear-six' },
@@ -28,8 +28,20 @@ export default function Sidebar({
   compact,
   onToggleCompact,
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const dataMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!dataMenuOpen) return;
+    const close = (e) => {
+      if (dataMenuRef.current && !dataMenuRef.current.contains(e.target)) {
+        setDataMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [dataMenuOpen]);
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}>
@@ -64,15 +76,16 @@ export default function Sidebar({
         {NAV_ITEMS.map((item) => {
           let badge = null;
           if (item.id === 'Pending' && pendingCount > 0) badge = pendingCount;
-          else if (item.id === 'Trello' && trelloCount > 0) badge = trelloCount;
+          else if (item.id === 'Settings' && trelloCount > 0) badge = trelloCount;
           else if (item.id === 'Archive' && archiveCount > 0) badge = archiveCount;
           const active = view === item.id;
+          const title = item.hint ? `${item.label} (${item.hint})` : item.label;
           return (
             <button
               key={item.id}
               type="button"
               className={`nav-item ${active ? 'active' : ''}`}
-              title={item.label}
+              title={title}
               aria-current={active ? 'page' : undefined}
               onClick={() => {
                 onSwitchView(item.id);
@@ -80,7 +93,12 @@ export default function Sidebar({
               }}
             >
               <i className={`ph ${item.icon}`} aria-hidden="true"></i>
-              {!compact && <span className="nav-label">{item.label}</span>}
+              {!compact && (
+                <span className="nav-label">
+                  {item.label}
+                  {item.hint && <span className="nav-hint">{item.hint}</span>}
+                </span>
+              )}
               {badge != null && (
                 <span className="nav-badge" aria-label={`${badge} عنصر`}>
                   {badge}
@@ -108,25 +126,16 @@ export default function Sidebar({
           <i className={`ph ${theme === 'dark' ? 'ph-sun' : 'ph-moon'}`} aria-hidden="true"></i>
         </button>
 
-        <div className="data-actions">
+        <div className="data-actions" ref={dataMenuRef}>
           <button
             type="button"
-            className="data-btn"
-            title="تصدير"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
+            className="data-btn data-btn-full"
+            title="تنزيل أو رفع بيانات المساحة"
+            aria-expanded={dataMenuOpen}
+            onClick={() => setDataMenuOpen((v) => !v)}
           >
-            <i className="ph ph-download-simple" aria-hidden="true"></i>
-            {!compact && 'تصدير'}
-          </button>
-          <button
-            type="button"
-            className="data-btn"
-            title="استيراد"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <i className="ph ph-upload-simple" aria-hidden="true"></i>
-            {!compact && 'استيراد'}
+            <i className="ph ph-arrows-down-up" aria-hidden="true"></i>
+            {!compact && 'تنزيل / رفع بيانات'}
           </button>
           <input
             ref={fileInputRef}
@@ -138,15 +147,19 @@ export default function Sidebar({
               const file = e.target.files?.[0];
               if (file) onImportFile(file);
               e.target.value = '';
+              setDataMenuOpen(false);
             }}
           />
-          {menuOpen && (
+          {dataMenuOpen && (
             <div className="dropdown-menu" role="menu">
-              <button type="button" role="menuitem" onClick={() => { onExport('csv'); setMenuOpen(false); }}>
-                CSV
+              <button type="button" role="menuitem" onClick={() => { onExport('csv'); setDataMenuOpen(false); }}>
+                <i className="ph ph-download-simple"></i> تنزيل CSV
               </button>
-              <button type="button" role="menuitem" onClick={() => { onExport('xlsx'); setMenuOpen(false); }}>
-                Excel
+              <button type="button" role="menuitem" onClick={() => { onExport('xlsx'); setDataMenuOpen(false); }}>
+                <i className="ph ph-download-simple"></i> تنزيل Excel
+              </button>
+              <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}>
+                <i className="ph ph-upload-simple"></i> رفع ملف…
               </button>
             </div>
           )}
