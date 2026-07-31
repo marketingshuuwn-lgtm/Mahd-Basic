@@ -7,16 +7,21 @@
   --text-muted: #a0a0a6;
   --border-color: #e8e8ea;
   --hover-bg: #f2f2f4;
-  /* لون تمييز واحد فقط — نفس روح Linear */
+  /* لون تمييز — روح Linear */
   --accent: #5e6ad2;
   --accent-light: rgba(94, 106, 210, 0.1);
-  /* أحمر مخفَّف، محجوز فقط للمتأخر/العاجل حقاً — بدون أصفر/أخضر منفصلين بصرياً */
+  /* أحمر للعاجل المهم فقط */
   --danger: #c9504a;
   --danger-light: rgba(201, 80, 74, 0.08);
-  --success: #6b6b70;
-  --success-light: rgba(107, 107, 112, 0.08);
-  --warning: #8a8a90;
-  --warning-light: rgba(138, 138, 144, 0.08);
+  /* أخضر هادئ للإنجاز */
+  --success: #3d9a6a;
+  --success-light: rgba(61, 154, 106, 0.12);
+  /* كهرماني للعاجل غير المهم — مميّز عن الرمادي */
+  --warning: #c9892e;
+  --warning-light: rgba(201, 137, 46, 0.12);
+  /* ربع 4: رمادي مزرق منفصل عن النص الثانوي */
+  --q4: #6e6e76;
+  --q4-light: rgba(110, 110, 118, 0.1);
   --shadow-soft: 0 1px 2px rgba(17, 24, 39, 0.04);
   --shadow-hover: 0 4px 12px rgba(17, 24, 39, 0.08);
   --fw-light: 400;
@@ -46,10 +51,12 @@
   --accent-light: rgba(139, 147, 240, 0.14);
   --danger: #e08b86;
   --danger-light: rgba(224, 139, 134, 0.12);
-  --success: #93939a;
-  --success-light: rgba(147, 147, 154, 0.1);
-  --warning: #93939a;
-  --warning-light: rgba(147, 147, 154, 0.1);
+  --success: #5cb88a;
+  --success-light: rgba(92, 184, 138, 0.14);
+  --warning: #e0b04a;
+  --warning-light: rgba(224, 176, 74, 0.14);
+  --q4: #9a9aa3;
+  --q4-light: rgba(154, 154, 163, 0.12);
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
@@ -126,7 +133,6 @@ body {
 .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: var(--fw-bold); }
 .nav-item i { font-size: 22px; flex-shrink: 0; }
 
-/* شارة العدد — هادئة واحترافية بدل الدائرة الحمراء الصارخة */
 .nav-badge {
   position: absolute;
   left: 10px;
@@ -440,7 +446,7 @@ body {
 .gantt-pill.important-urgent { background: var(--danger); }
 .gantt-pill.important-not-urgent { background: var(--accent); }
 .gantt-pill.not-important-urgent { background: var(--warning); }
-.gantt-pill.not-important-not-urgent { background: var(--text-secondary); }
+.gantt-pill.not-important-not-urgent { background: var(--q4); }
 .gantt-pill.done { opacity: 0.45; text-decoration: line-through; }
 
 .floating-smart-bar {
