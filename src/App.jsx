@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import FloatingSmartBar from './components/QuickAdd';
 import QuadrantBoard from './components/QuadrantBoard';
@@ -117,6 +117,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [notesTarget, setNotesTarget] = useState(null);
+  const trelloAutoSynced = useRef(false);
 
   useEffect(() => {
     const handler = (e) => setNotesTarget(e.detail);
@@ -134,7 +135,6 @@ export default function App() {
     [spaceTasks]
   );
 
-  // صفحة تريلو تعرض كل مهام تريلو غير المؤرشفة بغض النظر عن المساحة النشطة
   const trelloPageTasks = useMemo(
     () => tasks.filter((t) => !t.archived && t.externalSource === 'trello'),
     [tasks]
@@ -165,11 +165,13 @@ export default function App() {
   useLocalNotifications(visibleTasks, workDays, notificationSettings);
   const push = usePushNotifications(showToast);
 
+  // مزامنة تلقائية مرة واحدة عند الربط — صامتة وبلا حلقة
   useEffect(() => {
     if (!TRELLO_SYNC_ENABLED) return;
-    if (trello.isConnected && !trello.loading) {
-      trello.syncNow();
-    }
+    if (!trello.isConnected || trello.loading) return;
+    if (trelloAutoSynced.current) return;
+    trelloAutoSynced.current = true;
+    trello.syncNow({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trello.isConnected, trello.loading]);
 
