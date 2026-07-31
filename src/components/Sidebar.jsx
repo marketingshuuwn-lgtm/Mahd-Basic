@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { id: 'Trello', label: 'تريلو', icon: 'ph-kanban' },
   { id: 'Kpi', label: 'التقارير', icon: 'ph-chart-bar' },
   { id: 'Motivation', label: 'استراحة', icon: 'ph-coffee' },
+  { id: 'Notepad', label: 'المفكرة', icon: 'ph-notebook' },
   { id: 'Archive', label: 'الأرشيف', icon: 'ph-archive' },
   { id: 'Settings', label: 'الإعدادات', icon: 'ph-gear-six' },
 ];
@@ -32,7 +33,6 @@ export default function Sidebar({
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}>
-      {/* طي الشريط — حافة رفيعة بدل مربع تحت الشعار */}
       <button
         type="button"
         className="sidebar-collapse-rail"
