@@ -1,17 +1,17 @@
 /**
  * Edge Function: send-push
  * Web Push + CORS preflight (OPTIONS).
- * متوافق مع Deno على Supabase Edge (بدون npm: الذي يتعطل أحياناً).
+ * متوافق مع Deno على Supabase Edge.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-// esm.sh أوثق من npm: على Edge Functions
 import webpush from 'https://esm.sh/web-push@3.6.7?target=denonext';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
+    'authorization, x-client-info, apikey, content-type, x-supabase-authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -22,8 +22,9 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 Deno.serve(async (req: Request) => {
+  // Preflight — ضروري قبل أي منطق
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
@@ -40,7 +41,6 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // مفاتيح VAPID من app_secrets (عدة أسماء محتملة)
     const { data: secrets, error: secretsErr } = await supabase
       .from('app_secrets')
       .select('key, value');
@@ -131,7 +131,6 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(msg.slice(0, 200));
-        // اشتراك منتهٍ
         if (/\b410\b|\b404\b|Gone|Not Found/i.test(msg)) {
           await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
         }
