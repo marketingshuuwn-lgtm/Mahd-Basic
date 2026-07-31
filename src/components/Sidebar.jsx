@@ -32,19 +32,31 @@ export default function Sidebar({
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}>
+      {/* طي الشريط — حافة رفيعة بدل مربع تحت الشعار */}
+      <button
+        type="button"
+        className="sidebar-collapse-rail"
+        title={compact ? 'توسيع الشريط' : 'طي الشريط — أيقونات فقط'}
+        aria-label={compact ? 'توسيع الشريط' : 'طي الشريط'}
+        aria-pressed={compact}
+        onClick={onToggleCompact}
+      >
+        <i className={`ph ${compact ? 'ph-caret-left' : 'ph-caret-right'}`} aria-hidden="true"></i>
+      </button>
+
       <div className="logo-area">
-        <div className="logo-icon">
-          <img src="/logo.svg" alt="مهد" className="logo-icon-img" />
-        </div>
-        {!compact && <div className="logo-text">مهد</div>}
         <button
           type="button"
-          className="sidebar-pin-btn"
-          title={compact ? 'إظهار النص' : 'أيقونات فقط'}
-          aria-label={compact ? 'إظهار نص الشريط' : 'أيقونات فقط'}
-          onClick={onToggleCompact}
+          className="logo-brand-btn"
+          title={compact ? 'توسيع الشريط' : 'مهد'}
+          onClick={() => {
+            if (compact) onToggleCompact();
+          }}
         >
-          <i className={`ph ${compact ? 'ph-sidebar-simple' : 'ph-sidebar'}`}></i>
+          <div className="logo-icon">
+            <img src="/logo.svg" alt="" className="logo-icon-img" />
+          </div>
+          {!compact && <div className="logo-text">مهد</div>}
         </button>
       </div>
 
