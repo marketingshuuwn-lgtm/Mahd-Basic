@@ -258,7 +258,6 @@ export function useTasks(showToast) {
 
   const deleteTask = archiveTask;
 
-  /** أرشفة كل المهام النشطة في مساحة معينة */
   const archiveTasksInContext = useCallback(
     async (context) => {
       const ctx = normalizeTaskContext(context);
@@ -347,12 +346,6 @@ export function useTasks(showToast) {
     [tasks, showToast]
   );
 
-  const STATUS_LABELS = {
-    not_started: 'لم تبدأ',
-    in_progress: 'قيد التنفيذ',
-    completed: 'مكتملة',
-  };
-
   const setTaskStatus = useCallback(
     async (id, status) => {
       const task = tasks.find((t) => t.id === id);
@@ -382,8 +375,7 @@ export function useTasks(showToast) {
         showToast?.('تعذّر تحديث مرحلة المهمة', 'ph-x-circle', 'error');
         return;
       }
-
-      showToast?.(`المرحلة الآن: ${STATUS_LABELS[status]}`, 'ph-flag');
+      // بدون Toast عند تغيير المرحلة — أقل تشتيتاً أثناء العمل
     },
     [tasks, showToast]
   );
