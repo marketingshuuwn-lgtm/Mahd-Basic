@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ALL_WORKSPACES_ID, WORKSPACE_COLORS, WORKSPACE_ICONS } from '../utils/taskMeta';
+import {
+  ALL_WORKSPACES_ID,
+  TRELLO_WORKSPACE_ID,
+  WORKSPACE_COLORS,
+  WORKSPACE_ICONS,
+} from '../utils/taskMeta';
 
 function isSystemSpace(ws) {
-  return ws?.id === 'work' || ws?.id === 'personal' || ws?.isDefault;
+  return ws?.id === 'work' || ws?.id === 'personal' || ws?.id === TRELLO_WORKSPACE_ID || ws?.isDefault;
 }
 
 export default function WorkspaceSwitcher({
@@ -105,6 +110,7 @@ export default function WorkspaceSwitcher({
 
         {workspaces.map((ws) => {
           const active = !isAllMode && ws.id === activeWorkspaceId;
+          const isTrello = ws.id === TRELLO_WORKSPACE_ID;
           return (
             <div
               key={ws.id}
@@ -141,10 +147,21 @@ export default function WorkspaceSwitcher({
                 style={{ '--ws-color': ws.color, '--ws-bg': ws.bg }}
                 onClick={() => onSwitch(ws.id)}
                 onDoubleClick={() => openEdit(ws)}
-                title={ws.trait ? `${ws.label} — ${ws.trait}` : ws.label}
+                title={
+                  isTrello
+                    ? `${ws.label} — مُدارة تلقائياً عبر تريلو`
+                    : ws.trait
+                    ? `${ws.label} — ${ws.trait}`
+                    : ws.label
+                }
               >
                 <i className={`ph ${ws.icon}`}></i>
                 <span className="workspace-tab-label">{ws.label}</span>
+                {isTrello && (
+                  <span className="workspace-trello-badge" title="مُدارة تلقائياً عبر تريلو">
+                    تريلو
+                  </span>
+                )}
                 {active && (
                   <span
                     className="workspace-tab-more"
@@ -180,8 +197,6 @@ export default function WorkspaceSwitcher({
                       className="workspace-menu-danger"
                       onClick={() => {
                         setMenuId(null);
-                        openEdit(ws);
-                        // يفتح التحرير ثم المستخدم يرى زر الأرشفة — أو مباشرة:
                         const ok = window.confirm(
                           `أرشفة مساحة «${ws.label}»؟\n\nستُخفى من الشريط وتُؤرشف مهامها النشطة.`
                         );
@@ -215,7 +230,14 @@ export default function WorkspaceSwitcher({
         </button>
       </div>
 
-      {activeWs?.trait && !isAllMode && (
+      {activeWs?.id === TRELLO_WORKSPACE_ID && !isAllMode && (
+        <p className="workspace-trait-line" style={{ color: activeWs.color }}>
+          <i className="ph ph-kanban"></i>
+          مُدارة تلقائياً عبر تريلو — المزامنة من الإعدادات
+        </p>
+      )}
+
+      {activeWs?.trait && activeWs?.id !== TRELLO_WORKSPACE_ID && !isAllMode && (
         <p className="workspace-trait-line" style={{ color: activeWs.color }}>
           <i className={`ph ${activeWs.icon}`}></i>
           {activeWs.trait}
