@@ -5,6 +5,7 @@ import {
   trelloFetchMyOpenCards,
   trelloTestConnection,
 } from '../lib/trello';
+import { TRELLO_WORKSPACE_ID } from '../utils/taskMeta';
 
 const PROVIDER = 'trello';
 const DEFAULT_QUADRANT = 'important-not-urgent';
@@ -127,13 +128,13 @@ export function useTrello(showToast, onSynced) {
         const prev = byExternal.get(card.id);
 
         if (prev) {
-          // بطاقة ما زالت مفتوحة ومسندة: حدّث المحتوى؛ إن كانت مكتملة محلياً فقط بسبب مزامنة سابقة خاطئة لا نفتحها تلقائياً
           const { error } = await supabase
             .from('tasks')
             .update({
               title: fields.title,
               notes: fields.notes,
               due_date: fields.dueDate || null,
+              context: TRELLO_WORKSPACE_ID,
               external_url: fields.external_url,
               external_meta: fields.external_meta,
               last_synced_at: now,
@@ -148,7 +149,7 @@ export function useTrello(showToast, onSynced) {
             notes: fields.notes,
             due_date: fields.dueDate || null,
             quadrant: DEFAULT_QUADRANT,
-            context: 'work',
+            context: TRELLO_WORKSPACE_ID,
             completed: false,
             status: 'not_started',
             duration: 1,
@@ -164,7 +165,6 @@ export function useTrello(showToast, onSynced) {
         }
       }
 
-      // ما تبقى في byExternal = كان مسنداً/مفتوحاً سابقاً ولم يعد في open → اعتبره مكتملاً من تريلو
       for (const prev of byExternal.values()) {
         if (prev.completed) continue;
         const { error } = await supabase
@@ -173,6 +173,7 @@ export function useTrello(showToast, onSynced) {
             completed: true,
             status: 'completed',
             completed_at: now,
+            context: TRELLO_WORKSPACE_ID,
             last_synced_at: now,
           })
           .eq('id', prev.id);
@@ -188,10 +189,7 @@ export function useTrello(showToast, onSynced) {
       await loadConfig();
       onSynced?.();
 
-      const parts = [
-        created + ' جديدة',
-        updated + ' محدّثة',
-      ];
+      const parts = [created + ' جديدة', updated + ' محدّثة'];
       if (completedFromTrello > 0) parts.push(completedFromTrello + ' مكتملة من تريلو');
 
       showToast?.('مزامنة تريلو: ' + parts.join('، '), 'ph-arrows-clockwise');
