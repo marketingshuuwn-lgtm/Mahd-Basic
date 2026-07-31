@@ -7,7 +7,7 @@ const QUADRANT_COLORS = {
   'important-urgent': 'var(--danger)',
   'important-not-urgent': 'var(--accent)',
   'not-important-urgent': 'var(--warning)',
-  'not-important-not-urgent': 'var(--text-secondary)',
+  'not-important-not-urgent': 'var(--q4)',
 };
 
 function cleanNotesForDisplay(notes) {
