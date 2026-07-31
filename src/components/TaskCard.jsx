@@ -3,9 +3,15 @@ import { formatTaskSchedule, isTaskOverdue } from '../utils/dateUtils';
 import { getSubtaskStats, normalizeSubtasks } from '../utils/subtasks';
 import { getTaskContextMeta } from '../utils/taskMeta';
 
+const QUADRANT_COLORS = {
+  'important-urgent': 'var(--danger)',
+  'important-not-urgent': 'var(--accent)',
+  'not-important-urgent': 'var(--warning)',
+  'not-important-not-urgent': 'var(--text-secondary)',
+};
+
 function cleanNotesForDisplay(notes) {
   if (!notes) return '';
-  // إخفاء بلوك مرفقات تريلو المكرر في النص — تظهر كأزرار منفصلة
   return String(notes)
     .replace(/مرفقات تريلو:\n(?:- .*\n?)*/g, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -28,6 +34,7 @@ export default function TaskCard({
   const subtaskStats = getSubtaskStats(subtasks);
   const attachments = task.externalMeta?.attachments || [];
   const displayNotes = cleanNotesForDisplay(task.notes);
+  const qColor = QUADRANT_COLORS[task.quadrant] || 'var(--accent)';
 
   const [trackingState, setTrackingState] = useState({ activeTaskId: null, label: '0:00' });
 
@@ -43,6 +50,11 @@ export default function TaskCard({
   return (
     <div
       className={`task-item ${task.completed ? 'completed' : ''} ${overdue ? 'overdue' : ''}`}
+      style={{
+        '--q-color': qColor,
+        '--ctx-color': contextMeta.color,
+        '--ctx-bg': contextMeta.bg,
+      }}
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', String(task.id));
