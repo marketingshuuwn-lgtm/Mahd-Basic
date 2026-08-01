@@ -71,13 +71,13 @@ export default function NotepadView({ showToast }) {
     return () => clearTimeout(saveTimer.current);
   }, [draftTitle, draftContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCreate = () => {
-    const note = createNote('مسودة جديدة');
+  const handleCreate = async () => {
+    const note = await createNote('مسودة جديدة');
     if (note) setActiveId(note.id);
   };
 
-  const handleDelete = (id) => {
-    deleteNote(id);
+  const handleDelete = async (id) => {
+    await deleteNote(id);
     if (activeId === id) setActiveId(null);
   };
 
