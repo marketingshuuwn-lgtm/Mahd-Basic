@@ -245,10 +245,17 @@ body {
 .view-tab i { font-size: 18px; }
 
 .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-.quadrant-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-.quadrant-card:not(.collapsed) { min-height: 360px; }
+.quadrant-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; transition: grid-column 0.15s; }
+.quadrant-card:not(.collapsed) { min-height: 140px; }
+/* المطوي ياخذ الصف كامل بدل ما يفضل بخليته الأصلية ويترك فراغ تحته بجانب جاره المفتوح */
+.quadrant-card.collapsed { grid-column: 1 / -1; }
 .accent-bar { height: 4px; width: 100%; }
 .quadrant-inner { padding: 14px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+.quadrant-inner.inner-collapsed { padding: 0; }
+.quadrant-card.collapsed .quadrant-header-btn {
+  padding: 12px 18px; flex-direction: row-reverse; justify-content: flex-end;
+}
+.quadrant-card.collapsed .q-title { flex: 0 0 auto; }
 .quadrant-header-btn {
   display: flex; align-items: center; gap: 10px; width: 100%; border: none; background: transparent;
   cursor: pointer; text-align: right; padding: 4px 0;
@@ -264,8 +271,7 @@ body {
 }
 .collapse-indicator { color: var(--text-muted); }
 .drop-zone {
-  flex: 1; min-height: 200px; padding: 6px; border-radius: 12px; border: 2px dashed transparent;
-  overflow-y: auto; max-height: calc(100vh - 340px);
+  flex: 1; min-height: 90px; padding: 6px; border-radius: 12px; border: 2px dashed transparent;
 }
 .drop-zone.drag-over { background: var(--accent-light); border-color: var(--accent); }
 .task-drop-target .task-item { outline: 2px dashed var(--accent); }
