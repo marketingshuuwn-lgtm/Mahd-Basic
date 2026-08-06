@@ -11,9 +11,9 @@
   --border-color: rgba(32, 32, 29, 0.08);
   --hover-bg: rgba(32, 32, 29, 0.05);
   /* لون تمييز — برتقالي دافئ */
-  --accent: #ff4d00;
-  --accent-deep: #f44300;
-  --accent-light: rgba(255, 77, 0, 0.1);
+  --accent: #16a370;
+  --accent-deep: #0e8a5c;
+  --accent-light: rgba(22, 163, 112, 0.1);
   --danger: #e0483f;
   --danger-light: rgba(224, 72, 63, 0.1);
   --success: #3d9a6a;
@@ -51,9 +51,9 @@
   --text-muted: #83796a;
   --border-color: rgba(255, 245, 230, 0.08);
   --hover-bg: rgba(255, 245, 230, 0.06);
-  --accent: #ff7433;
-  --accent-deep: #ff5a10;
-  --accent-light: rgba(255, 116, 51, 0.16);
+  --accent: #34e0a1;
+  --accent-deep: #1fcf8c;
+  --accent-light: rgba(52, 224, 161, 0.16);
   --danger: #e8756c;
   --danger-light: rgba(232, 117, 108, 0.14);
   --success: #5cb88a;
@@ -209,9 +209,9 @@ body {
 .form-field label { display: block; margin-bottom: 8px; font-weight: var(--fw-bold); font-size: var(--fs-sm); color: var(--text-secondary); }
 .form-row { display: flex; gap: 16px; }
 .btn-primary {
-  background: linear-gradient(180deg, #ff5a10, var(--accent-deep)); color: white; border: none; padding: 12px 22px; border-radius: 16px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-deep)); color: white; border: none; padding: 12px 22px; border-radius: 16px;
   cursor: pointer; font-weight: var(--fw-bold); display: inline-flex; align-items: center; gap: 8px;
-  box-shadow: 0 10px 20px -8px rgba(244, 67, 0, 0.45); transition: transform 0.2s;
+  box-shadow: 0 10px 20px -8px rgba(22, 163, 112, 0.4); transition: transform 0.2s;
 }
 .btn-primary:hover { transform: translateY(-1px); }
 .btn-secondary {

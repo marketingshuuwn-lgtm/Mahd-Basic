@@ -25,8 +25,6 @@ export default function Sidebar({
   connected,
   onExport,
   onImportFile,
-  compact,
-  onToggleCompact,
 }) {
   const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
@@ -44,35 +42,12 @@ export default function Sidebar({
   }, [dataMenuOpen]);
 
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}>
-      <button
-        type="button"
-        className="sidebar-collapse-rail"
-        title={compact ? 'توسيع الشريط' : 'طي الشريط — أيقونات فقط'}
-        aria-label={compact ? 'توسيع الشريط' : 'طي الشريط'}
-        aria-pressed={compact}
-        onClick={onToggleCompact}
-      >
-        <i className={`ph ${compact ? 'ph-caret-left' : 'ph-caret-right'}`} aria-hidden="true"></i>
+    <aside className={`sidebar-rail ${isOpen ? 'open' : ''}`}>
+      <button type="button" className="rail-logo-btn" title="مهد" onClick={() => onSwitchView('Matrix')}>
+        <img src="/logo.svg" alt="مهد" className="rail-logo-img" />
       </button>
 
-      <div className="logo-area">
-        <button
-          type="button"
-          className="logo-brand-btn"
-          title={compact ? 'توسيع الشريط' : 'مهد'}
-          onClick={() => {
-            if (compact) onToggleCompact();
-          }}
-        >
-          <div className="logo-icon">
-            <img src="/logo.svg" alt="" className="logo-icon-img" />
-          </div>
-          {!compact && <div className="logo-text">مهد</div>}
-        </button>
-      </div>
-
-      <nav aria-label="التنقل الرئيسي">
+      <nav className="rail-nav" aria-label="التنقل الرئيسي">
         {NAV_ITEMS.map((item) => {
           let badge = null;
           if (item.id === 'Pending' && pendingCount > 0) badge = pendingCount;
@@ -84,24 +59,19 @@ export default function Sidebar({
             <button
               key={item.id}
               type="button"
-              className={`nav-item ${active ? 'active' : ''}`}
+              className={`rail-btn ${active ? 'active' : ''}`}
               title={title}
               aria-current={active ? 'page' : undefined}
+              aria-label={item.label}
               onClick={() => {
                 onSwitchView(item.id);
                 onClose();
               }}
             >
               <i className={`ph ${item.icon}`} aria-hidden="true"></i>
-              {!compact && (
-                <span className="nav-label">
-                  {item.label}
-                  {item.hint && <span className="nav-hint">{item.hint}</span>}
-                </span>
-              )}
               {badge != null && (
-                <span className="nav-badge" aria-label={`${badge} عنصر`}>
-                  {badge}
+                <span className="rail-badge" aria-label={`${badge} عنصر`}>
+                  {badge > 9 ? '9+' : badge}
                 </span>
               )}
             </button>
@@ -109,33 +79,27 @@ export default function Sidebar({
         })}
       </nav>
 
-      <div className="sidebar-footer">
-        <div className="connection-status" title={connected ? 'متصل' : 'غير متصل'}>
-          <span className={`connection-dot ${connected ? '' : 'offline'}`}></span>
-          {!compact && (connected ? 'متصل' : 'غير متصل')}
-        </div>
-
+      <div className="rail-footer">
         <button
           type="button"
-          className="theme-toggle-btn"
+          className="rail-btn"
           onClick={onToggleTheme}
           title={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}
           aria-label={theme === 'dark' ? 'التبديل للنهاري' : 'التبديل لليلي'}
         >
-          {!compact && <span>{theme === 'dark' ? 'نهاري' : 'ليلي'}</span>}
           <i className={`ph ${theme === 'dark' ? 'ph-sun' : 'ph-moon'}`} aria-hidden="true"></i>
         </button>
 
-        <div className="data-actions" ref={dataMenuRef}>
+        <div className="rail-data-menu" ref={dataMenuRef}>
           <button
             type="button"
-            className="data-btn data-btn-full"
+            className="rail-btn"
             title="تنزيل أو رفع بيانات المساحة"
             aria-expanded={dataMenuOpen}
+            aria-label="تنزيل أو رفع بيانات"
             onClick={() => setDataMenuOpen((v) => !v)}
           >
             <i className="ph ph-arrows-down-up" aria-hidden="true"></i>
-            {!compact && 'تنزيل / رفع بيانات'}
           </button>
           <input
             ref={fileInputRef}
@@ -151,7 +115,8 @@ export default function Sidebar({
             }}
           />
           {dataMenuOpen && (
-            <div className="dropdown-menu" role="menu">
+            <div className="rail-dropdown-menu" role="menu">
+              <div className="rail-dropdown-title">إجمالي المهام: {totalCount}</div>
               <button type="button" role="menuitem" onClick={() => { onExport('csv'); setDataMenuOpen(false); }}>
                 <i className="ph ph-download-simple"></i> تنزيل CSV
               </button>
@@ -165,7 +130,11 @@ export default function Sidebar({
           )}
         </div>
 
-        {!compact && <div className="sidebar-total">إجمالي: {totalCount}</div>}
+        <div
+          className={`rail-connection-dot ${connected ? '' : 'offline'}`}
+          title={connected ? 'متصل بقاعدة البيانات' : 'غير متصل'}
+          aria-label={connected ? 'متصل' : 'غير متصل'}
+        ></div>
       </div>
     </aside>
   );

@@ -14,6 +14,7 @@ import './styles/sidebar-collapse.css';
 import './styles/notepad.css';
 import './styles/nav-data.css';
 import './styles/visual-polish.css';
+import './styles/sidebar-rail.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

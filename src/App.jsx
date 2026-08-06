@@ -108,9 +108,6 @@ export default function App() {
   const [view, setView] = useState('Matrix');
   const [subview, setSubview] = useState('Board');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCompact, setSidebarCompact] = useState(
-    () => localStorage.getItem(SIDEBAR_KEY) === '1'
-  );
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
   const { workDays, setWorkDays } = useWorkDaysSetting(showToast);
   const [notificationSettings, setNotificationSettings] = useState(readSavedNotificationSettings);
@@ -168,10 +165,6 @@ export default function App() {
     else document.documentElement.removeAttribute('data-theme');
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_KEY, sidebarCompact ? '1' : '0');
-  }, [sidebarCompact]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -338,7 +331,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app-container ${sidebarCompact ? 'sidebar-is-compact' : ''}`}>
+    <div className="app-container">
       <div className="mobile-header">
         <div className="logo-area" style={{ marginBottom: 0 }}>
           <div className="logo-icon" style={{ width: 36, height: 36 }}>
@@ -367,8 +360,6 @@ export default function App() {
         connected={connected}
         onExport={handleExport}
         onImportFile={handleImportFile}
-        compact={sidebarCompact}
-        onToggleCompact={() => setSidebarCompact((v) => !v)}
       />
 
       <main className="main-content">
@@ -383,6 +374,7 @@ export default function App() {
           isAllMode={isAllMode}
         />
 
+        <div className="view-transition" key={view}>
         {view === 'Matrix' && (
           <div id="viewMatrix">
             <div className="matrix-topbar">
@@ -485,6 +477,7 @@ export default function App() {
             workDaysForTrello={workDays}
           />
         )}
+        </div>
       </main>
 
       <FloatingSmartBar
