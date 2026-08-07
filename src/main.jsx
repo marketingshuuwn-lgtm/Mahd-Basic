@@ -15,6 +15,11 @@ import './styles/notepad.css';
 import './styles/nav-data.css';
 import './styles/visual-polish.css';
 import './styles/sidebar-rail.css';
+import './styles/matrix-stack.css';
+import './styles/settings-tabs.css';
+import './styles/kpi-motion.css';
+import './styles/shortcuts-help.css';
+import './styles/ux-motion.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
