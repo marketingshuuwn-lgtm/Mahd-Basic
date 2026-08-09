@@ -49,7 +49,49 @@ export function statusMeta(status) {
  */
 export function isCompletedToday(task, todayIso, toLocalISOFn, startOfTodayFn) {
   if (!task?.completed && normalizeTaskStatus(task) !== 'completed') return false;
-  if (!isRecurringTask(task)) return false;
-  // wait - non-recurring completed should return true
+  if (!isRecurringTask(task)) return true;
+  const raw = task.completedAt || task.completed_at;
+  if (!raw) return false;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return false;
+  const isoFn = toLocalISOFn || toLocalISOSimple;
+  const startFn = startOfTodayFn || startOfTodaySimple;
+  const iso = isoFn(d);
+  const today = todayIso || isoFn(startFn());
+  return iso === today;
+}
+
+/** منجزة «فعلياً» في العرض الحالي (دورية = منجزة اليوم فقط) */
+export function isEffectivelyCompleted(task) {
+  const status = normalizeTaskStatus(task);
+  if (status === 'cancelled') return true;
+  if (status !== 'completed' && !task?.completed) return false;
+  if (!isRecurringTask(task)) return true;
+  return isCompletedToday(task);
+}
+
+/** هل المهمة مفتوحة في اللوحات النشطة؟ */
+export function isTaskOpen(task, opts = {}) {
+  if (!task || task.archived) return false;
+  const status = normalizeTaskStatus(task);
+  if (status === 'cancelled') return false;
+  if (status === 'deferred') return false;
+  if (status === 'completed' || task.completed) {
+    if (!isRecurringTask(task)) return false;
+    const check = opts.isCompletedToday || ((t) => isCompletedToday(t));
+    return !check(task);
+  }
   return true;
+}
+
+/** اختصار للواجهات: مفتوحة الآن (مع مراعاة إعادة فتح الدورية يومياً) */
+export function isEffectivelyOpen(task) {
+  return isTaskOpen(task);
+}
+
+export function nextCycleStatus(current) {
+  const s = normalizeTaskStatus(current);
+  const idx = CYCLE_STATUSES.indexOf(s);
+  const i = idx >= 0 ? idx : 0;
+  return CYCLE_STATUSES[(i + 1) % CYCLE_STATUSES.length];
 }
