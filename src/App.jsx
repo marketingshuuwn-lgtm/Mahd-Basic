@@ -32,6 +32,7 @@ import {
   normalizeTaskContext,
   normalizeWorkDays,
 } from './utils/taskMeta';
+import { normalizeTaskStatus } from './utils/taskStatus';
 
 const THEME_KEY = 'mahd_theme_react_v1';
 const NOTIFICATION_SETTINGS_KEY = 'mahd_notification_settings_v1';
@@ -234,6 +235,11 @@ export default function App() {
     [spaceTasks]
   );
 
+  const boardTasks = useMemo(
+    () => visibleTasks.filter((t) => normalizeTaskStatus(t) !== 'deferred'),
+    [visibleTasks]
+  );
+
   const trelloPageTasks = useMemo(
     () => tasks.filter((t) => !t.archived && t.externalSource === 'trello'),
     [tasks]
@@ -257,7 +263,7 @@ export default function App() {
     );
   }, [notificationSettings]);
 
-  useLocalNotifications(visibleTasks, workDays, notificationSettings);
+  useLocalNotifications(boardTasks, workDays, notificationSettings);
   const push = usePushNotifications(showToast);
 
   useEffect(() => {
@@ -274,7 +280,10 @@ export default function App() {
     [tasks, editingTaskId]
   );
 
-  const pendingCount = visibleTasks.filter((t) => !t.completed).length;
+  const pendingCount = visibleTasks.filter((t) => {
+    const s = normalizeTaskStatus(t);
+    return s !== 'completed' && s !== 'cancelled';
+  }).length;
   const trelloCount = trelloPageTasks.filter((t) => !t.completed).length;
   const archiveCount = archivedTasks.length;
 
@@ -458,7 +467,7 @@ export default function App() {
 
             {subview === 'Board' && (
               <QuadrantBoard
-                tasks={visibleTasks}
+                tasks={boardTasks}
                 onToggleComplete={toggleComplete}
                 onSetStatus={setTaskStatus}
                 onToggleSubtask={toggleSubtask}
@@ -467,13 +476,14 @@ export default function App() {
                 onMoveTask={moveTask}
                 onReorderInQuadrant={reorderInQuadrant}
                 onAddTask={openAddModal}
+                onReschedule={rescheduleTask}
                 workDays={workDays}
                 workspaces={workspaces}
               />
             )}
             {subview === 'Timeline' && (
               <TimelineView
-                tasks={visibleTasks}
+                tasks={boardTasks}
                 onToggleComplete={toggleComplete}
                 onSetStatus={setTaskStatus}
                 onToggleSubtask={toggleSubtask}
@@ -485,7 +495,7 @@ export default function App() {
             )}
             {subview === 'Gantt' && (
               <GanttView
-                tasks={visibleTasks}
+                tasks={boardTasks}
                 onToggleComplete={toggleComplete}
                 onEdit={openEditModal}
                 onReschedule={rescheduleTask}
@@ -504,6 +514,7 @@ export default function App() {
             onEdit={openEditModal}
             onDelete={archiveTask}
             onAddTask={openAddModal}
+            onReschedule={rescheduleTask}
             workDays={workDays}
             workspaces={workspaces}
           />
@@ -513,7 +524,7 @@ export default function App() {
           <KpiView tasks={visibleTasks} workspaces={visibleWorkspaces} />
         )}
 
-        {view === 'Motivation' && <BreakSpace tasks={visibleTasks} showToast={showToast} />}
+        {view === 'Motivation' && <BreakSpace tasks={boardTasks} showToast={showToast} />}
 
         {view === 'Notepad' && <NotepadView showToast={showToast} />}
 
