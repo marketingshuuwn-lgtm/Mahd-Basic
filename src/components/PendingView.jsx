@@ -6,13 +6,12 @@ import {
   getOccurrenceDates,
   getTaskStartDate,
   isTaskOverdue,
-  parseLocalDate,
   startOfToday,
-  toLocalISO,
 } from '../utils/dateUtils';
 import { isEffectivelyOpen } from '../utils/taskStatus';
 
 const QUADRANTS = [
+  { id: 'all', label: 'الكل', color: 'var(--text-primary)' },
   { id: 'important-urgent', label: 'مهم ومستعجل', color: 'var(--danger)' },
   { id: 'important-not-urgent', label: 'مهم غير مستعجل', color: 'var(--accent)' },
   { id: 'not-important-urgent', label: 'غير مهم ومستعجل', color: 'var(--warning)' },
@@ -22,9 +21,8 @@ const QUADRANTS = [
 const DATE_FILTERS = [
   { id: 'all', label: 'الكل' },
   { id: 'overdue', label: 'متأخر' },
-  { id: 'yesterday', label: 'أمس' },
   { id: 'today', label: 'اليوم' },
-  { id: 'tomorrow', label: 'غداً' },
+  { id: 'tomorrow', label: 'غدا' },
   { id: 'week', label: 'هذا الأسبوع' },
   { id: 'nextweek', label: 'الأسبوع القادم' },
   { id: 'nodate', label: 'بدون تاريخ' },
@@ -32,11 +30,12 @@ const DATE_FILTERS = [
 ];
 
 const TIME_GROUPS = [
-  { id: 'overdue', title: 'متأخرة' },
-  { id: 'today', title: 'اليوم' },
-  { id: 'tomorrow', title: 'غداً' },
-  { id: 'later', title: 'لاحقاً' },
-  { id: 'nodate', title: 'بدون تاريخ' },
+  { id: 'overdue', label: 'متأخرة', color: 'var(--danger)' },
+  { id: 'today', label: 'اليوم', color: 'var(--accent)' },
+  { id: 'tomorrow', label: 'غداً', color: 'var(--warning)' },
+  { id: 'week', label: 'هذا الأسبوع', color: 'var(--success)' },
+  { id: 'later', label: 'لاحقاً', color: 'var(--text-secondary)' },
+  { id: 'nodate', label: 'بدون تاريخ', color: 'var(--q4)' },
 ];
 
 function hasOccurrenceInRange(task, fromDate, toDate, workDays) {
@@ -44,12 +43,22 @@ function hasOccurrenceInRange(task, fromDate, toDate, workDays) {
 }
 
 function assignTimeBucket(task, today, workDays) {
+  if (!getTaskStartDate(task) && !task.recurrence) return 'nodate';
   if (isTaskOverdue(task, { workDays })) return 'overdue';
+
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  if (!getTaskStartDate(task) && !task.recurrence) return 'nodate';
+
   if (hasOccurrenceInRange(task, today, today, workDays)) return 'today';
   if (hasOccurrenceInRange(task, tomorrow, tomorrow, workDays)) return 'tomorrow';
+
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
+  weekStart.setHours(12, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  if (hasOccurrenceInRange(task, today, weekEnd, workDays)) return 'week';
   return 'later';
 }
 
@@ -60,6 +69,7 @@ export default function PendingView({
   onToggleSubtask,
   onEdit,
   onDelete,
+  onAddTask,
   onReschedule,
   workDays,
   workspaces = null,
@@ -69,7 +79,7 @@ export default function PendingView({
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
 
-  const today = startOfToday();
+  const today = useMemo(() => startOfToday(), []);
 
   const filtered = useMemo(() => {
     let list = tasks.filter((t) => isEffectivelyOpen(t));
@@ -78,13 +88,12 @@ export default function PendingView({
       list = list.filter((t) => t.quadrant === qFilter);
     }
 
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setHours(12, 0, 0, 0);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
@@ -97,16 +106,14 @@ export default function PendingView({
     else if (dFilter === 'today') list = list.filter((t) => hasOccurrenceInRange(t, today, today, workDays));
     else if (dFilter === 'tomorrow')
       list = list.filter((t) => hasOccurrenceInRange(t, tomorrow, tomorrow, workDays));
-    else if (dFilter === 'yesterday')
-      list = list.filter((t) => hasOccurrenceInRange(t, yesterday, yesterday, workDays));
     else if (dFilter === 'week')
       list = list.filter((t) => hasOccurrenceInRange(t, weekStart, weekEnd, workDays));
     else if (dFilter === 'nextweek')
       list = list.filter((t) => hasOccurrenceInRange(t, nextWeekStart, nextWeekEnd, workDays));
     else if (dFilter === 'nodate') list = list.filter((t) => !getTaskStartDate(t));
     else if (dFilter === 'range' && rangeFrom && rangeTo) {
-      const from = parseLocalDate(rangeFrom) || today;
-      const to = parseLocalDate(rangeTo) || today;
+      const from = new Date(`${rangeFrom}T12:00:00`);
+      const to = new Date(`${rangeTo}T12:00:00`);
       list = list.filter((t) => hasOccurrenceInRange(t, from, to, workDays));
     }
 
@@ -114,34 +121,35 @@ export default function PendingView({
   }, [tasks, qFilter, dFilter, rangeFrom, rangeTo, today, workDays]);
 
   const groups = useMemo(() => {
-    const map = {};
+    const map = Object.fromEntries(TIME_GROUPS.map((g) => [g.id, []]));
     filtered.forEach((t) => {
-      const b = assignTimeBucket(t, today, workDays);
-      if (!map[b]) map[b] = [];
-      map[b].push(t);
+      const bucket = assignTimeBucket(t, today, workDays);
+      if (map[bucket]) map[bucket].push(t);
+      else map.later.push(t);
     });
     return TIME_GROUPS.map((g) => ({ ...g, items: map[g.id] || [] })).filter((g) => g.items.length > 0);
   }, [filtered, today, workDays]);
 
   return (
     <div className="pending-view">
-      <div className="pending-filters card">
-        <div className="pending-filter-row">
-          <span className="pending-filter-label">التصنيف</span>
+      <div className="page-header">
+        <div className="page-title">المهام المعلقة</div>
+        <div className="page-desc">
+          مجمّعة زمنياً · فلتر أولوية وتاريخ · المساحة من الشريط العلوي
+        </div>
+      </div>
+
+      <div className="pending-toolbar">
+        <div className="pending-toolbar-row">
+          <span className="pending-toolbar-label">أولوية</span>
           <div className="filter-chips">
-            <button
-              type="button"
-              className={`filter-chip ${qFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setQFilter('all')}
-            >
-              الكل
-            </button>
             {QUADRANTS.map((q) => (
               <button
                 key={q.id}
                 type="button"
                 className={`filter-chip ${qFilter === q.id ? 'active' : ''}`}
                 onClick={() => setQFilter(q.id)}
+                title={q.label}
               >
                 <span className="filter-chip-dot" style={{ background: q.color }} />
                 {q.label}
@@ -149,8 +157,8 @@ export default function PendingView({
             ))}
           </div>
         </div>
-        <div className="pending-filter-row">
-          <span className="pending-filter-label">التاريخ</span>
+        <div className="pending-toolbar-row">
+          <span className="pending-toolbar-label">تاريخ</span>
           <div className="filter-chips">
             {DATE_FILTERS.map((f) => (
               <button
@@ -165,9 +173,19 @@ export default function PendingView({
           </div>
           {dFilter === 'range' && (
             <div className="filter-range-inputs">
-              <input type="date" className="form-input" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} />
-              <span>—</span>
-              <input type="date" className="form-input" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} />
+              <input
+                type="date"
+                className="form-input"
+                value={rangeFrom}
+                onChange={(e) => setRangeFrom(e.target.value)}
+              />
+              <span>إلى</span>
+              <input
+                type="date"
+                className="form-input"
+                value={rangeTo}
+                onChange={(e) => setRangeTo(e.target.value)}
+              />
             </div>
           )}
         </div>
@@ -178,15 +196,25 @@ export default function PendingView({
       {filtered.length === 0 ? (
         <EmptyState
           icon="ph-check-circle"
-          title="لا مهام معلقة"
-          description="كل المهام المفتوحة منجزة أو خارج عوامل التصفية."
+          title="لا مهام معلقة مطابقة"
+          hint="غيّر الفلاتر أو أضف مهمة جديدة"
+          actionLabel={onAddTask ? 'مهمة جديدة' : undefined}
+          onAction={onAddTask}
         />
       ) : (
-        <div className="pending-groups">
+        <div className="matrix-sections">
           {groups.map((g) => (
-            <section key={g.id} className="pending-group">
-              <h3 className="pending-group-title">{g.title}</h3>
-              <div className="pending-group-list">
+            <section
+              key={g.id}
+              className="matrix-section"
+              style={{ '--section-color': g.color }}
+            >
+              <div className="matrix-section-header pending-group-head">
+                <span className="matrix-section-edge" aria-hidden />
+                <span className="matrix-section-title">{g.label}</span>
+                <span className="matrix-section-count">{g.items.length}</span>
+              </div>
+              <div className="matrix-section-body">
                 {g.items.map((task) => (
                   <TaskRow
                     key={task.id}
@@ -197,6 +225,8 @@ export default function PendingView({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onReschedule={onReschedule}
+                    draggable={false}
+                    workDays={workDays}
                     workspaces={workspaces}
                   />
                 ))}
