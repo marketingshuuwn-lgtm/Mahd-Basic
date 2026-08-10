@@ -4,10 +4,12 @@ import {
   TRELLO_WORKSPACE_ID,
   WORKSPACE_COLORS,
   WORKSPACE_ICONS,
+  isSystemWorkspace,
 } from '../utils/taskMeta';
 
+/** أرشفة المساحة متاحة للمساحات التي أنشأها المستخدم فقط — ليس مشاريعي/شخصي/علامة */
 function isProtectedFromArchive(ws) {
-  return ws?.id === 'work' || ws?.id === 'personal' || ws?.id === TRELLO_WORKSPACE_ID;
+  return isSystemWorkspace(ws);
 }
 
 export default function WorkspaceSwitcher({
@@ -205,7 +207,7 @@ export default function WorkspaceSwitcher({
                 <div className="workspace-menu">
                   <button type="button" onClick={() => openEdit(ws)}>
                     <i className="ph ph-pencil-simple"></i>
-                    تخصيص المساحة
+                    تعديل المظهر
                   </button>
                   {!isProtectedFromArchive(ws) && (
                     <button
@@ -301,7 +303,7 @@ export default function WorkspaceSwitcher({
         >
           <div className="modal-box card workspace-create-modal">
             <div className="modal-header">
-              <h3>{editing ? 'تخصيص المساحة' : 'مساحة جديدة'}</h3>
+              <h3>{editing ? 'تعديل مظهر المساحة' : 'مساحة جديدة'}</h3>
               <button
                 type="button"
                 className="btn-icon"
@@ -390,7 +392,7 @@ export default function WorkspaceSwitcher({
               </div>
               <div className="modal-footer" style={{ flexWrap: 'wrap' }}>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={!name.trim()}>
-                  {editing ? 'حفظ التخصيص' : 'إنشاء المساحة'}
+                  {editing ? 'حفظ المظهر' : 'إنشاء المساحة'}
                 </button>
                 <button
                   type="button"
