@@ -62,15 +62,18 @@ export const DEFAULT_WORKSPACES = [
 export const TASK_CONTEXTS = DEFAULT_WORKSPACES;
 
 export const WORKSPACE_COLORS = [
-  { color: 'var(--accent)', bg: 'var(--accent-light)' },
-  { color: 'var(--success)', bg: 'var(--success-light)' },
-  { color: 'var(--warning)', bg: 'var(--warning-light)' },
-  { color: 'var(--danger)', bg: 'var(--danger-light)' },
-  { color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.12)' },
-  { color: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)' },
-  { color: '#db2777', bg: 'rgba(219, 39, 119, 0.12)' },
-  { color: '#ea580c', bg: 'rgba(234, 88, 12, 0.12)' },
-  { color: '#0079bf', bg: 'rgba(0, 121, 191, 0.12)' },
+  { color: 'var(--accent)', bg: 'var(--accent-light)', name: 'أخضر مهد' },
+  { color: 'var(--success)', bg: 'var(--success-light)', name: 'أخضر هادئ' },
+  { color: 'var(--warning)', bg: 'var(--warning-light)', name: 'كهرماني' },
+  { color: 'var(--danger)', bg: 'var(--danger-light)', name: 'أحمر' },
+  { color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.12)', name: 'بنفسجي' },
+  { color: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)', name: 'سماوي' },
+  { color: '#db2777', bg: 'rgba(219, 39, 119, 0.12)', name: 'وردي' },
+  { color: '#ea580c', bg: 'rgba(234, 88, 12, 0.12)', name: 'برتقالي' },
+  { color: '#0079bf', bg: 'rgba(0, 121, 191, 0.12)', name: 'تريلو' },
+  { color: '#0f766e', bg: 'rgba(15, 118, 110, 0.12)', name: 'تركوازي' },
+  { color: '#4f46e5', bg: 'rgba(79, 70, 229, 0.12)', name: 'نيلي' },
+  { color: '#64748b', bg: 'rgba(100, 116, 139, 0.14)', name: 'رمادي' },
 ];
 
 export const WORKSPACE_ICONS = [
@@ -85,7 +88,37 @@ export const WORKSPACE_ICONS = [
   'ph-lightbulb',
   'ph-users',
   'ph-code',
+  'ph-palette',
+  'ph-rocket-launch',
+  'ph-graduation-cap',
+  'ph-leaf',
+  'ph-music-notes',
+  'ph-camera',
+  'ph-chart-line-up',
+  'ph-handshake',
+  'ph-sparkle',
 ];
+
+/**
+ * مساحات النظام — لا تُؤرشف ولا تُحذف.
+ * مشاريعي / شخصي / علامة (تريلو) + أي isDefault.
+ */
+export function isSystemWorkspace(wsOrId) {
+  if (wsOrId == null) return true;
+  const id = typeof wsOrId === 'string' ? wsOrId : wsOrId.id;
+  const ws = typeof wsOrId === 'object' ? wsOrId : null;
+  if (ws?.isDefault) return true;
+  if (!id || typeof id !== 'string') return false;
+  const nid = id.trim().toLowerCase();
+  return (
+    nid === 'work' ||
+    nid === 'personal' ||
+    nid === TRELLO_WORKSPACE_ID ||
+    nid === 'alama' ||
+    nid === 'trello' ||
+    nid === 'علامة'
+  );
+}
 
 export function normalizeWorkDays(days) {
   const source = Array.isArray(days) ? days : DEFAULT_WORK_DAYS;
@@ -142,7 +175,7 @@ export function slugifyWorkspaceName(name) {
 export function workspaceFromContextId(id, index = 0) {
   const nid = normalizeTaskContext(id);
   const def = DEFAULT_WORKSPACES.find((w) => w.id === nid);
-  if (def) return { ...def, archived: false, trait: def.trait || '' };
+  if (def) return { ...def, archived: false, trait: def.trait || '', description: '' };
   const palette = WORKSPACE_COLORS[index % WORKSPACE_COLORS.length];
   const isTrello = nid === 'trello' || nid === TRELLO_WORKSPACE_ID;
   return {
@@ -154,5 +187,6 @@ export function workspaceFromContextId(id, index = 0) {
     isDefault: false,
     archived: false,
     trait: isTrello ? 'مهام تريلو' : '',
+    description: '',
   };
 }
