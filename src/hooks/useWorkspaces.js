@@ -23,10 +23,10 @@ function mergeDefaultsPreserveLabels(list) {
         label: WORKSPACE_LABEL_HINTS[def.id] || def.label,
         archived: false,
         trait: def.trait || '',
+        description: '',
       });
     }
   }
-  // إن وُجدت مساحة id=work وما زال اسمها القديم «عمل» نحدّث التلميح مرة واحدة فقط إن طابق البذرة القديمة
   const work = byId.get('work');
   if (work && (work.label === 'عمل' || work.label === 'work')) {
     byId.set('work', { ...work, label: WORKSPACE_LABEL_HINTS.work });
@@ -42,6 +42,7 @@ function readWorkspaces() {
         ...w,
         archived: false,
         trait: w.trait || '',
+        description: '',
       }));
     }
     const parsed = JSON.parse(raw);
@@ -50,6 +51,7 @@ function readWorkspaces() {
         ...w,
         archived: false,
         trait: w.trait || '',
+        description: '',
       }));
     }
     const cleaned = parsed
@@ -63,6 +65,7 @@ function readWorkspaces() {
         isDefault: Boolean(w.isDefault),
         archived: Boolean(w.archived),
         trait: typeof w.trait === 'string' ? w.trait : '',
+        description: typeof w.description === 'string' ? w.description : '',
       }));
     return mergeDefaultsPreserveLabels(cleaned);
   } catch {
@@ -70,6 +73,7 @@ function readWorkspaces() {
       ...w,
       archived: false,
       trait: w.trait || '',
+      description: '',
     }));
   }
 }
@@ -131,6 +135,7 @@ export function useWorkspaces() {
         isDefault: false,
         archived: false,
         trait: '',
+        description: '',
       }
     : workspaces.find((w) => w.id === activeWorkspaceId) ||
       visibleWorkspaces[0] ||
@@ -140,10 +145,6 @@ export function useWorkspaces() {
     ? visibleWorkspaces[0]?.id || 'work'
     : activeWorkspaceId;
 
-  /**
-   * يستعيد مساحات اختفت من الشريط إن وُجدت كمهام بـ context غير معروف.
-   * لا يغيّر تسميات المساحات الموجودة.
-   */
   const ensureContextsFromTasks = useCallback((contextIds) => {
     if (!Array.isArray(contextIds) || contextIds.length === 0) return;
     const unique = [
@@ -160,7 +161,7 @@ export function useWorkspaces() {
     });
   }, []);
 
-  const addWorkspace = useCallback(({ name, icon, colorIndex, trait }) => {
+  const addWorkspace = useCallback(({ name, icon, colorIndex, trait, description }) => {
     const label = String(name || '').trim();
     if (!label) return null;
 
@@ -180,6 +181,7 @@ export function useWorkspaces() {
         isDefault: false,
         archived: false,
         trait: typeof trait === 'string' ? trait.trim() : '',
+        description: typeof description === 'string' ? description.trim().slice(0, 200) : '',
       };
       return [...prev, next];
     });
@@ -205,13 +207,16 @@ export function useWorkspaces() {
         if (patch.color) next.color = patch.color;
         if (patch.bg) next.bg = patch.bg;
         if (patch.trait !== undefined) next.trait = String(patch.trait || '').trim();
+        if (patch.description !== undefined) {
+          next.description = String(patch.description || '').trim().slice(0, 200);
+        }
         return next;
       })
     );
   }, []);
 
   const archiveWorkspace = useCallback((id) => {
-    if (id === 'work' || id === 'personal') return false;
+    if (id === 'work' || id === 'personal' || id === 'alama' || id === 'trello') return false;
     setWorkspaces((prev) =>
       prev.map((w) => (w.id === id ? { ...w, archived: true } : w))
     );
