@@ -8,6 +8,7 @@ import {
   startOfToday,
   toLocalISO,
 } from '../utils/dateUtils';
+import { isEffectivelyOpen } from '../utils/taskStatus';
 
 const QUADRANTS = [
   { id: 'important-urgent', title: 'مهم ومستعجل', color: 'var(--danger)' },
@@ -27,7 +28,7 @@ function sortItems(items, workDays) {
 }
 
 function isActiveToday(task, workDays) {
-  if (task.completed) return false;
+  if (!isEffectivelyOpen(task)) return false;
   const today = startOfToday();
   const iso = toLocalISO(today);
   const occ = getOccurrenceDates(task, today, today, { workDays });
@@ -48,7 +49,7 @@ function completedOnDay(task, dayIso) {
 function computeStreak(tasks) {
   const days = new Set();
   tasks.forEach((t) => {
-    if (!t.completed) return;
+    if (!t.completed && !t.completedAt && !t.completed_at) return;
     const raw = t.completedAt || t.completed_at;
     if (!raw) return;
     const d = new Date(raw);
@@ -102,7 +103,7 @@ export default function QuadrantBoard({
     const todayIso = toLocalISO(startOfToday());
     const todayCount = tasks.filter((t) => isActiveToday(t, workDays)).length;
     const completedToday = tasks.filter((t) => completedOnDay(t, todayIso)).length;
-    const overdue = tasks.filter((t) => isTaskOverdue(t)).length;
+    const overdue = tasks.filter((t) => isTaskOverdue(t, { workDays })).length;
     const streak = computeStreak(tasks);
     return { todayCount, completedToday, overdue, streak };
   }, [tasks, workDays]);
