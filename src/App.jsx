@@ -30,10 +30,11 @@ import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/imp
 import {
   ALL_WORKSPACES_ID,
   DEFAULT_WORK_DAYS,
+  isSystemWorkspace,
   normalizeTaskContext,
   normalizeWorkDays,
 } from './utils/taskMeta';
-import { normalizeTaskStatus } from './utils/taskStatus';
+import { isEffectivelyOpen, normalizeTaskStatus } from './utils/taskStatus';
 
 const THEME_KEY = 'mahd_theme_react_v1';
 const NOTIFICATION_SETTINGS_KEY = 'mahd_notification_settings_v1';
@@ -123,6 +124,7 @@ export default function App() {
     addWorkspace,
     updateWorkspace,
     archiveWorkspace,
+    restoreWorkspace,
     reorderWorkspaces,
     ensureContextsFromTasks,
   } = useWorkspaces();
@@ -254,7 +256,7 @@ export default function App() {
   useEffect(() => {
     if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem(THEME_KEY, theme);
+  localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
@@ -283,7 +285,8 @@ export default function App() {
 
   const pendingCount = visibleTasks.filter((t) => {
     const s = normalizeTaskStatus(t);
-    return s !== 'completed' && s !== 'cancelled';
+    if (s === 'cancelled' || s === 'deferred') return false;
+    return isEffectivelyOpen(t);
   }).length;
   const trelloCount = trelloPageTasks.filter((t) => !t.completed).length;
   const archiveCount = archivedTasks.length;
@@ -314,8 +317,8 @@ export default function App() {
     closeModal();
   };
 
-  const handleCreateWorkspace = ({ name, icon, colorIndex, trait }) => {
-    const created = addWorkspace({ name, icon, colorIndex, trait });
+  const handleCreateWorkspace = ({ name, icon, colorIndex, trait, description }) => {
+    const created = addWorkspace({ name, icon, colorIndex, trait, description });
     if (created) {
       showToast(`أُنشئت مساحة "${created.label}"`, 'ph-folder-plus');
     }
@@ -328,12 +331,32 @@ export default function App() {
   };
 
   const handleArchiveSpace = async (id) => {
+    const target = workspaces.find((w) => w.id === id);
+    if (isSystemWorkspace(target || id)) {
+      showToast(
+        'لا يمكن أرشفة المساحات الأساسية (مشاريعي / شخصي / علامة)',
+        'ph-lock',
+        'error'
+      );
+      return;
+    }
     const okTasks = await archiveTasksInContext(id);
     if (!okTasks) return;
     const okSpace = archiveWorkspace(id);
     if (okSpace) {
       showToast('أُرشفت المساحة ومهامها النشطة', 'ph-archive');
+    } else {
+      showToast('تعذّرت أرشفة المساحة', 'ph-warning', 'error');
     }
+  };
+
+  const handleRestoreSpace = (id) => {
+    restoreWorkspace(id);
+    const ws = workspaces.find((w) => w.id === id);
+    showToast(
+      ws ? `استُرجعت مساحة «${ws.label}»` : 'استُرجعت المساحة',
+      'ph-arrow-counter-clockwise'
+    );
   };
 
   const requestNotificationPermission = async () => {
@@ -449,12 +472,13 @@ export default function App() {
 
       <main className="main-content">
         <WorkspaceSwitcher
-          workspaces={visibleWorkspaces}
+          workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
           onSwitch={setActiveWorkspaceId}
           onCreate={handleCreateWorkspace}
           onUpdate={handleUpdateWorkspace}
           onArchiveSpace={handleArchiveSpace}
+          onRestoreSpace={handleRestoreSpace}
           onReorder={reorderWorkspaces}
           isAllMode={isAllMode}
         />
