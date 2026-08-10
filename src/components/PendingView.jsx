@@ -8,6 +8,7 @@ import {
   isTaskOverdue,
   startOfToday,
 } from '../utils/dateUtils';
+import { isEffectivelyOpen } from '../utils/taskStatus';
 
 const QUADRANTS = [
   { id: 'all', label: 'الكل', color: 'var(--text-primary)' },
@@ -43,7 +44,7 @@ function hasOccurrenceInRange(task, fromDate, toDate, workDays) {
 
 function assignTimeBucket(task, today, workDays) {
   if (!getTaskStartDate(task) && !task.recurrence) return 'nodate';
-  if (isTaskOverdue(task)) return 'overdue';
+  if (isTaskOverdue(task, { workDays })) return 'overdue';
 
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -81,7 +82,7 @@ export default function PendingView({
   const today = useMemo(() => startOfToday(), []);
 
   const filtered = useMemo(() => {
-    let list = tasks.filter((t) => !t.completed);
+    let list = tasks.filter((t) => isEffectivelyOpen(t));
 
     if (qFilter !== 'all') {
       list = list.filter((t) => t.quadrant === qFilter);
@@ -101,7 +102,7 @@ export default function PendingView({
     const nextWeekEnd = new Date(nextWeekStart);
     nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
 
-    if (dFilter === 'overdue') list = list.filter((t) => isTaskOverdue(t));
+    if (dFilter === 'overdue') list = list.filter((t) => isTaskOverdue(t, { workDays }));
     else if (dFilter === 'today') list = list.filter((t) => hasOccurrenceInRange(t, today, today, workDays));
     else if (dFilter === 'tomorrow')
       list = list.filter((t) => hasOccurrenceInRange(t, tomorrow, tomorrow, workDays));

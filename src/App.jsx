@@ -32,7 +32,7 @@ import {
   normalizeTaskContext,
   normalizeWorkDays,
 } from './utils/taskMeta';
-import { normalizeTaskStatus } from './utils/taskStatus';
+import { isEffectivelyOpen, normalizeTaskStatus } from './utils/taskStatus';
 
 const THEME_KEY = 'mahd_theme_react_v1';
 const NOTIFICATION_SETTINGS_KEY = 'mahd_notification_settings_v1';
@@ -282,7 +282,8 @@ export default function App() {
 
   const pendingCount = visibleTasks.filter((t) => {
     const s = normalizeTaskStatus(t);
-    return s !== 'completed' && s !== 'cancelled';
+    if (s === 'cancelled' || s === 'deferred') return false;
+    return isEffectivelyOpen(t);
   }).length;
   const trelloCount = trelloPageTasks.filter((t) => !t.completed).length;
   const archiveCount = archivedTasks.length;
