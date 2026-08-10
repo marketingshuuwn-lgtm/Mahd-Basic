@@ -69,8 +69,14 @@
   height: 20px;
   border-radius: 50%;
   margin-inline-start: 2px;
-  opacity: 0.75;
   font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.workspace-tab:hover .workspace-tab-more,
+.workspace-tab.active .workspace-tab-more {
+  opacity: 0.85;
 }
 
 .workspace-tab-more:hover {
@@ -142,6 +148,14 @@
   opacity: 0.9;
 }
 
+.workspace-description-line {
+  margin: 6px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 52ch;
+}
+
 .workspace-all-hint {
   margin: 10px 0 0;
   font-size: var(--fs-xs);
@@ -160,7 +174,25 @@
 }
 
 .workspace-create-modal {
-  max-width: 440px;
+  max-width: 480px;
+}
+
+.workspace-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--ws-bg, var(--accent-light));
+  color: var(--ws-color, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--ws-color, var(--accent)) 35%, transparent);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
+}
+
+.workspace-preview-chip i {
+  font-size: 18px;
 }
 
 .workspace-icon-picks,
@@ -168,6 +200,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.workspace-icon-picks {
+  max-height: 140px;
+  overflow-y: auto;
 }
 
 .workspace-icon-pick {
@@ -202,4 +239,58 @@
 .workspace-color-pick.active {
   box-shadow: 0 0 0 3px var(--accent-light);
   border-color: var(--card-bg);
+}
+
+.workspace-trello-badge {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 121, 191, 0.15);
+  color: #0079bf;
+}
+
+.workspace-archived-bar {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--hover-bg);
+  border: 1px dashed var(--border-color);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-archived-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-bold);
+}
+
+.workspace-archived-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-archived-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.workspace-archived-chip:hover {
+  border-color: var(--ws-color, var(--accent));
+  color: var(--ws-color, var(--accent));
 }
