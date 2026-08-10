@@ -42,10 +42,7 @@ function isTaskDoneOnDay(task, iso) {
   const status = normalizeTaskStatus(task);
   if (status === 'cancelled') return true;
   if (isRecurringTask(task)) {
-    return isCompletedToday(task, null, toLocalISO, () => {
-      const d = new Date(iso + 'T12:00:00');
-      return d;
-    });
+    return isCompletedToday(task, iso, toLocalISO, () => new Date(`${iso}T12:00:00`));
   }
   return status === 'completed' || Boolean(task.completed);
 }
