@@ -4,6 +4,7 @@ import FloatingSmartBar from './components/QuickAdd';
 import QuadrantBoard from './components/QuadrantBoard';
 import TimelineView from './components/TimelineView';
 import GanttView from './components/GanttView';
+import PlannerView from './components/PlannerView';
 import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
 import BreakSpace from './components/BreakSpace';
@@ -514,6 +515,16 @@ export default function App() {
                 onEdit={openEditModal}
                 onDelete={archiveTask}
                 onReschedule={rescheduleTask}
+                workDays={workDays}
+              />
+            )}
+            {subview === 'Planner' && (
+              <PlannerView
+                tasks={boardTasks}
+                onToggleComplete={toggleComplete}
+                onEdit={openEditModal}
+                onReschedule={rescheduleTask}
+                onAddTask={openAddModal}
                 workDays={workDays}
               />
             )}
