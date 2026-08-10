@@ -17,6 +17,7 @@ import './styles/nav-data.css';
 import './styles/task-modal-draft.css';
 import './styles/task-status.css';
 import './styles/task-row-layers.css';
+import './styles/planner.css';
 
 /* 3. Design system */
 import './styles/design-system.css';
