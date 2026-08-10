@@ -29,6 +29,7 @@ import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/imp
 import {
   ALL_WORKSPACES_ID,
   DEFAULT_WORK_DAYS,
+  isSystemWorkspace,
   normalizeTaskContext,
   normalizeWorkDays,
 } from './utils/taskMeta';
@@ -254,7 +255,7 @@ export default function App() {
   useEffect(() => {
     if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem(THEME_KEY, theme);
+  localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
@@ -328,11 +329,22 @@ export default function App() {
   };
 
   const handleArchiveSpace = async (id) => {
+    const target = workspaces.find((w) => w.id === id);
+    if (isSystemWorkspace(target || id)) {
+      showToast(
+        'لا يمكن أرشفة المساحات الأساسية (مشاريعي / شخصي / علامة)',
+        'ph-lock',
+        'error'
+      );
+      return;
+    }
     const okTasks = await archiveTasksInContext(id);
     if (!okTasks) return;
     const okSpace = archiveWorkspace(id);
     if (okSpace) {
       showToast('أُرشفت المساحة ومهامها النشطة', 'ph-archive');
+    } else {
+      showToast('تعذّرت أرشفة المساحة', 'ph-warning', 'error');
     }
   };
 
