@@ -122,6 +122,7 @@ export default function App() {
     addWorkspace,
     updateWorkspace,
     archiveWorkspace,
+    restoreWorkspace,
     reorderWorkspaces,
     ensureContextsFromTasks,
   } = useWorkspaces();
@@ -313,8 +314,8 @@ export default function App() {
     closeModal();
   };
 
-  const handleCreateWorkspace = ({ name, icon, colorIndex, trait }) => {
-    const created = addWorkspace({ name, icon, colorIndex, trait });
+  const handleCreateWorkspace = ({ name, icon, colorIndex, trait, description }) => {
+    const created = addWorkspace({ name, icon, colorIndex, trait, description });
     if (created) {
       showToast(`أُنشئت مساحة "${created.label}"`, 'ph-folder-plus');
     }
@@ -333,6 +334,15 @@ export default function App() {
     if (okSpace) {
       showToast('أُرشفت المساحة ومهامها النشطة', 'ph-archive');
     }
+  };
+
+  const handleRestoreSpace = (id) => {
+    restoreWorkspace(id);
+    const ws = workspaces.find((w) => w.id === id);
+    showToast(
+      ws ? `استُرجعت مساحة «${ws.label}»` : 'استُرجعت المساحة',
+      'ph-arrow-counter-clockwise'
+    );
   };
 
   const requestNotificationPermission = async () => {
@@ -448,12 +458,13 @@ export default function App() {
 
       <main className="main-content">
         <WorkspaceSwitcher
-          workspaces={visibleWorkspaces}
+          workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
           onSwitch={setActiveWorkspaceId}
           onCreate={handleCreateWorkspace}
           onUpdate={handleUpdateWorkspace}
           onArchiveSpace={handleArchiveSpace}
+          onRestoreSpace={handleRestoreSpace}
           onReorder={reorderWorkspaces}
           isAllMode={isAllMode}
         />
