@@ -5,6 +5,7 @@ import {
   WORKSPACE_ICONS,
   WORKSPACE_LABEL_HINTS,
   ALL_WORKSPACES_ID,
+  isSystemWorkspace,
   normalizeTaskContext,
   slugifyWorkspaceName,
   workspaceFromContextId,
@@ -216,13 +217,14 @@ export function useWorkspaces() {
   }, []);
 
   const archiveWorkspace = useCallback((id) => {
-    if (id === 'work' || id === 'personal' || id === 'alama' || id === 'trello') return false;
+    const target = workspaces.find((w) => w.id === id);
+    if (isSystemWorkspace(target || id)) return false;
     setWorkspaces((prev) =>
       prev.map((w) => (w.id === id ? { ...w, archived: true } : w))
     );
     setActiveWorkspaceIdState((cur) => (cur === id ? ALL_WORKSPACES_ID : cur));
     return true;
-  }, []);
+  }, [workspaces]);
 
   const restoreWorkspace = useCallback((id) => {
     setWorkspaces((prev) =>
