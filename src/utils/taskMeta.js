@@ -99,6 +99,27 @@ export const WORKSPACE_ICONS = [
   'ph-sparkle',
 ];
 
+/**
+ * مساحات النظام — لا تُؤرشف ولا تُحذف.
+ * مشاريعي / شخصي / علامة (تريلو) + أي isDefault.
+ */
+export function isSystemWorkspace(wsOrId) {
+  if (wsOrId == null) return true;
+  const id = typeof wsOrId === 'string' ? wsOrId : wsOrId.id;
+  const ws = typeof wsOrId === 'object' ? wsOrId : null;
+  if (ws?.isDefault) return true;
+  if (!id || typeof id !== 'string') return false;
+  const nid = id.trim().toLowerCase();
+  return (
+    nid === 'work' ||
+    nid === 'personal' ||
+    nid === TRELLO_WORKSPACE_ID ||
+    nid === 'alama' ||
+    nid === 'trello' ||
+    nid === 'علامة'
+  );
+}
+
 export function normalizeWorkDays(days) {
   const source = Array.isArray(days) ? days : DEFAULT_WORK_DAYS;
   const unique = [...new Set(source.map(Number).filter((n) => n >= 0 && n <= 6))].sort((a, b) => a - b);
