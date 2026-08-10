@@ -102,6 +102,8 @@ export default function TaskModal({
   const [baseline, setBaseline] = useState(EMPTY_FORM);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [draftBanner, setDraftBanner] = useState(null);
+  const [dragSubId, setDragSubId] = useState(null);
+  const [overSubId, setOverSubId] = useState(null);
   const taskIdRef = useRef(null);
   const formRef = useRef(form);
   const baselineRef = useRef(baseline);
@@ -220,6 +222,23 @@ export default function TaskModal({
     }));
   };
 
+  /** سحب وإفلات لإعادة ترتيب المهام الفرعية */
+  const reorderSubtasks = (fromId, toId) => {
+    if (fromId == null || toId == null || String(fromId) === String(toId)) return;
+    setForm((f) => {
+      const list = [...(Array.isArray(f.subtasks) ? f.subtasks : [])];
+      const from = list.findIndex((item) => String(item.id) === String(fromId));
+      const to = list.findIndex((item) => String(item.id) === String(toId));
+      if (from < 0 || to < 0 || from === to) return f;
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      return {
+        ...f,
+        subtasks: list.map((item, index) => ({ ...item, sortOrder: index })),
+      };
+    });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const title = form.title.trim();
@@ -304,7 +323,7 @@ export default function TaskModal({
               >
                 <option value="important-urgent">مهم ومستعجل</option>
                 <option value="important-not-urgent">مهم غير مستعجل</option>
-                <option value="not-important-urgent">غير مهم ومستعجل</option>
+                <option value="not-important-urgent">غير مهم مستعجل</option>
                 <option value="not-important-not-urgent">غير مهم غير مستعجل</option>
               </select>
             </div>
@@ -442,13 +461,66 @@ export default function TaskModal({
           </div>
 
           <div className="form-field">
-            <label>مهام فرعية / Checklist</label>
+            <label>
+              مهام فرعية / Checklist{' '}
+              <span className="form-hint-inline">· اسحب ≡ للترتيب</span>
+            </label>
             <div className="subtask-editor-list">
               {subtasksList.length === 0 ? (
                 <div className="subtask-empty-hint">أضف خطوات صغيرة لتوضيح الإنجاز.</div>
               ) : (
                 subtasksList.map((item) => (
-                  <div key={item.id} className="subtask-editor-row">
+                  <div
+                    key={item.id}
+                    className={`subtask-editor-row${
+                      dragSubId != null && String(dragSubId) === String(item.id)
+                        ? ' is-dragging'
+                        : ''
+                    }${
+                      overSubId != null &&
+                      String(overSubId) === String(item.id) &&
+                      String(dragSubId) !== String(item.id)
+                        ? ' is-drag-over'
+                        : ''
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragSubId != null && String(dragSubId) !== String(item.id)) {
+                        setOverSubId(item.id);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      setOverSubId((cur) =>
+                        cur != null && String(cur) === String(item.id) ? null : cur
+                      );
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const fromId = e.dataTransfer.getData('text/plain') || dragSubId;
+                      reorderSubtasks(fromId, item.id);
+                      setDragSubId(null);
+                      setOverSubId(null);
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="subtask-drag-handle"
+                      draggable
+                      title="اسحب لإعادة الترتيب"
+                      aria-label="اسحب لإعادة الترتيب"
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(item.id));
+                        setDragSubId(item.id);
+                      }}
+                      onDragEnd={() => {
+                        setDragSubId(null);
+                        setOverSubId(null);
+                      }}
+                    >
+                      <i className="ph ph-dots-six-vertical"></i>
+                    </button>
                     <button
                       type="button"
                       className={`mini-check ${item.completed ? 'checked' : ''}`}
