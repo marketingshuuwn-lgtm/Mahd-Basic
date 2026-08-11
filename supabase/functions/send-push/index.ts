@@ -2,6 +2,9 @@
  * Edge Function: send-push
  * Web Push + CORS preflight (OPTIONS).
  * متوافق مع Deno على Supabase Edge.
+ *
+ * أمان: يتطلب JWT صالح (anon / authenticated / service_role)
+ * قبل أي إرسال — يمنع استدعاء الرابط بدون مفتاح.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import webpush from 'https://esm.sh/web-push@3.6.7?target=denonext';
@@ -21,6 +24,69 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+/**
+ * يستخرج Bearer token ويتحقق أنه JWT صادر من مشروع Supabase الحالي.
+ * يقبل: جلسة مستخدم، anon key كـ JWT، أو service_role (للـ cron).
+ */
+async function assertValidJwt(req: Request): Promise<{ ok: true } | { ok: false; response: Response }> {
+  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+    return {
+      ok: false,
+      response: jsonResponse({ error: 'Missing Authorization Bearer token' }, 401),
+    };
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return {
+      ok: false,
+      response: jsonResponse({ error: 'Empty Bearer token' }, 401),
+    };
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !anonKey) {
+    return {
+      ok: false,
+      response: jsonResponse({ error: 'Server misconfigured (URL/ANON)' }, 500),
+    };
+  }
+
+  // استدعاء من pg_cron / داخلي بمفتاح service_role
+  if (serviceKey && token === serviceKey) {
+    return { ok: true };
+  }
+
+  // تحقق التوقيع والمصدر عبر Supabase Auth
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (!error && data?.user) {
+    return { ok: true };
+  }
+
+  // anon key نفسه JWT صالح يُستخدم من الواجهة (usePushNotifications)
+  // نتحقق أنه يطابق مفتاح المشروع دون كشف محتواه في الرد
+  if (token === anonKey) {
+    return { ok: true };
+  }
+
+  // محاولة decode بسيطة: رفض واضح إن فشل كل شيء
+  return {
+    ok: false,
+    response: jsonResponse(
+      { error: 'Invalid or expired token', detail: error?.message || 'auth failed' },
+      401,
+    ),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   // Preflight — ضروري قبل أي منطق
   if (req.method === 'OPTIONS') {
@@ -30,6 +96,9 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
+
+  const auth = await assertValidJwt(req);
+  if (!auth.ok) return auth.response;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');

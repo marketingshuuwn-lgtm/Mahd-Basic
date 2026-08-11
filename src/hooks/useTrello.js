@@ -9,6 +9,42 @@ import { TRELLO_WORKSPACE_ID } from '../utils/taskMeta';
 
 const PROVIDER = 'trello';
 const DEFAULT_QUADRANT = 'important-not-urgent';
+/** مفاتيح تريلو محلياً فقط — لا تُحفظ في جدول integrations المفتوح بـ anon */
+const CREDS_KEY = 'mahd_trello_creds_v1';
+
+function readLocalCreds() {
+  try {
+    const raw = localStorage.getItem(CREDS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.api_key || !parsed?.access_token) return null;
+    return {
+      api_key: String(parsed.api_key),
+      access_token: String(parsed.access_token),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalCreds(apiKey, accessToken) {
+  localStorage.setItem(
+    CREDS_KEY,
+    JSON.stringify({
+      api_key: apiKey,
+      access_token: accessToken,
+      saved_at: new Date().toISOString(),
+    })
+  );
+}
+
+function clearLocalCreds() {
+  try {
+    localStorage.removeItem(CREDS_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export function useTrello(showToast, onSynced) {
   const [config, setConfig] = useState(null);
@@ -19,17 +55,33 @@ export function useTrello(showToast, onSynced) {
   const loadConfig = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     try {
+      const local = readLocalCreds();
+
       const { data, error } = await supabase
         .from('integrations')
-        .select('*')
+        .select('id, provider, settings, last_sync_at, created_at, updated_at')
         .eq('provider', PROVIDER)
         .maybeSingle();
 
       if (error) throw error;
-      setConfig(data);
+
+      if (local) {
+        setConfig({
+          ...(data || { provider: PROVIDER }),
+          api_key: local.api_key,
+          access_token: local.access_token,
+        });
+      } else {
+        setConfig(data ? { ...data, api_key: null, access_token: null } : null);
+      }
     } catch (err) {
       console.error(err);
-      setConfig(null);
+      const local = readLocalCreds();
+      setConfig(
+        local
+          ? { provider: PROVIDER, api_key: local.api_key, access_token: local.access_token }
+          : null
+      );
     } finally {
       if (!quiet) setLoading(false);
     }
@@ -41,16 +93,24 @@ export function useTrello(showToast, onSynced) {
 
   const saveCredentials = useCallback(
     async (apiKey, accessToken) => {
-      const payload = {
-        provider: PROVIDER,
-        api_key: apiKey.trim(),
-        access_token: accessToken.trim(),
-        updated_at: new Date().toISOString(),
-      };
+      const key = apiKey.trim();
+      const token = accessToken.trim();
 
       try {
-        const me = await trelloTestConnection(payload.api_key, payload.access_token);
+        const me = await trelloTestConnection(key, token);
         setMember(me);
+
+        // الأسرار محلياً فقط
+        writeLocalCreds(key, token);
+
+        // في القاعدة: بيانات تعريفية بلا مفاتيح
+        const meta = {
+          provider: PROVIDER,
+          api_key: null,
+          access_token: null,
+          settings: { member_id: me.id || null, username: me.username || null },
+          updated_at: new Date().toISOString(),
+        };
 
         const { data: existing, error: selectErr } = await supabase
           .from('integrations')
@@ -66,13 +126,21 @@ export function useTrello(showToast, onSynced) {
 
         let error;
         if (existing?.id) {
-          ({ error } = await supabase.from('integrations').update(payload).eq('id', existing.id));
+          ({ error } = await supabase.from('integrations').update(meta).eq('id', existing.id));
         } else {
-          ({ error } = await supabase.from('integrations').insert(payload));
+          ({ error } = await supabase.from('integrations').insert(meta));
         }
 
         if (error) {
           throw new Error(error.message || 'تعذّر حفظ بيانات تريلو في قاعدة البيانات');
+        }
+
+        // تنظيف أي مفاتيح قديمة كانت مخزّنة plaintext في الصف
+        if (existing?.id) {
+          await supabase
+            .from('integrations')
+            .update({ api_key: null, access_token: null })
+            .eq('id', existing.id);
         }
 
         await loadConfig();
@@ -89,6 +157,7 @@ export function useTrello(showToast, onSynced) {
   );
 
   const disconnect = useCallback(async () => {
+    clearLocalCreds();
     const { error } = await supabase.from('integrations').delete().eq('provider', PROVIDER);
     if (error) {
       showToast?.('تعذّر قطع الربط', 'ph-x-circle', 'error');
@@ -106,8 +175,11 @@ export function useTrello(showToast, onSynced) {
   const syncNow = useCallback(
     async (opts = {}) => {
       const silent = opts.silent === true;
+      const local = readLocalCreds();
+      const apiKey = config?.api_key || local?.api_key;
+      const accessToken = config?.access_token || local?.access_token;
 
-      if (!config?.api_key || !config?.access_token) {
+      if (!apiKey || !accessToken) {
         if (!silent) showToast?.('اربط حساب تريلو أولاً', 'ph-warning', 'error');
         return { created: 0, updated: 0, completed: 0 };
       }
@@ -116,7 +188,7 @@ export function useTrello(showToast, onSynced) {
 
       setSyncing(true);
       try {
-        const cards = await trelloFetchMyOpenCards(config.api_key, config.access_token);
+        const cards = await trelloFetchMyOpenCards(apiKey, accessToken);
 
         const { data: existingRows, error: fetchErr } = await supabase
           .from('tasks')
@@ -192,14 +264,12 @@ export function useTrello(showToast, onSynced) {
 
         await supabase
           .from('integrations')
-          .update({ last_sync_at: now, updated_at: now })
+          .update({ last_sync_at: now, updated_at: now, api_key: null, access_token: null })
           .eq('provider', PROVIDER);
 
-        // quiet: لا يقلب loading فيعيد تشغيل useEffect في App
         await loadConfig({ quiet: true });
         onSynced?.();
 
-        // إشعار فقط عند حدث يهم المستخدم (جديد أو مكتمل) — وليس «0 جديدة، 23 محدّثة»
         if (!silent && (created > 0 || completedFromTrello > 0)) {
           const parts = [];
           if (created > 0) parts.push(created + ' جديدة');
