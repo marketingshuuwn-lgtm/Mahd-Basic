@@ -1,14 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 
-/** ترتيب: مهام → معلقة → تقارير → استراحة → مفكرة → أرشيف → إعدادات */
-const NAV_ITEMS = [
-  { id: 'Matrix', label: 'المهام', icon: 'ph-squares-four', hint: 'Alt+1' },
-  { id: 'Pending', label: 'المعلقة', icon: 'ph-hourglass', hint: 'Alt+2' },
-  { id: 'Kpi', label: 'التقارير', icon: 'ph-chart-bar', hint: 'Alt+3' },
-  { id: 'Motivation', label: 'استراحة', icon: 'ph-coffee', hint: 'Alt+4 / Alt+G' },
-  { id: 'Notepad', label: 'المفكرة', icon: 'ph-notebook', hint: 'Alt+5' },
-  { id: 'Archive', label: 'الأرشيف', icon: 'ph-archive', hint: 'Alt+6' },
-  { id: 'Settings', label: 'الإعدادات', icon: 'ph-gear-six', hint: 'Alt+7' },
+/** يومي: مهام + معلقة — أدوات: تقارير / استراحة / مفكرة / أرشيف / إعدادات */
+const NAV_GROUPS = [
+  {
+    id: 'daily',
+    label: 'يومي',
+    items: [
+      { id: 'Matrix', label: 'المهام', icon: 'ph-squares-four', hint: 'Alt+1' },
+      { id: 'Pending', label: 'المعلقة', icon: 'ph-hourglass', hint: 'Alt+2' },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'أدوات',
+    items: [
+      { id: 'Kpi', label: 'التقارير', icon: 'ph-chart-bar', hint: 'Alt+3' },
+      { id: 'Motivation', label: 'استراحة', icon: 'ph-coffee', hint: 'Alt+4 / Alt+G' },
+      { id: 'Notepad', label: 'المفكرة', icon: 'ph-notebook', hint: 'Alt+5' },
+      { id: 'Archive', label: 'الأرشيف', icon: 'ph-archive', hint: 'Alt+6' },
+      { id: 'Settings', label: 'الإعدادات', icon: 'ph-gear-six', hint: 'Alt+7' },
+    ],
+  },
 ];
 
 export default function Sidebar({
@@ -41,6 +53,36 @@ export default function Sidebar({
     return () => document.removeEventListener('mousedown', close);
   }, [dataMenuOpen]);
 
+  const renderNavButton = (item) => {
+    let badge = null;
+    if (item.id === 'Pending' && pendingCount > 0) badge = pendingCount;
+    else if (item.id === 'Settings' && trelloCount > 0) badge = trelloCount;
+    else if (item.id === 'Archive' && archiveCount > 0) badge = archiveCount;
+    const active = view === item.id;
+    const title = item.hint ? `${item.label} (${item.hint})` : item.label;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        className={`rail-btn ${active ? 'active' : ''}`}
+        title={title}
+        aria-current={active ? 'page' : undefined}
+        aria-label={item.label}
+        onClick={() => {
+          onSwitchView(item.id);
+          onClose();
+        }}
+      >
+        <i className={`ph ${item.icon}`} aria-hidden="true"></i>
+        {badge != null && (
+          <span className="rail-badge" aria-label={`${badge} عنصر`}>
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </button>
+    );
+  };
+
   return (
     <aside className={`sidebar-rail ${isOpen ? 'open' : ''}`}>
       <button type="button" className="rail-logo-btn" title="مهد" onClick={() => onSwitchView('Matrix')}>
@@ -48,35 +90,12 @@ export default function Sidebar({
       </button>
 
       <nav className="rail-nav" aria-label="التنقل الرئيسي">
-        {NAV_ITEMS.map((item) => {
-          let badge = null;
-          if (item.id === 'Pending' && pendingCount > 0) badge = pendingCount;
-          else if (item.id === 'Settings' && trelloCount > 0) badge = trelloCount;
-          else if (item.id === 'Archive' && archiveCount > 0) badge = archiveCount;
-          const active = view === item.id;
-          const title = item.hint ? `${item.label} (${item.hint})` : item.label;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={`rail-btn ${active ? 'active' : ''}`}
-              title={title}
-              aria-current={active ? 'page' : undefined}
-              aria-label={item.label}
-              onClick={() => {
-                onSwitchView(item.id);
-                onClose();
-              }}
-            >
-              <i className={`ph ${item.icon}`} aria-hidden="true"></i>
-              {badge != null && (
-                <span className="rail-badge" aria-label={`${badge} عنصر`}>
-                  {badge > 9 ? '9+' : badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+        {NAV_GROUPS.map((group, groupIndex) => (
+          <div key={group.id} className="rail-nav-group" role="group" aria-label={group.label}>
+            {groupIndex > 0 && <div className="rail-nav-divider" aria-hidden="true" />}
+            {group.items.map(renderNavButton)}
+          </div>
+        ))}
       </nav>
 
       <div className="rail-footer">
