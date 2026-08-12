@@ -17,6 +17,7 @@ const SECTIONS = [
   {
     title: 'إجراءات',
     items: [
+      { keys: 'Alt + F', desc: 'بحث في المهام' },
       { keys: 'Alt + N', desc: 'مهمة جديدة' },
       { keys: 'Esc', desc: 'إغلاق النافذة أو المساعدة' },
       { keys: '؟ أو /', desc: 'عرض هذه النافذة' },
