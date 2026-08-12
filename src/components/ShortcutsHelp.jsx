@@ -1,3 +1,5 @@
+import Modal from './ui/Modal';
+
 const SECTIONS = [
   {
     title: 'التنقل',
@@ -23,43 +25,36 @@ const SECTIONS = [
 ];
 
 export default function ShortcutsHelp({ isOpen, onClose }) {
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="shortcuts-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shortcuts-title"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabelledBy="shortcuts-title"
+      overlayClassName="shortcuts-overlay"
+      panelClassName="shortcuts-modal card"
     >
-      <div
-        className="shortcuts-modal card"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="shortcuts-header">
-          <h2 id="shortcuts-title">اختصارات لوحة المفاتيح</h2>
-          <button type="button" className="btn-icon" onClick={onClose} title="إغلاق" aria-label="إغلاق">
-            <i className="ph ph-x" />
-          </button>
-        </div>
-        <div className="shortcuts-body">
-          {SECTIONS.map((sec) => (
-            <div key={sec.title} className="shortcuts-section">
-              <h3>{sec.title}</h3>
-              <ul>
-                {sec.items.map((item) => (
-                  <li key={item.keys}>
-                    <kbd>{item.keys}</kbd>
-                    <span>{item.desc}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <p className="shortcuts-foot">لا تعمل الاختصارات أثناء الكتابة في حقول الإدخال</p>
+      <div className="shortcuts-header">
+        <h2 id="shortcuts-title">اختصارات لوحة المفاتيح</h2>
+        <button type="button" className="btn-icon" onClick={onClose} title="إغلاق" aria-label="إغلاق">
+          <i className="ph ph-x" />
+        </button>
       </div>
-    </div>
+      <div className="shortcuts-body">
+        {SECTIONS.map((sec) => (
+          <div key={sec.title} className="shortcuts-section">
+            <h3>{sec.title}</h3>
+            <ul>
+              {sec.items.map((item) => (
+                <li key={item.keys}>
+                  <kbd>{item.keys}</kbd>
+                  <span>{item.desc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p className="shortcuts-foot">لا تعمل الاختصارات أثناء الكتابة في حقول الإدخال</p>
+    </Modal>
   );
 }
