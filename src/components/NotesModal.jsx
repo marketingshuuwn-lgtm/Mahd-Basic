@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { useTaskNotes } from '../hooks/useTaskNotes';
+import Modal from './ui/Modal';
 
 function slugify(text) {
   return (text || 'مسودة')
@@ -61,8 +62,6 @@ export default function NotesModal({ isOpen, taskId, taskTitle, onClose, showToa
     return () => clearTimeout(saveTimer.current);
   }, [draftTitle, draftContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!isOpen) return null;
-
   const handleCreate = async () => {
     const note = await createNote('مسودة جديدة');
     if (note) setActiveId(note.id);
@@ -74,116 +73,116 @@ export default function NotesModal({ isOpen, taskId, taskTitle, onClose, showToa
   };
 
   return (
-    <div
-      className="modal-overlay open"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabel={`المسودات والمراجع — ${taskTitle || ''}`}
+      panelClassName="modal-box card notes-modal-box"
     >
-      <div className="modal-box card notes-modal-box">
-        <div className="modal-header">
-          <h3>
-            المسودات والمراجع <span className="notes-modal-task-title">— {taskTitle}</span>
-          </h3>
-          <button className="btn-icon" onClick={onClose}>
-            <i className="ph ph-x" style={{ fontSize: 20 }}></i>
+      <div className="modal-header">
+        <h3>
+          المسودات والمراجع <span className="notes-modal-task-title">— {taskTitle}</span>
+        </h3>
+        <button type="button" className="btn-icon" onClick={onClose} aria-label="إغلاق">
+          <i className="ph ph-x" style={{ fontSize: 20 }}></i>
+        </button>
+      </div>
+
+      <div className="notes-modal-body">
+        <aside className="notes-sidebar">
+          <button type="button" className="btn-primary notes-new-btn" onClick={handleCreate}>
+            <i className="ph ph-file-plus"></i> مسودة جديدة
           </button>
-        </div>
-
-        <div className="notes-modal-body">
-          <aside className="notes-sidebar">
-            <button type="button" className="btn-primary notes-new-btn" onClick={handleCreate}>
-              <i className="ph ph-file-plus"></i> مسودة جديدة
-            </button>
-            {loading && <p className="notes-empty-hint">جاري التحميل…</p>}
-            {!loading && notes.length === 0 && (
-              <p className="notes-empty-hint">لا توجد مسودات بعد لهذي المهمة.</p>
-            )}
-            <div className="notes-list">
-              {notes.map((n) => (
-                <div
-                  key={n.id}
-                  className={`notes-list-item ${activeId === n.id ? 'active' : ''}`}
-                  onClick={() => setActiveId(n.id)}
+          {loading && <p className="notes-empty-hint">جاري التحميل…</p>}
+          {!loading && notes.length === 0 && (
+            <p className="notes-empty-hint">لا توجد مسودات بعد لهذي المهمة.</p>
+          )}
+          <div className="notes-list">
+            {notes.map((n) => (
+              <div
+                key={n.id}
+                className={`notes-list-item ${activeId === n.id ? 'active' : ''}`}
+                onClick={() => setActiveId(n.id)}
+              >
+                <div className="notes-list-item-title">{n.title}</div>
+                <button
+                  type="button"
+                  className="btn-icon danger notes-delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(n.id);
+                  }}
+                  title="حذف"
                 >
-                  <div className="notes-list-item-title">{n.title}</div>
-                  <button
-                    type="button"
-                    className="btn-icon danger notes-delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(n.id);
-                    }}
-                    title="حذف"
-                  >
-                    <i className="ph ph-trash" style={{ fontSize: 14 }}></i>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </aside>
-
-          <div className="notes-editor">
-            {!activeNote ? (
-              <div className="notes-empty-state">
-                <i className="ph ph-note-pencil" style={{ fontSize: 36 }}></i>
-                <p>اختر مسودة أو أنشئ وحدة جديدة</p>
+                  <i className="ph ph-trash" style={{ fontSize: 14 }}></i>
+                </button>
               </div>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  className="form-input notes-title-input"
-                  value={draftTitle}
-                  onChange={(e) => setDraftTitle(e.target.value)}
-                  placeholder="عنوان المسودة"
-                />
+            ))}
+          </div>
+        </aside>
 
-                <div className="notes-toolbar">
-                  <div className="notes-mode-toggle">
-                    <button
-                      type="button"
-                      className={`chip-btn ${mode === 'edit' ? 'active' : ''}`}
-                      onClick={() => setMode('edit')}
-                    >
-                      <i className="ph ph-pencil-simple"></i> تحرير
-                    </button>
-                    <button
-                      type="button"
-                      className={`chip-btn ${mode === 'preview' ? 'active' : ''}`}
-                      onClick={() => setMode('preview')}
-                    >
-                      <i className="ph ph-eye"></i> معاينة
-                    </button>
-                  </div>
+        <div className="notes-editor">
+          {!activeNote ? (
+            <div className="notes-empty-state">
+              <i className="ph ph-note-pencil" style={{ fontSize: 36 }}></i>
+              <p>اختر مسودة أو أنشئ وحدة جديدة</p>
+            </div>
+          ) : (
+            <>
+              <input
+                type="text"
+                className="form-input notes-title-input"
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                placeholder="عنوان المسودة"
+              />
+
+              <div className="notes-toolbar">
+                <div className="notes-mode-toggle">
                   <button
                     type="button"
-                    className="btn-secondary"
-                    onClick={() => downloadMd(draftTitle, draftContent)}
+                    className={`chip-btn ${mode === 'edit' ? 'active' : ''}`}
+                    onClick={() => setMode('edit')}
                   >
-                    <i className="ph ph-download-simple"></i> تنزيل .md
+                    <i className="ph ph-pencil-simple"></i> تحرير
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip-btn ${mode === 'preview' ? 'active' : ''}`}
+                    onClick={() => setMode('preview')}
+                  >
+                    <i className="ph ph-eye"></i> معاينة
                   </button>
                 </div>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => downloadMd(draftTitle, draftContent)}
+                >
+                  <i className="ph ph-download-simple"></i> تنزيل .md
+                </button>
+              </div>
 
-                {mode === 'edit' ? (
-                  <textarea
-                    className="form-input notes-textarea"
-                    value={draftContent}
-                    onChange={(e) => setDraftContent(e.target.value)}
-                    placeholder="اكتب هنا... يدعم صيغة Markdown (# عناوين، **عريض**، - نقاط، [رابط](url)...)"
-                  />
-                ) : (
-                  <div
-                    className="notes-preview"
-                    dangerouslySetInnerHTML={{ __html: marked.parse(draftContent || '*لا يوجد محتوى بعد*') }}
-                  />
-                )}
-                <p className="notes-autosave-hint">يُحفظ تلقائياً أثناء الكتابة</p>
-              </>
-            )}
-          </div>
+              {mode === 'edit' ? (
+                <textarea
+                  className="form-input notes-textarea"
+                  value={draftContent}
+                  onChange={(e) => setDraftContent(e.target.value)}
+                  placeholder="اكتب هنا... يدعم صيغة Markdown (# عناوين، **عريض**، - نقاط، [رابط](url)...)"
+                />
+              ) : (
+                <div
+                  className="notes-preview"
+                  dangerouslySetInnerHTML={{
+                    __html: marked.parse(draftContent || '*لا يوجد محتوى بعد*'),
+                  }}
+                />
+              )}
+              <p className="notes-autosave-hint">يُحفظ تلقائياً أثناء الكتابة</p>
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
