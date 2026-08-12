@@ -16,6 +16,7 @@ import NotepadView from './components/NotepadView';
 import TaskModal from './components/TaskModal';
 import NotesModal from './components/NotesModal';
 import ShortcutsHelp from './components/ShortcutsHelp';
+import TaskSearch from './components/TaskSearch';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import ViewSwitcher from './components/ViewSwitcher';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher';
@@ -140,6 +141,7 @@ export default function App() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [notesTarget, setNotesTarget] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const trelloAutoSynced = useRef(false);
 
   const openAddModal = () => {
@@ -166,6 +168,11 @@ export default function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
+        if (searchOpen) {
+          e.preventDefault();
+          setSearchOpen(false);
+          return;
+        }
         if (shortcutsOpen) {
           e.preventDefault();
           setShortcutsOpen(false);
@@ -213,6 +220,12 @@ export default function App() {
         return;
       }
 
+      if (k === 'f' || k === 'F') {
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+
       if (NAV_BY_DIGIT[k]) {
         e.preventDefault();
         setView(NAV_BY_DIGIT[k]);
@@ -222,7 +235,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shortcutsOpen, notesTarget, modalOpen, sidebarOpen]);
+  }, [searchOpen, shortcutsOpen, notesTarget, modalOpen, sidebarOpen]);
 
   useEffect(() => {
     if (view === 'Trello') setView('Settings');
@@ -243,6 +256,12 @@ export default function App() {
     [visibleTasks]
   );
 
+  /** بحث عبر كل المساحات (غير المؤرشفة) */
+  const searchableTasks = useMemo(
+    () => tasks.filter((t) => !t.archived),
+    [tasks]
+  );
+
   const trelloPageTasks = useMemo(
     () => tasks.filter((t) => !t.archived && t.externalSource === 'trello'),
     [tasks]
@@ -256,7 +275,7 @@ export default function App() {
   useEffect(() => {
     if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
-  localStorage.setItem(THEME_KEY, theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
@@ -449,9 +468,20 @@ export default function App() {
             مهد
           </div>
         </div>
-        <button type="button" className="btn-icon" onClick={() => setSidebarOpen(true)}>
-          <i className="ph ph-list" style={{ fontSize: 24 }}></i>
-        </button>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setSearchOpen(true)}
+            title="بحث (Alt+F)"
+            aria-label="بحث في المهام"
+          >
+            <i className="ph ph-magnifying-glass" style={{ fontSize: 22 }}></i>
+          </button>
+          <button type="button" className="btn-icon" onClick={() => setSidebarOpen(true)}>
+            <i className="ph ph-list" style={{ fontSize: 24 }}></i>
+          </button>
+        </div>
       </div>
 
       <Sidebar
@@ -481,6 +511,7 @@ export default function App() {
           onRestoreSpace={handleRestoreSpace}
           onReorder={reorderWorkspaces}
           isAllMode={isAllMode}
+          onOpenSearch={() => setSearchOpen(true)}
         />
 
         <div className="view-transition" key={view}>
@@ -633,6 +664,13 @@ export default function App() {
         showToast={showToast}
       />
       <ShortcutsHelp isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <TaskSearch
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        tasks={searchableTasks}
+        workspaces={workspaces}
+        onSelectTask={openEditModal}
+      />
     </div>
   );
 }
