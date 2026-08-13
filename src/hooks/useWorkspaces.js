@@ -5,6 +5,7 @@ import {
   WORKSPACE_ICONS,
   WORKSPACE_LABEL_HINTS,
   ALL_WORKSPACES_ID,
+  getWorkspaceBackground,
   isSystemWorkspace,
   normalizeTaskContext,
   slugifyWorkspaceName,
@@ -13,6 +14,11 @@ import {
 
 const WORKSPACES_KEY = 'mahd_workspaces_v1';
 const ACTIVE_KEY = 'mahd_active_workspace_v1';
+
+function normalizeSurface(id) {
+  const bg = getWorkspaceBackground(id);
+  return bg?.id || 'none';
+}
 
 /** لا تستبدل تسمية المستخدم بتسمية البذرة */
 function mergeDefaultsPreserveLabels(list) {
@@ -25,6 +31,7 @@ function mergeDefaultsPreserveLabels(list) {
         archived: false,
         trait: def.trait || '',
         description: '',
+        surface: def.surface || 'none',
       });
     }
   }
@@ -44,6 +51,7 @@ function readWorkspaces() {
         archived: false,
         trait: w.trait || '',
         description: '',
+        surface: w.surface || 'none',
       }));
     }
     const parsed = JSON.parse(raw);
@@ -53,6 +61,7 @@ function readWorkspaces() {
         archived: false,
         trait: w.trait || '',
         description: '',
+        surface: w.surface || 'none',
       }));
     }
     const cleaned = parsed
@@ -67,6 +76,7 @@ function readWorkspaces() {
         archived: Boolean(w.archived),
         trait: typeof w.trait === 'string' ? w.trait : '',
         description: typeof w.description === 'string' ? w.description : '',
+        surface: normalizeSurface(w.surface),
       }));
     return mergeDefaultsPreserveLabels(cleaned);
   } catch {
@@ -75,6 +85,7 @@ function readWorkspaces() {
       archived: false,
       trait: w.trait || '',
       description: '',
+      surface: w.surface || 'none',
     }));
   }
 }
@@ -137,6 +148,7 @@ export function useWorkspaces() {
         archived: false,
         trait: '',
         description: '',
+        surface: 'none',
       }
     : workspaces.find((w) => w.id === activeWorkspaceId) ||
       visibleWorkspaces[0] ||
@@ -162,7 +174,7 @@ export function useWorkspaces() {
     });
   }, []);
 
-  const addWorkspace = useCallback(({ name, icon, colorIndex, trait, description }) => {
+  const addWorkspace = useCallback(({ name, icon, colorIndex, trait, description, surface }) => {
     const label = String(name || '').trim();
     if (!label) return null;
 
@@ -183,6 +195,7 @@ export function useWorkspaces() {
         archived: false,
         trait: typeof trait === 'string' ? trait.trim() : '',
         description: typeof description === 'string' ? description.trim().slice(0, 200) : '',
+        surface: normalizeSurface(surface),
       };
       return [...prev, next];
     });
@@ -210,6 +223,9 @@ export function useWorkspaces() {
         if (patch.trait !== undefined) next.trait = String(patch.trait || '').trim();
         if (patch.description !== undefined) {
           next.description = String(patch.description || '').trim().slice(0, 200);
+        }
+        if (patch.surface !== undefined) {
+          next.surface = normalizeSurface(patch.surface);
         }
         return next;
       })

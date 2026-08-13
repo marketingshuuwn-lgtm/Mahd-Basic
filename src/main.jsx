@@ -9,6 +9,7 @@ import './index.css';
 /* 2. Feature modules */
 import './styles/trello.css';
 import './styles/workspaces.css';
+import './styles/workspace-surface.css';
 import './styles/archive.css';
 import './styles/break-space.css';
 import './styles/task-notes.css';

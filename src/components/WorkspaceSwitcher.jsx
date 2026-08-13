@@ -2,14 +2,49 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ALL_WORKSPACES_ID,
   TRELLO_WORKSPACE_ID,
+  WORKSPACE_BACKGROUNDS,
   WORKSPACE_COLORS,
   WORKSPACE_ICONS,
+  getWorkspaceBackground,
   isSystemWorkspace,
 } from '../utils/taskMeta';
 
 /** أرشفة المساحة متاحة للمساحات التي أنشأها المستخدم فقط — ليس مشاريعي/شخصي/علامة */
 function isProtectedFromArchive(ws) {
   return isSystemWorkspace(ws);
+}
+
+const GRADIENTS = WORKSPACE_BACKGROUNDS.filter((b) => b.kind === 'gradient' || b.kind === 'none');
+const SOLIDS = WORKSPACE_BACKGROUNDS.filter((b) => b.kind === 'solid');
+
+function SurfacePick({ item, active, onSelect }) {
+  const isNone = item.kind === 'none';
+  const isLight = isNone || item.id === 'frost';
+  return (
+    <button
+      type="button"
+      className={`workspace-surface-pick ${active ? 'active' : ''} ${isLight ? 'is-light' : ''}`}
+      title={item.name}
+      onClick={() => onSelect(item.id)}
+    >
+      <span
+        className="workspace-surface-pick-swatch"
+        style={
+          isNone
+            ? { background: 'var(--bg-color)', border: '1px dashed var(--border-color)' }
+            : { background: item.css }
+        }
+      />
+      <span className="workspace-surface-pick-label">
+        {item.emoji ? `${item.emoji} ` : ''}{item.name}
+      </span>
+      {active && (
+        <span className="workspace-surface-pick-check" aria-hidden="true">
+          <i className="ph ph-check" />
+        </span>
+      )}
+    </button>
+  );
 }
 
 export default function WorkspaceSwitcher({
@@ -33,6 +68,7 @@ export default function WorkspaceSwitcher({
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState(WORKSPACE_ICONS[2]);
   const [colorIndex, setColorIndex] = useState(2);
+  const [surface, setSurface] = useState('none');
   const menuRef = useRef(null);
 
   const visible = useMemo(() => workspaces.filter((w) => !w.archived), [workspaces]);
@@ -63,6 +99,7 @@ export default function WorkspaceSwitcher({
       (c) => c.color === ws.color || c.bg === ws.bg
     );
     setColorIndex(idx >= 0 ? idx : 0);
+    setSurface(getWorkspaceBackground(ws.surface).id);
   };
 
   const openCreate = () => {
@@ -71,12 +108,13 @@ export default function WorkspaceSwitcher({
     setDescription('');
     setIcon(WORKSPACE_ICONS[2]);
     setColorIndex(2);
+    setSurface('none');
     setShowCreate(true);
   };
 
   const submitCreate = (e) => {
     e?.preventDefault?.();
-    const created = onCreate?.({ name, icon, colorIndex, trait, description });
+    const created = onCreate?.({ name, icon, colorIndex, trait, description, surface });
     if (created) {
       setName('');
       setTrait('');
@@ -94,6 +132,7 @@ export default function WorkspaceSwitcher({
       colorIndex,
       trait: trait.trim(),
       description: description.trim(),
+      surface,
     });
     setEditId(null);
   };
@@ -376,7 +415,7 @@ export default function WorkspaceSwitcher({
                 </div>
               </div>
               <div className="form-field">
-                <label>اللون</label>
+                <label>لون التمييز</label>
                 <div className="workspace-color-picks">
                   {WORKSPACE_COLORS.map((c, i) => (
                     <button
@@ -386,6 +425,31 @@ export default function WorkspaceSwitcher({
                       style={{ background: c.color }}
                       title={c.name || ''}
                       onClick={() => setColorIndex(i)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="form-field">
+                <label>خلفية المساحة</label>
+                <p className="workspace-surface-section-label">تدرجات</p>
+                <div className="workspace-surface-picks">
+                  {GRADIENTS.map((item) => (
+                    <SurfacePick
+                      key={item.id}
+                      item={item}
+                      active={surface === item.id}
+                      onSelect={setSurface}
+                    />
+                  ))}
+                </div>
+                <p className="workspace-surface-section-label">ألوان صلبة</p>
+                <div className="workspace-surface-picks">
+                  {SOLIDS.map((item) => (
+                    <SurfacePick
+                      key={item.id}
+                      item={item}
+                      active={surface === item.id}
+                      onSelect={setSurface}
                     />
                   ))}
                 </div>
