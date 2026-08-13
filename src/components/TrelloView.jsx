@@ -244,7 +244,7 @@ export default function TrelloView({
                   disabled={trello.loading || trello.syncing}
                 >
                   <option value="">اختر قائمة</option>
-                  {trello.lists.map((list) => (
+                  {trello.lists.filter((list) => !list.closed).map((list) => (
                     <option key={list.id} value={list.id}>
                       {list.name}
                     </option>

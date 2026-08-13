@@ -1,4 +1,5 @@
 const SUBVIEWS = [
+  { id: 'Table', icon: 'ph-table', label: 'الجدول' },
   { id: 'Board', icon: 'ph-squares-four', label: 'المصفوفة' },
   { id: 'Planner', icon: 'ph-calendar-blank', label: 'التقويم' },
   { id: 'Timeline', icon: 'ph-list-dashes', label: 'الخط الزمني' },

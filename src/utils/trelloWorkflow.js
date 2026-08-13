@@ -19,7 +19,9 @@ export function statusFromTrelloListName(listName) {
 }
 
 export function findTrelloListForStatus(lists, status) {
-  const target = (lists || []).find((list) => statusFromTrelloListName(list.name) === status);
+  const target = (lists || []).find(
+    (list) => !list.closed && statusFromTrelloListName(list.name) === status
+  );
   return target || null;
 }
 

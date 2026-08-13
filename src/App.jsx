@@ -4,6 +4,7 @@ import FloatingSmartBar from './components/QuickAdd';
 import QuadrantBoard from './components/QuadrantBoard';
 import TimelineView from './components/TimelineView';
 import GanttView from './components/GanttView';
+import TableView from './components/TableView';
 import PlannerView from './components/PlannerView';
 import PendingView from './components/PendingView';
 import KpiView from './components/KpiView';
@@ -20,6 +21,7 @@ import TaskSearch from './components/TaskSearch';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import ViewSwitcher from './components/ViewSwitcher';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher';
+import ProjectsView from './components/ProjectsView';
 import { useTasks } from './hooks/useTasks';
 import { sendNotificationPreview, useLocalNotifications } from './hooks/useLocalNotifications';
 import { useTrello } from './hooks/useTrello';
@@ -153,6 +155,17 @@ export default function App() {
     setModalOpen(true);
   };
   const closeModal = () => setModalOpen(false);
+
+  const handleSelectProject = async (projectId) => {
+    try {
+      await trello.selectProject(projectId);
+      setView('Matrix');
+      setSidebarOpen(false);
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'تعذّر فتح مشروع Trello', 'ph-x-circle', 'error');
+    }
+  };
 
   useEffect(() => {
     if (!tasks.length) return;
@@ -526,11 +539,32 @@ export default function App() {
         />
 
         <div className="view-transition" key={view}>
+        {view === 'Projects' && (
+          <ProjectsView
+            projects={trello.projects}
+            selectedProject={trello.selectedProject}
+            onSelectProject={handleSelectProject}
+            loading={trello.loading}
+            connected={trello.isConnected}
+          />
+        )}
+
         {view === 'Matrix' && (
           <div id="viewMatrix">
             <div className="matrix-topbar">
+              <div className="active-project-strip">
+                <span className="active-project-strip-label"><i className="ph ph-briefcase" /> المشروع النشط</span>
+                <strong>{trello.selectedProject?.title || 'اختر مشروعًا من Trello'}</strong>
+                <button type="button" className="active-project-switch" onClick={() => setView('Projects')}>
+                  تغيير المشروع <i className="ph ph-arrows-left-right" />
+                </button>
+              </div>
               <ViewSwitcher subview={subview} onSwitch={setSubview} />
             </div>
+
+            {subview === 'Table' && (
+              <TableView tasks={boardTasks} onEdit={openEditModal} workDays={workDays} />
+            )}
 
             {subview === 'Board' && (
               <QuadrantBoard

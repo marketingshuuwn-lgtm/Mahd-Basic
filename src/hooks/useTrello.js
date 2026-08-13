@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trelloFetchBoardLists, trelloFetchMyBoards, trelloTestConnection } from '../lib/trello';
+import { trelloBoardsToProjects } from '../utils/trelloProjects';
 
 const CONNECTION_KEY = 'mahd_trello_connection_v2';
 
@@ -191,6 +192,14 @@ export function useTrello(showToast) {
     () => boards.find((board) => board.id === config?.boardId) || null,
     [boards, config?.boardId]
   );
+  const projects = useMemo(
+    () => trelloBoardsToProjects(boards, config?.boardId),
+    [boards, config?.boardId]
+  );
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.isActive) || null,
+    [projects]
+  );
 
   return {
     config,
@@ -198,6 +207,8 @@ export function useTrello(showToast) {
     boards,
     lists,
     selectedBoard,
+    projects,
+    selectedProject,
     loading,
     syncing,
     revision,
@@ -205,6 +216,7 @@ export function useTrello(showToast) {
     isBoardSelected,
     saveCredentials,
     selectBoard,
+    selectProject: selectBoard,
     setDefaultList,
     disconnect,
     syncNow,

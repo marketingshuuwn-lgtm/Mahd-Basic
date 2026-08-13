@@ -61,7 +61,7 @@ export async function trelloFetchMyBoards(apiKey, token) {
 /** القوائم المفتوحة في Board، لاستخدامها كخريطة مراحل اختيارية. */
 export async function trelloFetchBoardLists(apiKey, token, boardId) {
   return trelloRequest(`/boards/${encodeURIComponent(boardId)}/lists`, apiKey, token, {
-    params: { filter: 'open', fields: 'id,name,pos,closed' },
+    params: { filter: 'all', fields: 'id,name,pos,closed' },
   });
 }
 
