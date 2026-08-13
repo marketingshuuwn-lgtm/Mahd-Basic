@@ -31,6 +31,7 @@ import { exportTasksAsCsv, exportTasksAsXlsx, readImportFile } from './utils/imp
 import {
   ALL_WORKSPACES_ID,
   DEFAULT_WORK_DAYS,
+  getWorkspaceBackground,
   isSystemWorkspace,
   normalizeTaskContext,
   normalizeWorkDays,
@@ -256,7 +257,6 @@ export default function App() {
     [visibleTasks]
   );
 
-  /** بحث عبر كل المساحات (غير المؤرشفة) */
   const searchableTasks = useMemo(
     () => tasks.filter((t) => !t.archived),
     [tasks]
@@ -271,6 +271,16 @@ export default function App() {
     () => spaceTasks.filter((t) => t.archived),
     [spaceTasks]
   );
+
+  const workspaceSurface = useMemo(
+    () => getWorkspaceBackground(isAllMode ? 'none' : activeWorkspace?.surface),
+    [isAllMode, activeWorkspace?.surface]
+  );
+
+  const mainSurfaceStyle =
+    workspaceSurface.id !== 'none' && workspaceSurface.css
+      ? { '--ws-surface': workspaceSurface.css }
+      : undefined;
 
   useEffect(() => {
     if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
@@ -336,8 +346,8 @@ export default function App() {
     closeModal();
   };
 
-  const handleCreateWorkspace = ({ name, icon, colorIndex, trait, description }) => {
-    const created = addWorkspace({ name, icon, colorIndex, trait, description });
+  const handleCreateWorkspace = ({ name, icon, colorIndex, trait, description, surface }) => {
+    const created = addWorkspace({ name, icon, colorIndex, trait, description, surface });
     if (created) {
       showToast(`أُنشئت مساحة "${created.label}"`, 'ph-folder-plus');
     }
@@ -500,7 +510,10 @@ export default function App() {
         onImportFile={handleImportFile}
       />
 
-      <main className="main-content">
+      <main
+        className={`main-content${workspaceSurface.id !== 'none' ? ' has-ws-surface' : ''}`}
+        style={mainSurfaceStyle}
+      >
         <WorkspaceSwitcher
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
@@ -511,7 +524,6 @@ export default function App() {
           onRestoreSpace={handleRestoreSpace}
           onReorder={reorderWorkspaces}
           isAllMode={isAllMode}
-          onOpenSearch={() => setSearchOpen(true)}
         />
 
         <div className="view-transition" key={view}>
