@@ -95,6 +95,7 @@ const TRELLO_SYNC_ENABLED = true;
 
 export default function App() {
   const showToast = useToast();
+  const trello = useTrello(showToast);
   const {
     tasks,
     loading,
@@ -112,9 +113,7 @@ export default function App() {
     reorderInQuadrant,
     replaceTasksInContext,
     refetch,
-  } = useTasks(showToast);
-
-  const trello = useTrello(showToast, () => refetch());
+  } = useTasks(showToast, trello);
   const {
     workspaces,
     visibleWorkspaces,

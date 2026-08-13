@@ -1,310 +1,209 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import {
-  mapTrelloCardToTaskFields,
-  trelloFetchMyOpenCards,
-  trelloTestConnection,
-} from '../lib/trello';
-import { TRELLO_WORKSPACE_ID } from '../utils/taskMeta';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { trelloFetchBoardLists, trelloFetchMyBoards, trelloTestConnection } from '../lib/trello';
 
-const PROVIDER = 'trello';
-const DEFAULT_QUADRANT = 'important-not-urgent';
-/** مفاتيح تريلو محلياً فقط — لا تُحفظ في جدول integrations المفتوح بـ anon */
-const CREDS_KEY = 'mahd_trello_creds_v1';
+const CONNECTION_KEY = 'mahd_trello_connection_v2';
 
-function readLocalCreds() {
+function readConnection() {
   try {
-    const raw = localStorage.getItem(CREDS_KEY);
+    const raw = localStorage.getItem(CONNECTION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed?.api_key || !parsed?.access_token) return null;
+    if (!parsed?.apiKey || !parsed?.accessToken) return null;
     return {
-      api_key: String(parsed.api_key),
-      access_token: String(parsed.access_token),
+      apiKey: String(parsed.apiKey),
+      accessToken: String(parsed.accessToken),
+      boardId: parsed.boardId ? String(parsed.boardId) : null,
+      boardName: parsed.boardName ? String(parsed.boardName) : null,
+      defaultListId: parsed.defaultListId ? String(parsed.defaultListId) : null,
+      lastSyncAt: parsed.lastSyncAt || null,
     };
   } catch {
     return null;
   }
 }
 
-function writeLocalCreds(apiKey, accessToken) {
-  localStorage.setItem(
-    CREDS_KEY,
-    JSON.stringify({
-      api_key: apiKey,
-      access_token: accessToken,
-      saved_at: new Date().toISOString(),
-    })
-  );
+function writeConnection(connection) {
+  localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
 }
 
-function clearLocalCreds() {
-  try {
-    localStorage.removeItem(CREDS_KEY);
-  } catch {
-    // ignore
-  }
+function clearConnection() {
+  localStorage.removeItem(CONNECTION_KEY);
 }
 
-export function useTrello(showToast, onSynced) {
-  const [config, setConfig] = useState(null);
+export function useTrello(showToast) {
+  const [config, setConfig] = useState(() => readConnection());
+  const [member, setMember] = useState(null);
+  const [boards, setBoards] = useState([]);
+  const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [member, setMember] = useState(null);
+  const [revision, setRevision] = useState(0);
+  const didBootstrap = useRef(false);
 
-  const loadConfig = useCallback(async ({ quiet = false } = {}) => {
-    if (!quiet) setLoading(true);
-    try {
-      const local = readLocalCreds();
-
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('id, provider, settings, last_sync_at, created_at, updated_at')
-        .eq('provider', PROVIDER)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (local) {
-        setConfig({
-          ...(data || { provider: PROVIDER }),
-          api_key: local.api_key,
-          access_token: local.access_token,
-        });
-      } else {
-        setConfig(data ? { ...data, api_key: null, access_token: null } : null);
-      }
-    } catch (err) {
-      console.error(err);
-      const local = readLocalCreds();
-      setConfig(
-        local
-          ? { provider: PROVIDER, api_key: local.api_key, access_token: local.access_token }
-          : null
-      );
-    } finally {
-      if (!quiet) setLoading(false);
-    }
+  const persist = useCallback((next) => {
+    setConfig(next);
+    writeConnection(next);
+    return next;
   }, []);
 
+  const loadBoards = useCallback(async (connection) => {
+    if (!connection?.apiKey || !connection?.accessToken) {
+      setBoards([]);
+      return [];
+    }
+    const nextBoards = await trelloFetchMyBoards(connection.apiKey, connection.accessToken);
+    setBoards(nextBoards || []);
+    return nextBoards || [];
+  }, []);
+
+  const loadLists = useCallback(async (boardId, connection) => {
+    if (!connection?.apiKey || !connection?.accessToken || !boardId) {
+      setLists([]);
+      return [];
+    }
+    const nextLists = await trelloFetchBoardLists(connection.apiKey, connection.accessToken, boardId);
+    setLists(nextLists || []);
+    return nextLists || [];
+  }, []);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const saved = readConnection();
+      setConfig(saved);
+      if (!saved) {
+        setMember(null);
+        setBoards([]);
+        setLists([]);
+        return null;
+      }
+      const [me, nextBoards] = await Promise.all([
+        trelloTestConnection(saved.apiKey, saved.accessToken),
+        loadBoards(saved),
+      ]);
+      setMember(me);
+      if (saved.boardId) await loadLists(saved.boardId, saved);
+      return { me, boards: nextBoards };
+    } catch (err) {
+      console.error(err);
+      showToast?.(err.message || 'تعذّر تحميل اتصال تريلو', 'ph-x-circle', 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [loadBoards, loadLists, showToast]);
+
   useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
+    if (didBootstrap.current) return;
+    didBootstrap.current = true;
+    reload();
+  }, [reload]);
 
   const saveCredentials = useCallback(
     async (apiKey, accessToken) => {
       const key = apiKey.trim();
       const token = accessToken.trim();
-
-      try {
-        const me = await trelloTestConnection(key, token);
-        setMember(me);
-
-        // الأسرار محلياً فقط
-        writeLocalCreds(key, token);
-
-        // في القاعدة: بيانات تعريفية بلا مفاتيح
-        const meta = {
-          provider: PROVIDER,
-          api_key: null,
-          access_token: null,
-          settings: { member_id: me.id || null, username: me.username || null },
-          updated_at: new Date().toISOString(),
-        };
-
-        const { data: existing, error: selectErr } = await supabase
-          .from('integrations')
-          .select('id')
-          .eq('provider', PROVIDER)
-          .maybeSingle();
-
-        if (selectErr) {
-          throw new Error(
-            selectErr.message + ' — تأكد من وجود جدول integrations في Supabase.'
-          );
-        }
-
-        let error;
-        if (existing?.id) {
-          ({ error } = await supabase.from('integrations').update(meta).eq('id', existing.id));
-        } else {
-          ({ error } = await supabase.from('integrations').insert(meta));
-        }
-
-        if (error) {
-          throw new Error(error.message || 'تعذّر حفظ بيانات تريلو في قاعدة البيانات');
-        }
-
-        // تنظيف أي مفاتيح قديمة كانت مخزّنة plaintext في الصف
-        if (existing?.id) {
-          await supabase
-            .from('integrations')
-            .update({ api_key: null, access_token: null })
-            .eq('id', existing.id);
-        }
-
-        await loadConfig();
-        showToast?.('تم الربط: ' + (me.fullName || me.username), 'ph-link');
-        return me;
-      } catch (err) {
-        console.error(err);
-        const msg = err?.message || 'فشل ربط تريلو';
-        showToast?.(msg, 'ph-x-circle', 'error');
-        throw err;
-      }
+      const me = await trelloTestConnection(key, token);
+      const next = {
+        apiKey: key,
+        accessToken: token,
+        boardId: null,
+        boardName: null,
+        defaultListId: null,
+        lastSyncAt: null,
+      };
+      persist(next);
+      setMember(me);
+      const nextBoards = await loadBoards(next);
+      setLists([]);
+      showToast?.(`تم التحقق من حساب ${me.fullName || me.username}. اختر Board للبدء.`, 'ph-link');
+      return { member: me, boards: nextBoards };
     },
-    [loadConfig, showToast]
+    [loadBoards, persist, showToast]
   );
 
-  const disconnect = useCallback(async () => {
-    clearLocalCreds();
-    const { error } = await supabase.from('integrations').delete().eq('provider', PROVIDER);
-    if (error) {
-      showToast?.('تعذّر قطع الربط', 'ph-x-circle', 'error');
-      return;
+  const selectBoard = useCallback(
+    async (boardId) => {
+      if (!config) throw new Error('اربط حساب تريلو أولاً.');
+      const board = boards.find((item) => item.id === boardId);
+      if (!board) throw new Error('لم يتم العثور على الـ Board المختار. حدّث القائمة وحاول مرة أخرى.');
+      const nextLists = await loadLists(boardId, config);
+      const next = persist({
+        ...config,
+        boardId,
+        boardName: board.name,
+        defaultListId: nextLists[0]?.id || null,
+        lastSyncAt: new Date().toISOString(),
+      });
+      setRevision((value) => value + 1);
+      showToast?.(`تم اختيار مساحة تريلو «${board.name}»`, 'ph-kanban');
+      return next;
+    },
+    [boards, config, loadLists, persist, showToast]
+  );
+
+  const setDefaultList = useCallback(
+    (listId) => {
+      if (!config) return;
+      persist({ ...config, defaultListId: listId || null });
+    },
+    [config, persist]
+  );
+
+  const syncNow = useCallback(async () => {
+    if (!config?.boardId) {
+      showToast?.('اختر Board من تريلو أولاً', 'ph-warning', 'error');
+      return false;
     }
+    setSyncing(true);
+    try {
+      await loadLists(config.boardId, config);
+      const next = persist({ ...config, lastSyncAt: new Date().toISOString() });
+      setRevision((value) => value + 1);
+      showToast?.(`تم تحديث مهام «${next.boardName || 'Trello'}»`, 'ph-arrows-clockwise');
+      return true;
+    } catch (err) {
+      console.error(err);
+      showToast?.(err.message || 'فشلت مزامنة تريلو', 'ph-x-circle', 'error');
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  }, [config, loadLists, persist, showToast]);
+
+  const disconnect = useCallback(() => {
+    clearConnection();
     setConfig(null);
     setMember(null);
-    showToast?.('تم قطع ربط تريلو', 'ph-link-break');
+    setBoards([]);
+    setLists([]);
+    setRevision((value) => value + 1);
+    showToast?.('تم قطع ربط تريلو من هذا المتصفح', 'ph-link-break');
   }, [showToast]);
 
-  /**
-   * @param {{ silent?: boolean }} [opts]
-   * silent: مزامنة خلفية بلا إشعار (الافتراضي للإقلاع التلقائي)
-   */
-  const syncNow = useCallback(
-    async (opts = {}) => {
-      const silent = opts.silent === true;
-      const local = readLocalCreds();
-      const apiKey = config?.api_key || local?.api_key;
-      const accessToken = config?.access_token || local?.access_token;
-
-      if (!apiKey || !accessToken) {
-        if (!silent) showToast?.('اربط حساب تريلو أولاً', 'ph-warning', 'error');
-        return { created: 0, updated: 0, completed: 0 };
-      }
-
-      if (syncing) return { created: 0, updated: 0, completed: 0 };
-
-      setSyncing(true);
-      try {
-        const cards = await trelloFetchMyOpenCards(apiKey, accessToken);
-
-        const { data: existingRows, error: fetchErr } = await supabase
-          .from('tasks')
-          .select('id, external_id, quadrant, completed, status')
-          .eq('external_source', 'trello');
-
-        if (fetchErr) throw fetchErr;
-
-        const byExternal = new Map((existingRows || []).map((r) => [r.external_id, r]));
-
-        let created = 0;
-        let updated = 0;
-        let completedFromTrello = 0;
-        const now = new Date().toISOString();
-
-        for (const card of cards) {
-          const fields = mapTrelloCardToTaskFields(card);
-          const prev = byExternal.get(card.id);
-
-          if (prev) {
-            const { error } = await supabase
-              .from('tasks')
-              .update({
-                title: fields.title,
-                notes: fields.notes,
-                due_date: fields.dueDate || null,
-                context: TRELLO_WORKSPACE_ID,
-                external_url: fields.external_url,
-                external_meta: fields.external_meta,
-                last_synced_at: now,
-              })
-              .eq('id', prev.id);
-            if (error) console.error(error);
-            else updated += 1;
-            byExternal.delete(card.id);
-          } else {
-            const { error } = await supabase.from('tasks').insert({
-              title: fields.title,
-              notes: fields.notes,
-              due_date: fields.dueDate || null,
-              quadrant: DEFAULT_QUADRANT,
-              context: TRELLO_WORKSPACE_ID,
-              completed: false,
-              status: 'not_started',
-              duration: 1,
-              sort_order: 0,
-              external_source: 'trello',
-              external_id: fields.external_id,
-              external_url: fields.external_url,
-              external_meta: fields.external_meta,
-              last_synced_at: now,
-            });
-            if (error) console.error(error);
-            else created += 1;
-          }
-        }
-
-        for (const prev of byExternal.values()) {
-          if (prev.completed) continue;
-          const { error } = await supabase
-            .from('tasks')
-            .update({
-              completed: true,
-              status: 'completed',
-              completed_at: now,
-              context: TRELLO_WORKSPACE_ID,
-              last_synced_at: now,
-            })
-            .eq('id', prev.id);
-          if (error) console.error(error);
-          else completedFromTrello += 1;
-        }
-
-        await supabase
-          .from('integrations')
-          .update({ last_sync_at: now, updated_at: now, api_key: null, access_token: null })
-          .eq('provider', PROVIDER);
-
-        await loadConfig({ quiet: true });
-        onSynced?.();
-
-        if (!silent && (created > 0 || completedFromTrello > 0)) {
-          const parts = [];
-          if (created > 0) parts.push(created + ' جديدة');
-          if (completedFromTrello > 0) parts.push(completedFromTrello + ' مكتملة من تريلو');
-          showToast?.('مزامنة تريلو: ' + parts.join('، '), 'ph-arrows-clockwise');
-        }
-
-        return {
-          created,
-          updated,
-          completed: completedFromTrello,
-          total: cards.length,
-        };
-      } catch (err) {
-        console.error(err);
-        if (!silent) {
-          showToast?.(err.message || 'فشلت المزامنة مع تريلو', 'ph-x-circle', 'error');
-        }
-        return { created: 0, updated: 0, completed: 0 };
-      } finally {
-        setSyncing(false);
-      }
-    },
-    [config, loadConfig, onSynced, showToast, syncing]
+  const isConnected = Boolean(config?.apiKey && config?.accessToken);
+  const isBoardSelected = Boolean(isConnected && config?.boardId);
+  const selectedBoard = useMemo(
+    () => boards.find((board) => board.id === config?.boardId) || null,
+    [boards, config?.boardId]
   );
 
   return {
     config,
+    member,
+    boards,
+    lists,
+    selectedBoard,
     loading,
     syncing,
-    member,
-    isConnected: !!(config?.api_key && config?.access_token),
+    revision,
+    isConnected,
+    isBoardSelected,
     saveCredentials,
+    selectBoard,
+    setDefaultList,
     disconnect,
     syncNow,
-    reload: loadConfig,
+    reload,
   };
 }

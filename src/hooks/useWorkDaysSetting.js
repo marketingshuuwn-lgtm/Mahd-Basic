@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { DEFAULT_WORK_DAYS, normalizeWorkDays } from '../utils/taskMeta';
 
 const CACHE_KEY = 'mahd_work_days_v1';
@@ -23,17 +23,17 @@ function writeCache(days) {
 }
 
 /**
- * أيام العمل مخزّنة في جدول app_settings بقاعدة بيانات Supabase (صف واحد ثابت id=1)
- * حتى تتزامن بين كل الأجهزة فوراً. localStorage يُستخدم فقط كـ cache للتحميل الفوري
- * قبل ما يوصل رد الشبكة، وكـ احتياط لو انقطع الاتصال.
+ * في Trello-first تعد أيام العمل تفضيلًا محليًا للجهاز. عند إضافة Supabase جديد
+ * تعود المزامنة وRealtime تلقائيًا من دون تغيير عقد الواجهة.
  */
 export function useWorkDaysSetting(showToast) {
   const [workDays, setWorkDaysState] = useState(readCache);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(!isSupabaseConfigured);
 
   useEffect(() => {
-    let active = true;
+    if (!isSupabaseConfigured) return undefined;
 
+    let active = true;
     (async () => {
       try {
         const { data, error } = await supabase
@@ -49,8 +49,8 @@ export function useWorkDaysSetting(showToast) {
           setWorkDaysState(normalized);
           writeCache(normalized);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
       } finally {
         if (active) setLoaded(true);
       }
@@ -58,15 +58,11 @@ export function useWorkDaysSetting(showToast) {
 
     const channel = supabase
       .channel('app-settings-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'app_settings' },
-        (payload) => {
-          const normalized = normalizeWorkDays(payload.new?.work_days);
-          setWorkDaysState(normalized);
-          writeCache(normalized);
-        }
-      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
+        const normalized = normalizeWorkDays(payload.new?.work_days);
+        setWorkDaysState(normalized);
+        writeCache(normalized);
+      })
       .subscribe();
 
     return () => {
@@ -81,6 +77,11 @@ export function useWorkDaysSetting(showToast) {
       setWorkDaysState(normalized);
       writeCache(normalized);
 
+      if (!isSupabaseConfigured) {
+        showToast?.('تم حفظ أيام العمل على هذا الجهاز', 'ph-check-circle');
+        return;
+      }
+
       const { error } = await supabase
         .from('app_settings')
         .update({ work_days: normalized, updated_at: new Date().toISOString() })
@@ -88,10 +89,10 @@ export function useWorkDaysSetting(showToast) {
 
       if (error) {
         console.error(error);
-        showToast?.('تعذّر حفظ أيام العمل في قاعدة البيانات (تم الحفظ محلياً فقط)', 'ph-warning', 'error');
+        showToast?.('تعذّر مزامنة أيام العمل؛ حُفظت محليًا', 'ph-warning', 'error');
         return;
       }
-      showToast?.('تم حفظ أيام العمل — يتزامن مع كل أجهزتك', 'ph-check-circle');
+      showToast?.('تم حفظ أيام العمل ومزامنتها', 'ph-check-circle');
     },
     [showToast]
   );
