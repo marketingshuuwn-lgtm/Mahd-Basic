@@ -185,9 +185,17 @@ export default function TaskRow({
               </span>
             )}
             {task.externalSource === 'trello' && (
-              <span className="task-row-chip source" title="من تريلو">
-                <i className="ph ph-kanban" />
-              </span>
+              <>
+                <span className="task-row-chip source" title="من تريلو">
+                  <i className="ph ph-kanban" />
+                </span>
+                {task.externalMeta?.listName && (
+                  <span className="task-row-chip trello-list" title={`قائمة Trello: ${task.externalMeta.listName}`}>
+                    <i className="ph ph-list-bullets" />
+                    {task.externalMeta.listName}
+                  </span>
+                )}
+              </>
             )}
             {subtaskStats.total > 0 && (
               <span className="task-row-chip mute">

@@ -33,6 +33,7 @@ export default function TaskCard({
   const subtasks = normalizeSubtasks(task.subtasks);
   const subtaskStats = getSubtaskStats(subtasks);
   const attachments = task.externalMeta?.attachments || [];
+  const trelloListName = task.externalMeta?.listName || null;
   const displayNotes = cleanNotesForDisplay(task.notes);
   const qColor = QUADRANT_COLORS[task.quadrant] || 'var(--accent)';
 
@@ -97,9 +98,17 @@ export default function TaskCard({
             {contextMeta.label}
           </span>
           {task.externalSource === 'trello' && (
-            <span className="task-source-badge" title="من تريلو">
-              <i className="ph ph-kanban"></i>
-            </span>
+            <>
+              <span className="task-source-badge" title="من تريلو">
+                <i className="ph ph-kanban"></i>
+              </span>
+              {trelloListName && (
+                <span className="task-trello-list-badge" title={`قائمة Trello: ${trelloListName}`}>
+                  <i className="ph ph-list-bullets"></i>
+                  {trelloListName}
+                </span>
+              )}
+            </>
           )}
         </div>
         <div className={`task-deadline ${overdue ? 'is-overdue' : ''}`}>

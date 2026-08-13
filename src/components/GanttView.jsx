@@ -101,7 +101,13 @@ export default function GanttView({ tasks, onToggleComplete, onEdit, onReschedul
                   {task.completed && <i className="ph ph-check" style={{ fontSize: 10 }}></i>}
                 </button>
                 <button type="button" className="gantt-title-btn" onClick={() => onEdit(task.id)}>
-                  {task.title}
+                  <span>{task.title}</span>
+                  {task.externalSource === 'trello' && task.externalMeta?.listName && (
+                    <small className="gantt-trello-list" title={`قائمة Trello: ${task.externalMeta.listName}`}>
+                      <i className="ph ph-kanban"></i>
+                      {task.externalMeta.listName}
+                    </small>
+                  )}
                   {recurring && (
                     <span className="gantt-recurring-badge" title="مهمة متكررة">
                       <i className="ph ph-arrows-clockwise"></i>

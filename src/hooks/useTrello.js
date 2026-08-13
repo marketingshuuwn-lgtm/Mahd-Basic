@@ -82,7 +82,11 @@ export function useTrello(showToast) {
         loadBoards(saved),
       ]);
       setMember(me);
-      if (saved.boardId) await loadLists(saved.boardId, saved);
+      if (saved.boardId) {
+        await loadLists(saved.boardId, saved);
+        // يُعلِم مزود المهام أن Board والقوائم أصبحا جاهزين بعد إعادة فتح التطبيق.
+        setRevision((value) => value + 1);
+      }
       return { me, boards: nextBoards };
     } catch (err) {
       console.error(err);

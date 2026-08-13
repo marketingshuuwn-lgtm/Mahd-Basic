@@ -9,6 +9,7 @@ import {
 import { normalizeSubtasks } from '../utils/subtasks';
 import { normalizeTaskContext } from '../utils/taskMeta';
 import { normalizeTaskStatus } from '../utils/taskStatus';
+import { findTrelloListForStatus, statusFromTrelloListName } from '../utils/trelloWorkflow';
 
 const UI_STATE_KEY = 'mahd_trello_task_ui_v1';
 const DEFAULT_QUADRANT = 'important-not-urgent';
@@ -37,12 +38,13 @@ function writeUiState(boardId, updater) {
   }
 }
 
-function toTask(card, boardId) {
+function toTask(card, boardId, listById) {
   const base = mapTrelloCardToTaskFields(card);
   const ui = readUiState(boardId)[card.id] || {};
+  const listName = listById.get(card.idList)?.name || null;
   const status = card.closed
     ? 'completed'
-    : normalizeTaskStatus(ui.status || 'not_started');
+    : normalizeTaskStatus(statusFromTrelloListName(listName) || ui.status || 'not_started');
   const archived = Boolean(ui.archived);
   return {
     ...base,
@@ -55,6 +57,7 @@ function toTask(card, boardId) {
     archivedAt: ui.archivedAt || null,
     duration: ui.duration || 1,
     sortOrder: ui.sortOrder ?? base.externalMeta?.cardPosition ?? 0,
+    externalMeta: { ...base.externalMeta, listName },
     recurrence: ui.recurrence || null,
     recurrenceDays: ui.recurrenceDays || [],
   };
@@ -89,6 +92,7 @@ export function useTasks(showToast, trello) {
   const boardId = trello?.config?.boardId || null;
   const apiKey = trello?.config?.apiKey || null;
   const accessToken = trello?.config?.accessToken || null;
+  const trelloLists = trello?.lists || [];
 
   const fetchTasks = useCallback(
     async (isInitial = false) => {
@@ -106,8 +110,9 @@ export function useTasks(showToast, trello) {
 
       try {
         const cards = await trelloFetchBoardCards(apiKey, accessToken, boardId);
+        const listById = new Map(trelloLists.map((list) => [list.id, list]));
         const next = (cards || [])
-          .map((card) => toTask(card, boardId))
+          .map((card) => toTask(card, boardId, listById))
           .sort((a, b) => a.sortOrder - b.sortOrder || String(a.title).localeCompare(String(b.title), 'ar'));
         setTasks(next);
         setConnected(true);
@@ -122,7 +127,7 @@ export function useTasks(showToast, trello) {
         if (isInitial) setLoading(false);
       }
     },
-    [accessToken, apiKey, boardId, showToast]
+    [accessToken, apiKey, boardId, showToast, trelloLists]
   );
 
   useEffect(() => {
@@ -197,6 +202,8 @@ export function useTasks(showToast, trello) {
       const previous = tasks.find((task) => task.id === id);
       if (!previous || !ensureBoard()) return;
       const nextStatus = normalizeTaskStatus(extra.status ?? previous.status);
+      const targetList =
+        nextStatus === 'cancelled' ? null : findTrelloListForStatus(trelloLists, nextStatus);
       const localPatch = {
         quadrant: quadrant || previous.quadrant,
         status: nextStatus,
@@ -222,13 +229,16 @@ export function useTasks(showToast, trello) {
         )
       );
       try {
-        if (nextStatus === 'completed' || nextStatus === 'cancelled') {
+        if (nextStatus === 'cancelled') {
           await trelloSetCardClosed(apiKey, accessToken, id, true);
         } else {
           await trelloUpdateCard(apiKey, accessToken, id, {
             title,
             description: notes || '',
             dueDate: dueDate || null,
+            listId: targetList?.id,
+            // نُبقي البطاقة مفتوحة إن كانت قائمة Trello تمثل الإكمال.
+            closed: nextStatus === 'completed' && !targetList ? 'true' : 'false',
           });
         }
         updateLocalTask(boardId, id, localPatch);
@@ -240,7 +250,7 @@ export function useTasks(showToast, trello) {
         showToast?.(err.message || 'تعذّر تعديل بطاقة Trello', 'ph-x-circle', 'error');
       }
     },
-    [accessToken, apiKey, boardId, ensureBoard, fetchTasks, showToast, tasks]
+    [accessToken, apiKey, boardId, ensureBoard, fetchTasks, showToast, tasks, trelloLists]
   );
 
   const archiveTask = useCallback(
@@ -280,7 +290,11 @@ export function useTasks(showToast, trello) {
       const patch = { archived: false, archivedAt: null, status: 'not_started' };
       setTasks((current) => current.map((item) => (item.id === id ? { ...item, ...patch, completed: false } : item)));
       try {
-        await trelloSetCardClosed(apiKey, accessToken, id, false);
+        const targetList = findTrelloListForStatus(trelloLists, 'not_started');
+        await trelloUpdateCard(apiKey, accessToken, id, {
+          closed: 'false',
+          listId: targetList?.id,
+        });
         updateLocalTask(boardId, id, patch);
         await fetchTasks(false);
         showToast?.(`استُرجعت "${task.title}" في Trello`, 'ph-arrow-counter-clockwise');
@@ -290,50 +304,76 @@ export function useTasks(showToast, trello) {
         showToast?.(err.message || 'تعذّر استرجاع بطاقة Trello', 'ph-x-circle', 'error');
       }
     },
-    [accessToken, apiKey, boardId, ensureBoard, fetchTasks, showToast, tasks]
+    [accessToken, apiKey, boardId, ensureBoard, fetchTasks, showToast, tasks, trelloLists]
   );
 
   const toggleComplete = useCallback(
     async (id) => {
       const task = tasks.find((item) => item.id === id);
       if (!task || !ensureBoard()) return;
-      const completed = !task.completed;
-      setTasks((current) =>
-        current.map((item) =>
-          item.id === id
-            ? { ...item, completed, status: completed ? 'completed' : 'not_started', completedAt: completed ? new Date().toISOString() : null }
-            : item
-        )
-      );
+      const nextStatus = task.completed ? 'not_started' : 'completed';
+      const targetList = findTrelloListForStatus(trelloLists, nextStatus);
+      const completed = nextStatus === 'completed';
+      const optimistic = {
+        ...task,
+        completed,
+        status: nextStatus,
+        completedAt: completed ? new Date().toISOString() : null,
+      };
+      setTasks((current) => current.map((item) => (item.id === id ? optimistic : item)));
       try {
-        await trelloSetCardClosed(apiKey, accessToken, id, completed);
-        updateLocalTask(boardId, id, { status: completed ? 'completed' : 'not_started' });
+        await trelloUpdateCard(apiKey, accessToken, id, {
+          listId: targetList?.id,
+          // عند وجود قائمة منجز لا تُغلق البطاقة؛ القائمة نفسها هي حالة الإنجاز.
+          closed: completed && !targetList ? 'true' : 'false',
+        });
+        updateLocalTask(boardId, id, { status: nextStatus });
         await fetchTasks(false);
-        if (completed) showToast?.(`✓ "${task.title}" مكتملة في Trello`, 'ph-check-circle');
+        showToast?.(
+          completed ? `✓ نُقلت "${task.title}" إلى حالة منجزة في Trello` : `أُعيد فتح "${task.title}" في Trello`,
+          completed ? 'ph-check-circle' : 'ph-arrow-counter-clockwise'
+        );
       } catch (err) {
         console.error(err);
         setTasks((current) => current.map((item) => (item.id === id ? task : item)));
         showToast?.(err.message || 'تعذّر تحديث بطاقة Trello', 'ph-x-circle', 'error');
       }
     },
-    [accessToken, apiKey, boardId, ensureBoard, fetchTasks, showToast, tasks]
+    [accessToken, apiKey, boardId, ensureBoard, fetchTasks, showToast, tasks, trelloLists]
   );
 
   const setTaskStatus = useCallback(
     async (id, rawStatus) => {
       const task = tasks.find((item) => item.id === id);
-      if (!task) return;
+      if (!task || !ensureBoard()) return;
       const status = normalizeTaskStatus(rawStatus);
-      if (status === 'completed' || status === 'cancelled') {
-        if (!task.completed) await toggleComplete(id);
-        if (status === 'cancelled') updateLocalTask(boardId, id, { archived: true, archivedAt: new Date().toISOString() });
+      if (status === 'cancelled') {
+        await archiveTask(id);
         return;
       }
-      updateLocalTask(boardId, id, { status });
-      setTasks((current) => current.map((item) => (item.id === id ? { ...item, status, completed: false } : item)));
-      showToast?.('حالة مَهَد حُفظت محليًا لهذه البطاقة', 'ph-bookmark-simple');
+
+      const targetList = findTrelloListForStatus(trelloLists, status);
+      const completed = status === 'completed';
+      const optimistic = { ...task, status, completed, completedAt: completed ? new Date().toISOString() : null };
+      setTasks((current) => current.map((item) => (item.id === id ? optimistic : item)));
+      try {
+        await trelloUpdateCard(apiKey, accessToken, id, {
+          listId: targetList?.id,
+          closed: completed && !targetList ? 'true' : 'false',
+        });
+        updateLocalTask(boardId, id, { status });
+        await fetchTasks(false);
+        showToast?.(
+          targetList ? `نُقلت البطاقة إلى قائمة «${targetList.name}» في Trello` : 'تم تحديث حالة البطاقة في Trello',
+          'ph-kanban'
+        );
+      } catch (err) {
+        console.error(err);
+        setTasks((current) => current.map((item) => (item.id === id ? task : item)));
+        showToast?.(err.message || 'تعذّر نقل البطاقة في Trello', 'ph-x-circle', 'error');
+      }
     },
-    [boardId, showToast, tasks, toggleComplete]
+    [accessToken, apiKey, archiveTask, boardId, ensureBoard, fetchTasks, showToast, tasks, trelloLists]
   );
 
   const toggleSubtask = useCallback(

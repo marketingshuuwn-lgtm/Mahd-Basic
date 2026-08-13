@@ -14,6 +14,40 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+.trello-workflow {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-light) 45%, var(--card-bg));
+}
+.trello-workflow-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.trello-workflow-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.trello-workflow-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  font-size: var(--fs-xs);
+}
+.trello-workflow-item.status-not_started { border-inline-start: 3px solid var(--text-muted); }
+.trello-workflow-item.status-in_progress { border-inline-start: 3px solid var(--accent); }
+.trello-workflow-item.status-completed { border-inline-start: 3px solid var(--success); }
+.trello-workflow .trello-muted { margin: 10px 0 0; }
 .trello-form a {
   color: var(--accent);
 }
@@ -171,6 +205,26 @@
   color: #0079bf;
   font-size: 13px;
   flex-shrink: 0;
+}
+.task-trello-list-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 150px;
+  padding: 3px 7px;
+  border: 1px solid rgba(0, 121, 191, 0.18);
+  border-radius: 999px;
+  background: rgba(0, 121, 191, 0.08);
+  color: #075985;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-trello-list-badge i {
+  flex: 0 0 auto;
+  font-size: 12px;
 }
 .task-attachments {
   display: flex;

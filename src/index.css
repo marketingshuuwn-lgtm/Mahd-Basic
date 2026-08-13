@@ -443,8 +443,14 @@ body {
 .gantt-name-col { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: var(--fs-sm); }
 .gantt-head .gantt-name-col { font-weight: var(--fw-bold); color: var(--text-muted); }
 .gantt-title-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   background: none; border: none; cursor: pointer; color: var(--text-primary); text-align: right;
   font-size: var(--fs-sm); padding: 0;
+}
+.gantt-trello-list {
+  display: inline-flex; align-items: center; gap: 3px; max-width: 165px;
+  color: #075985; font-size: 10px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gantt-day-head {
   text-align: center; padding: 8px 4px; border-radius: 10px; font-size: var(--fs-sm); color: var(--text-secondary);

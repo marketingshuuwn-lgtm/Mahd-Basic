@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import TaskCard from './TaskCard';
+import { getTrelloWorkflowSummary, trelloStatusLabel } from '../utils/trelloWorkflow';
 
 const QUADRANTS = [
   { id: 'important-urgent', label: 'مهم ومستعجل' },
@@ -78,6 +79,32 @@ function TrelloTaskRow({
           </select>
         )}
       </div>
+    </div>
+  );
+}
+
+function WorkflowMap({ lists }) {
+  const workflow = getTrelloWorkflowSummary(lists);
+  if (!workflow.length) return null;
+
+  return (
+    <div className="trello-workflow" aria-label="خريطة سير عمل Trello">
+      <div className="trello-workflow-title">
+        <i className="ph ph-arrows-left-right"></i>
+        كيف يقرأ مَهَد قوائم هذا الـ Board
+      </div>
+      <div className="trello-workflow-items">
+        {workflow.map((item) => (
+          <span className={`trello-workflow-item status-${item.status}`} key={item.id}>
+            <strong>{item.name}</strong>
+            <i className="ph ph-arrow-left"></i>
+            {trelloStatusLabel(item.status)}
+          </span>
+        ))}
+      </div>
+      <p className="trello-muted">
+        نقل حالة البطاقة من مَهَد ينقلها إلى أول قائمة مطابقة. الأرشفة وحدها تغلق البطاقة في Trello.
+      </p>
     </div>
   );
 }
@@ -225,6 +252,8 @@ export default function TrelloView({
                 </select>
               </div>
             )}
+
+            {trello.isBoardSelected && <WorkflowMap lists={trello.lists} />}
 
             <div className="trello-actions" style={{ marginTop: 16 }}>
               <button
