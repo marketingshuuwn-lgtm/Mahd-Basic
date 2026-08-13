@@ -38,6 +38,7 @@ export const DEFAULT_WORKSPACES = [
     color: 'var(--accent)',
     bg: 'var(--accent-light)',
     isDefault: true,
+    surface: 'none',
   },
   {
     id: 'personal',
@@ -46,6 +47,7 @@ export const DEFAULT_WORKSPACES = [
     color: 'var(--success)',
     bg: 'var(--success-light)',
     isDefault: true,
+    surface: 'none',
   },
   {
     id: TRELLO_WORKSPACE_ID,
@@ -55,6 +57,7 @@ export const DEFAULT_WORKSPACES = [
     bg: 'rgba(0, 121, 191, 0.12)',
     isDefault: true,
     trait: 'مهام تريلو',
+    surface: 'trello',
   },
 ];
 
@@ -75,6 +78,109 @@ export const WORKSPACE_COLORS = [
   { color: '#4f46e5', bg: 'rgba(79, 70, 229, 0.12)', name: 'نيلي' },
   { color: '#64748b', bg: 'rgba(100, 116, 139, 0.14)', name: 'رمادي' },
 ];
+
+/**
+ * خلفيات سطح المساحة — تدرجات + ألوان صلبة (بدون صور).
+ * css يُطبَّق كطبقة تحت المحتوى مع غطاء قراءة خفيف.
+ * dark: true → غطاء أفتح قليلاً ليبقى النص واضحاً.
+ */
+export const WORKSPACE_BACKGROUNDS = [
+  { id: 'none', name: 'افتراضي', kind: 'none', css: '', emoji: '∅' },
+  {
+    id: 'frost',
+    name: 'صقيع',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #eef4ff 0%, #d9e8fc 55%, #cfe0f8 100%)',
+    emoji: '❄️',
+  },
+  {
+    id: 'ocean',
+    name: 'محيط',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #0b3d78 0%, #1565a8 45%, #1f8fd4 100%)',
+    emoji: '🌊',
+    dark: true,
+  },
+  {
+    id: 'aurora',
+    name: 'شفق',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #3b1d6e 0%, #6b3fa0 50%, #9b6bc9 100%)',
+    emoji: '🔮',
+    dark: true,
+  },
+  {
+    id: 'prism',
+    name: 'منشور',
+    kind: 'gradient',
+    css: 'linear-gradient(135deg, #7c3aed 0%, #db2777 50%, #f59e0b 100%)',
+    emoji: '🌈',
+    dark: true,
+  },
+  {
+    id: 'sunset',
+    name: 'غروب',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #ea580c 0%, #f97316 40%, #fb923c 100%)',
+    emoji: '🧡',
+    dark: true,
+  },
+  {
+    id: 'blossom',
+    name: 'زهر',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #db2777 0%, #f472b6 55%, #fbcfe8 100%)',
+    emoji: '🌸',
+    dark: true,
+  },
+  {
+    id: 'earth',
+    name: 'أرض',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #0f766e 0%, #14b8a6 50%, #5eead4 100%)',
+    emoji: '🌍',
+    dark: true,
+  },
+  {
+    id: 'midnight',
+    name: 'منتصف الليل',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #0f172a 0%, #1e293b 55%, #334155 100%)',
+    emoji: '👽',
+    dark: true,
+  },
+  {
+    id: 'ember',
+    name: 'جمر',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #450a0a 0%, #7f1d1d 45%, #b45309 100%)',
+    emoji: '🔥',
+    dark: true,
+  },
+  {
+    id: 'trello',
+    name: 'تريلو',
+    kind: 'gradient',
+    css: 'linear-gradient(145deg, #026aa7 0%, #0079bf 50%, #5ba4cf 100%)',
+    emoji: '📋',
+    dark: true,
+  },
+  // صلبة
+  { id: 'solid-blue', name: 'أزرق', kind: 'solid', css: '#2563eb', emoji: '', dark: true },
+  { id: 'solid-gold', name: 'ذهبي', kind: 'solid', css: '#ca8a04', emoji: '', dark: true },
+  { id: 'solid-green', name: 'أخضر', kind: 'solid', css: '#16a34a', emoji: '', dark: true },
+  { id: 'solid-red', name: 'أحمر', kind: 'solid', css: '#b91c1c', emoji: '', dark: true },
+  { id: 'solid-violet', name: 'بنفسجي', kind: 'solid', css: '#7c3aed', emoji: '', dark: true },
+  { id: 'solid-pink', name: 'وردي', kind: 'solid', css: '#db2777', emoji: '', dark: true },
+  { id: 'solid-lime', name: 'ليموني', kind: 'solid', css: '#65a30d', emoji: '', dark: true },
+  { id: 'solid-cyan', name: 'سماوي', kind: 'solid', css: '#0891b2', emoji: '', dark: true },
+  { id: 'solid-slate', name: 'رمادي', kind: 'solid', css: '#64748b', emoji: '', dark: true },
+];
+
+export function getWorkspaceBackground(surfaceId) {
+  const id = surfaceId || 'none';
+  return WORKSPACE_BACKGROUNDS.find((b) => b.id === id) || WORKSPACE_BACKGROUNDS[0];
+}
 
 export const WORKSPACE_ICONS = [
   'ph-briefcase',
@@ -158,6 +264,7 @@ export function getTaskContextMeta(context, workspaces = null) {
       id === TRELLO_WORKSPACE_ID || id === 'trello'
         ? 'rgba(0, 121, 191, 0.12)'
         : 'var(--accent-light)',
+    surface: 'none',
   };
 }
 
@@ -175,7 +282,15 @@ export function slugifyWorkspaceName(name) {
 export function workspaceFromContextId(id, index = 0) {
   const nid = normalizeTaskContext(id);
   const def = DEFAULT_WORKSPACES.find((w) => w.id === nid);
-  if (def) return { ...def, archived: false, trait: def.trait || '', description: '' };
+  if (def) {
+    return {
+      ...def,
+      archived: false,
+      trait: def.trait || '',
+      description: '',
+      surface: def.surface || 'none',
+    };
+  }
   const palette = WORKSPACE_COLORS[index % WORKSPACE_COLORS.length];
   const isTrello = nid === 'trello' || nid === TRELLO_WORKSPACE_ID;
   return {
@@ -188,5 +303,6 @@ export function workspaceFromContextId(id, index = 0) {
     archived: false,
     trait: isTrello ? 'مهام تريلو' : '',
     description: '',
+    surface: isTrello ? 'trello' : 'none',
   };
 }
