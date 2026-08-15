@@ -204,3 +204,8 @@
 .agency-assignment-option > i:last-child { color: #1d7655; font-size: 17px; }
 .agency-assignment-panel .agency-primary-btn:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 780px) { .agency-assignment-options { grid-template-columns: 1fr; } }
+
+.agency-decision-callout { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 15px 17px; border: 1px solid #d8e7f2; border-radius: 13px; color: #35566b; background: #f1f8fc; }
+.agency-decision-callout > i { margin-top: 2px; color: #2f7ba5; font-size: 20px; }
+.agency-decision-callout strong { display: block; margin-bottom: 3px; color: #244b61; font-size: 13px; }
+.agency-decision-callout p { font-size: 12px; }

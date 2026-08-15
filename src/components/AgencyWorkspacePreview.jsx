@@ -81,7 +81,9 @@ const TASKS = [
 const PROJECT_OPTIONS = [
   { id: 'brand-strategy', title: 'استراتيجية العلامة', description: 'هوية بصرية ولفظية واكتشاف وقرارات العلامة.', icon: 'ph-sparkle' },
   { id: 'content-calendar', title: 'تقويم تحريري وخطة محتوى', description: 'استراتيجية محتوى وإنتاج ومراجعة ونشر.', icon: 'ph-calendar-dots' },
+  { id: 'monthly-operations', title: 'خدمات تشغيلية شهرية', description: 'تشغيل مستمر ومتابعة شهرية وتسليمات متكررة.', icon: 'ph-arrows-clockwise' },
   { id: 'promotion-campaign', title: 'حملة إعلانية ترويجية', description: 'هدف الحملة ومخرجها وإطلاقها وقياسها.', icon: 'ph-rocket-launch' },
+  { id: 'monthly-operations-campaign', title: 'خدمات تشغيلية شهرية + حملة ترويجية', description: 'نطاق سنام المعتمد: تشغيل مستمر مع مسار حملة ترويجية.', icon: 'ph-intersect' },
 ];
 
 const NAV = [
@@ -222,6 +224,9 @@ function ClientsView({ onOpenProject, onOpenClientReview, operational }) {
 function ClientNeedsProjectView({ client, onBack, onPreviewAssignment, operational }) {
   const [selectedProject, setSelectedProject] = useState(null);
   const clientCards = operational.clients.find((item) => item.clientId === client.id)?.cards || [];
+  const availableOptions = client.id === 'sanam'
+    ? PROJECT_OPTIONS.filter((option) => ['monthly-operations', 'promotion-campaign', 'monthly-operations-campaign'].includes(option.id))
+    : PROJECT_OPTIONS;
   return (
     <div className="agency-preview-content">
       <button type="button" className="agency-back-btn" onClick={onBack}><i className="ph ph-arrow-right" /> العودة إلى العملاء</button>
@@ -231,8 +236,9 @@ function ClientNeedsProjectView({ client, onBack, onPreviewAssignment, operation
         <article><span>وضع المشروع</span><strong>غير معيّن</strong><small>لا تستنتج مَهَد مشروعًا من اسم البطاقة أو القائمة</small></article>
         <article><span>الإجراء المطلوب لاحقًا</span><strong>اعتماد مشروع</strong><small>ثم يربط صراحة ببطاقات العميل</small></article>
       </section>
+      <section className="agency-decision-callout"><i className="ph ph-eye" /><div><strong>قبل أن تختار</strong><p>سترى أولًا البطاقات التي ستدخل في النطاق، ثم تختار نوع المشروع، ثم نعرض أثر الربط. لا يحدث اعتماد أو تعديل في هذه الخطوة.</p></div></section>
       <section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>بطاقات العميل المقروءة</h2><PrototypePill>قراءة فقط</PrototypePill></div><OperationalCardList cards={clientCards} limit={8} /></section>
-      <section className="agency-panel agency-assignment-panel"><div className="agency-panel-heading"><h2>ما نوع المشروع؟</h2><PrototypePill tone="warning">اختيار يحتاج اعتمادًا</PrototypePill></div><p>اختر نوعًا لمعاينة أثر الربط فقط. لن يُحفظ الاختيار ولن تتغير Labels أو البطاقات في Trello.</p><div className="agency-assignment-options">{PROJECT_OPTIONS.map((option) => <button type="button" key={option.id} className={`agency-assignment-option${selectedProject === option.id ? ' selected' : ''}`} onClick={() => setSelectedProject(option.id)}><i className={`ph ${option.icon}`} /><span><strong>{option.title}</strong><small>{option.description}</small></span>{selectedProject === option.id && <i className="ph ph-check-circle" />}</button>)}</div><button type="button" className="agency-primary-btn" disabled={!selectedProject} onClick={() => onPreviewAssignment({ clientId: client.id, projectOptionId: selectedProject })}>معاينة المطابقة قبل الاعتماد <i className="ph ph-arrow-left" /></button></section>
+      <section className="agency-panel agency-assignment-panel"><div className="agency-panel-heading"><h2>ما نوع المشروع؟</h2><PrototypePill tone="warning">اختيار يحتاج اعتمادًا</PrototypePill></div><p>{client.id === 'sanam' ? 'لسنام، النطاق الذي ذكره الفريق هو خدمات تشغيلية شهرية مع حملة ترويجية. اختر النطاق المركب إذا كان سيُدار كمشروع واحد، أو اختر مسارًا منفصلًا لمراجعته.' : 'اختر نوعًا لمعاينة أثر الربط فقط. لن يُحفظ الاختيار ولن تتغير Labels أو البطاقات في Trello.'}</p><div className="agency-assignment-options">{availableOptions.map((option) => <button type="button" key={option.id} className={`agency-assignment-option${selectedProject === option.id ? ' selected' : ''}`} onClick={() => setSelectedProject(option.id)}><i className={`ph ${option.icon}`} /><span><strong>{option.title}</strong><small>{option.description}</small></span>{selectedProject === option.id && <i className="ph ph-check-circle" />}</button>)}</div><button type="button" className="agency-primary-btn" disabled={!selectedProject} onClick={() => onPreviewAssignment({ clientId: client.id, projectOptionId: selectedProject })}>معاينة المطابقة قبل الاعتماد <i className="ph ph-arrow-left" /></button></section>
       <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>المعاينة ليست اعتمادًا</strong><p>لا تعدل هذه الشاشة Trello ولا تقترح مشروعًا تلقائيًا. الاعتماد النهائي يحتاج موافقة صريحة من مالك/مدير المشاريع ومدير الحساب.</p></div></section>
     </div>
   );
