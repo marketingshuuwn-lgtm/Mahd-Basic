@@ -20,7 +20,7 @@ export const PROJECT_TYPES = [
 
 export const ENTITY_STATUSES = ['draft', 'active', 'on_hold', 'completed', 'archived'];
 export const TASK_STATUSES = ['not_started', 'in_progress', 'in_review', 'completed', 'cancelled'];
-export const SYNC_STATUSES = ['local_only', 'pending_preview', 'pending_approval', 'approved', 'synced', 'conflict', 'failed', 'rejected'];
+export const SYNC_STATUSES = ['local_only', 'pending_preview', 'pending_approval', 'approved', 'synced', 'conflict', 'failed', 'rejected', 'resolved'];
 
 function asText(value) {
   return typeof value === 'string' ? value.trim() : '';

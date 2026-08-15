@@ -283,3 +283,10 @@
 .agency-sync-operation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .agency-sync-operation-actions .agency-primary-btn, .agency-sync-operation-actions .agency-secondary-btn { padding: 8px 11px; font-size: 11px; }
 .agency-sync-operation-actions .agency-secondary-btn { color: #8d5f1b; background: #fff3dc; }
+
+.agency-conflict-review { margin-top: 12px; padding: 12px; border: 1px solid #f0dfbd; border-radius: 11px; background: #fffaf0; }
+.agency-conflict-review > strong { display: block; margin-bottom: 9px; color: #79551f; font-size: 12px; }
+.agency-conflict-table { display: grid; grid-template-columns: 100px minmax(0, 1fr) minmax(0, 1fr); gap: 1px; overflow: hidden; border: 1px solid #eadfc9; border-radius: 8px; background: #eadfc9; font-size: 10px; }
+.agency-conflict-table > * { min-width: 0; padding: 8px; overflow-wrap: anywhere; background: #fffdf8; color: #6e6658; }
+.agency-conflict-table > span:nth-child(-n+3) { color: #79551f; background: #fff4dc; font-weight: 700; }
+.agency-conflict-table > strong { color: #4d4a42; background: #fff9ec; }
