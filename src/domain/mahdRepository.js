@@ -1,5 +1,6 @@
-const DEFAULT_KEY = 'mahd_product_store_v1';
+import { createLocalStorageAdapter } from './mahdStorageAdapter.js';
 
+const DEFAULT_KEY = 'mahd_product_store_v1';
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
@@ -24,20 +25,10 @@ function normalizeState(value) {
   };
 }
 
-export function createMahdRepository({ storage = globalThis?.localStorage, key = DEFAULT_KEY, now = () => new Date().toISOString() } = {}) {
-  const read = () => {
-    if (!storage?.getItem) return emptyState();
-    try {
-      return normalizeState(JSON.parse(storage.getItem(key) || 'null'));
-    } catch {
-      return emptyState();
-    }
-  };
-  const write = (state) => {
-    const next = { ...normalizeState(state), updatedAt: now() };
-    storage?.setItem?.(key, JSON.stringify(next));
-    return clone(next);
-  };
+export function createMahdRepository({ adapter = null, storage = globalThis?.localStorage, key = DEFAULT_KEY, now = () => new Date().toISOString() } = {}) {
+  const store = adapter || createLocalStorageAdapter({ storage, key, now });
+  const read = () => normalizeState(store.load());
+  const write = (state) => clone(normalizeState(store.save(normalizeState(state))));
   const upsert = (collection, record) => {
     if (!record?.id) throw new Error('السجل يحتاج معرّفًا قبل الحفظ.');
     const state = read();

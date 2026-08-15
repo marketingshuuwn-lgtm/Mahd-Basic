@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMahdRepository } from './mahdRepository.js';
+import { createMemoryStorageAdapter, MAHD_STORAGE_CONTRACT } from './mahdStorageAdapter.js';
 
 function memoryStorage() {
   const data = new Map();
@@ -43,6 +44,19 @@ test('يحفظ ويستعيد المخرج والعمل الداخلي مع ال
   const state = createMahdRepository({ storage }).load();
   assert.equal(state.deliverables[0].projectId, 'project-1');
   assert.equal(state.internalWorks[0].workstream, 'company-operations');
+});
+
+test('يعمل المستودع مع محول ذاكرة بديل دون الاعتماد على localStorage', () => {
+  const adapter = createMemoryStorageAdapter();
+  const repository = createMahdRepository({ adapter });
+  repository.saveClient({ id: 'client-adapter', name: 'عميل المحول' });
+  assert.equal(repository.load().clients[0].id, 'client-adapter');
+  assert.equal(adapter.kind, 'memory');
+});
+
+test('يثبت عقد التخزين القابل للاستبدال', () => {
+  assert.deepEqual(MAHD_STORAGE_CONTRACT.methods, ['load', 'save', 'clear']);
+  assert.equal(MAHD_STORAGE_CONTRACT.futureKind, 'shared');
 });
 
 test('يتعامل مع تخزين تالف بالعودة إلى حالة فارغة', () => {
