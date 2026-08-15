@@ -348,7 +348,7 @@ function ProjectView({ project, onBack, onOpenTemplates, operational }) {
   );
 }
 
-function CreateWorkspaceView({ onBack, drafts, onCreated }) {
+function CreateWorkspaceView({ onBack, drafts, onCreated, onPreviewDraft }) {
   const [kind, setKind] = useState('client');
   const [form, setForm] = useState({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', assigneeId: '', dueDate: '' });
   const [message, setMessage] = useState('');
@@ -384,8 +384,24 @@ function CreateWorkspaceView({ onBack, drafts, onCreated }) {
         <button type="submit" className="agency-primary-btn"><i className="ph ph-check" /> إنشاء مسودة {labels[kind]} داخل مَهَد</button>
         {message && <p className={`agency-form-message${message.includes('تم إنشاء') ? ' success' : ' error'}`}>{message}</p>}
       </form>
-      <section className="agency-panel"><div className="agency-panel-heading"><h2>مسودات هذه الجلسة</h2><PrototypePill tone="warning">غير محفوظة</PrototypePill></div>{drafts.length ? <div className="agency-draft-list">{drafts.map((draft) => <div className="agency-draft-row" key={draft.id}><strong>{draft.name || draft.title}</strong><span>{draft.entityType === 'client' ? 'عميل' : draft.entityType === 'project' ? 'مشروع' : 'مهمة'} · مَهَد فقط</span></div>)}</div> : <p className="agency-empty-copy">لم تنشئ مسودة بعد. جرّب إنشاء عميل أو مشروع أو مهمة من هذه الشاشة.</p>}</section>
+      <section className="agency-panel"><div className="agency-panel-heading"><h2>مسودات هذه الجلسة</h2><PrototypePill tone="warning">غير محفوظة</PrototypePill></div>{drafts.length ? <div className="agency-draft-list">{drafts.map((draft) => <div className="agency-draft-row" key={draft.id}><div><strong>{draft.name || draft.title}</strong><span>{draft.entityType === 'client' ? 'عميل' : draft.entityType === 'project' ? 'مشروع' : 'مهمة'} · {draft.syncStatus === 'pending_approval' ? 'بانتظار الموافقة' : 'مسودة مَهَد'}</span></div><button type="button" className="agency-inline-btn" onClick={() => onPreviewDraft(draft)}>معاينة الإرسال</button></div>)}</div> : <p className="agency-empty-copy">لم تنشئ مسودة بعد. جرّب إنشاء عميل أو مشروع أو مهمة من هذه الشاشة.</p>}</section>
       <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>ما الذي لم يحدث؟</strong><p>لم تُكتب أي بطاقة أو Label في Trello. بعد بناء التخزين المشترك ستتحول المسودة إلى عملية معاينة ثم موافقة ثم مزامنة.</p></div></section>
+    </div>
+  );
+}
+
+function ChangePreviewView({ draft, onBack, onQueue }) {
+  const kindLabel = draft.entityType === 'client' ? 'عميل' : draft.entityType === 'project' ? 'مشروع' : 'مهمة';
+  const target = draft.entityType === 'client' ? 'إنشاء سجل عميل وربطه بـ Label مناسب بعد اعتماد السياسة' : draft.entityType === 'project' ? 'إنشاء تعريف مشروع وربطه بالعميل دون استنتاجه من Label' : 'إنشاء بطاقة Trello في القائمة المعتمدة وربطها بالعميل والمشروع';
+  return (
+    <div className="agency-preview-content">
+      <button type="button" className="agency-back-btn" onClick={onBack}><i className="ph ph-arrow-right" /> العودة إلى الإنشاء</button>
+      <ScreenHeader eyebrow="صندوق التغييرات" title="معاينة قبل الإرسال" description="هذه الشاشة تفصل إنشاء الكيان داخل مَهَد عن أي كتابة خارجية. راجع الأثر ثم ضعه في صندوق الموافقة؛ لن يُرسل شيء إلى Trello من هذه الخطوة." />
+      <section className="agency-project-overview-grid"><article><span>الكيان</span><strong>{kindLabel}</strong><small>{draft.name || draft.title}</small></article><article><span>الحالة الحالية</span><strong>{draft.syncStatus === 'pending_approval' ? 'بانتظار الموافقة' : 'مسودة محلية'}</strong><small>لا توجد كتابة خارجية</small></article><article><span>المعرّف الداخلي</span><strong>{draft.id}</strong><small>يُستخدم للربط لاحقًا</small></article></section>
+      <section className="agency-panel agency-change-preview"><div className="agency-panel-heading"><h2>الأثر المقترح</h2><PrototypePill tone="warning">معاينة فقط</PrototypePill></div><ol className="agency-flow-list"><li><span>1</span> يبقى {kindLabel} محفوظًا داخل مَهَد.</li><li><span>2</span> {target}.</li><li><span>3</span> تظهر نتيجة التنفيذ أو الفشل داخل مَهَد.</li><li><span>4</span> عند التعارض يتوقف الإرسال ولا تُستبدل بيانات المصدر تلقائيًا.</li></ol></section>
+      <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>ممنوع التنفيذ من هنا</strong><p>وضع العملية في صندوق الموافقة يسجل نية الإرسال فقط. مرحلة موصل Trello اللاحقة هي التي ستطلب موافقة صاحب الصلاحية وتنفذ بعد اكتمال التخزين المشترك.</p></div></section>
+      {draft.syncStatus !== 'pending_approval' && <button type="button" className="agency-primary-btn" onClick={onQueue}>وضع في صندوق الموافقة <i className="ph ph-arrow-left" /></button>}
+      {draft.syncStatus === 'pending_approval' && <p className="agency-form-message success">تم وضع العملية في صندوق الموافقة المحلي. لا توجد كتابة إلى Trello.</p>}
     </div>
   );
 }
@@ -413,6 +429,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const [clientId, setClientId] = useState(null);
   const [assignment, setAssignment] = useState(null);
   const [drafts, setDrafts] = useState([]);
+  const [selectedDraft, setSelectedDraft] = useState(null);
   const connectedTrelloTasks = useMemo(
     () => (Array.isArray(trelloTasks) ? trelloTasks.filter((task) => task.externalSource === 'trello') : []),
     [trelloTasks]
@@ -444,7 +461,9 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const openClientReview = (id) => { setProjectId(null); setClientId(id); setAssignment(null); setSection('client-review'); };
   const openAssignmentPreview = (nextAssignment) => { setProjectId(null); setAssignment(nextAssignment); setSection('assignment-preview'); };
   const openTemplates = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('templates'); };
-  const openCreate = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('create'); };
+  const openCreate = () => { setProjectId(null); setClientId(null); setAssignment(null); setSelectedDraft(null); setSection('create'); };
+  const openDraftPreview = (draft) => { setSelectedDraft(draft); setSection('sync-preview'); };
+  const queueDraftForApproval = () => { setDrafts((current) => current.map((draft) => draft.id === selectedDraft?.id ? { ...draft, syncStatus: 'pending_approval' } : draft)); setSelectedDraft((current) => current ? { ...current, syncStatus: 'pending_approval' } : current); };
   const openSection = (id) => { setProjectId(null); setClientId(null); setAssignment(null); setSection(id === 'library' ? 'templates' : id); };
 
   return (
@@ -467,7 +486,8 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
-          {section === 'create' && <CreateWorkspaceView onBack={() => openSection('home')} drafts={drafts} onCreated={(draft) => setDrafts((current) => [draft, ...current])} />}
+          {section === 'create' && <CreateWorkspaceView onBack={() => openSection('home')} drafts={drafts} onCreated={(draft) => setDrafts((current) => [draft, ...current])} onPreviewDraft={openDraftPreview} />}
+          {section === 'sync-preview' && selectedDraft && <ChangePreviewView draft={selectedDraft} onBack={() => openSection('create')} onQueue={queueDraftForApproval} />}
         </main>
       </div>
     </div>
