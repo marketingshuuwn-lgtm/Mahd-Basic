@@ -453,7 +453,11 @@ export default function App() {
     }
   };
 
-  if (loading && view !== 'AgencyPreview') {
+  if (view === 'AgencyPreview') {
+    return <AgencyWorkspacePreview />;
+  }
+
+  if (loading) {
     return (
       <div className="full-center" style={{ padding: 24 }}>
         <LoadingSkeleton />
@@ -464,7 +468,7 @@ export default function App() {
     );
   }
 
-  if (!connected && view !== 'AgencyPreview') {
+  if (!connected) {
     return (
       <div className="full-center" style={{ padding: 24 }}>
         <div className="card" style={{ maxWidth: 440, textAlign: 'center', padding: 36 }}>
@@ -540,8 +544,6 @@ export default function App() {
         />
 
         <div className="view-transition" key={view}>
-        {view === 'AgencyPreview' && <AgencyWorkspacePreview />}
-
         {view === 'Projects' && (
           <ProjectsView
             projects={trello.projects}
