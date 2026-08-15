@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { createClient, createProject, createTask, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
 import { buildInboundChangeProposal, buildTrelloWritePlan, executeApprovedTrelloWrite } from '../lib/trelloSyncAdapter';
+import { PILOT_ACTOR, assertCanPerformSyncAction } from '../domain/mahdPermissions';
 import { trelloFetchBoardCards } from '../lib/trello';
 import trelloReadSnapshot from '../data/trelloReadSnapshot';
 import { buildAgencyOperationalView } from '../utils/agencyOperationalView';
@@ -375,11 +376,11 @@ const SYNC_STATUS_LABELS = {
   resolved: 'تم حل التعارض محليًا',
 };
 
-function SyncInboxView({ storeState, onApprove, onReject, onExecute, onReadExternal, onResolveConflict, trelloReady }) {
+function SyncInboxView({ storeState, onApprove, onReject, onExecute, onReadExternal, onResolveConflict, trelloReady, actor }) {
   const operations = [...storeState.syncOperations].reverse();
   return (
     <div className="agency-preview-content">
-      <ScreenHeader eyebrow="التحكم" title="صندوق المزامنة" description="هنا تظهر نية التغيير ونتيجته داخل مَهَد. لا تُرسل العملية إلى Trello من هذه الشاشة تلقائيًا؛ كل كتابة تحتاج معاينة وموافقة وسجل نتيجة." />
+      <ScreenHeader eyebrow="التحكم" title="صندوق المزامنة" description="هنا تظهر نية التغيير ونتيجته داخل مَهَد. لا تُرسل العملية إلى Trello من هذه الشاشة تلقائيًا؛ كل كتابة تحتاج معاينة وموافقة وسجل نتيجة." /><div className="agency-permission-note"><i className="ph ph-user-circle" /><span>الهوية الحالية: <strong>{actor.name}</strong> · {actor.role} · صلاحيات Pilot المحلية</span></div>
       <section className="agency-summary-grid agency-summary-grid-four" aria-label="ملخص صندوق المزامنة"><article><span>كل العمليات</span><strong>{operations.length}</strong><small>سجل مَهَد المحلي</small></article><article><span>بانتظار الموافقة</span><strong>{operations.filter((item) => item.status === 'pending_approval').length}</strong><small>تحتاج قرارًا</small></article><article><span>تعارضات</span><strong>{operations.filter((item) => item.status === 'conflict').length}</strong><small>لا تُطبق تلقائيًا</small></article><article><span>فشل</span><strong>{operations.filter((item) => item.status === 'failed').length}</strong><small>تحتاج مراجعة</small></article></section>
       <section className="agency-panel agency-sync-inbox-panel">
         <div className="agency-panel-heading"><div><span className="agency-eyebrow">سجل قابل للتدقيق</span><h2>العمليات</h2></div><PrototypePill tone="success">مَهَد أولًا</PrototypePill></div>
@@ -570,9 +571,10 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     repository.saveSyncOperation(next);
     setStoreState(repository.load());
   };
-  const approveSyncOperation = (operation) => updateSyncOperation(operation, 'approved', { approvedBy: 'owner-local-pilot', approvedAt: new Date().toISOString() });
-  const rejectSyncOperation = (operation) => updateSyncOperation(operation, 'rejected', { rejectedBy: 'owner-local-pilot', rejectedAt: new Date().toISOString(), error: 'رُفضت العملية محليًا قبل أي كتابة خارجية.' });
+  const approveSyncOperation = (operation) => { assertCanPerformSyncAction(PILOT_ACTOR, 'approve_sync'); updateSyncOperation(operation, 'approved', { approvedBy: PILOT_ACTOR.id, approvedAt: new Date().toISOString() }); };
+  const rejectSyncOperation = (operation) => { assertCanPerformSyncAction(PILOT_ACTOR, 'approve_sync'); updateSyncOperation(operation, 'rejected', { rejectedBy: PILOT_ACTOR.id, rejectedAt: new Date().toISOString(), error: 'رُفضت العملية محليًا قبل أي كتابة خارجية.' }); };
   const resolveSyncConflict = (operation, resolution) => {
+    assertCanPerformSyncAction(PILOT_ACTOR, 'resolve_conflict');
     const proposal = operation.inboundProposal;
     if (resolution === 'accept_external' && proposal?.conflict?.external) {
       const external = proposal.conflict.external;
@@ -599,6 +601,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     }
   };
   const executeApprovedOperation = async (operation) => {
+    assertCanPerformSyncAction(PILOT_ACTOR, 'execute_sync');
     const config = trelloConnection?.config;
     const plan = buildTrelloWritePlan(operation, { defaultListId: config?.defaultListId });
     if (!config?.apiKey || !config?.accessToken || !config?.defaultListId || !plan.supported) {
@@ -653,7 +656,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'projects' && <><SavedProjectsPanel projects={storeState.projects} /><ProjectsView onOpenProject={openProject} /></>}
           {section === 'internal-work' && <InternalWorkView operational={operational} />}
           {section === 'tasks' && <TasksView operational={operational} storeState={storeState} />}
-          {section === 'sync' && <SyncInboxView storeState={storeState} onApprove={approveSyncOperation} onReject={rejectSyncOperation} onExecute={executeApprovedOperation} onReadExternal={readExternalOperation} onResolveConflict={resolveSyncConflict} trelloReady={Boolean(trelloConnection?.config?.apiKey && trelloConnection?.config?.accessToken && trelloConnection?.config?.defaultListId)} />}
+          {section === 'sync' && <SyncInboxView storeState={storeState} actor={PILOT_ACTOR} onApprove={approveSyncOperation} onReject={rejectSyncOperation} onExecute={executeApprovedOperation} onReadExternal={readExternalOperation} onResolveConflict={resolveSyncConflict} trelloReady={Boolean(trelloConnection?.config?.apiKey && trelloConnection?.config?.accessToken && trelloConnection?.config?.defaultListId)} />}
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}

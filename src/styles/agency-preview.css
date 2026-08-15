@@ -290,3 +290,7 @@
 .agency-conflict-table > * { min-width: 0; padding: 8px; overflow-wrap: anywhere; background: #fffdf8; color: #6e6658; }
 .agency-conflict-table > span:nth-child(-n+3) { color: #79551f; background: #fff4dc; font-weight: 700; }
 .agency-conflict-table > strong { color: #4d4a42; background: #fff9ec; }
+
+.agency-permission-note { display: flex; align-items: center; gap: 7px; margin: 14px 0; padding: 10px 12px; border: 1px solid #dce9e0; border-radius: 10px; background: #f7fbf8; color: #607268; font-size: 11px; }
+.agency-permission-note i { color: #28745b; font-size: 16px; }
+.agency-permission-note strong { color: #294638; }
