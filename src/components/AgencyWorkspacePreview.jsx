@@ -25,6 +25,7 @@ const PROJECTS = [
 
 const NAV = [
   { id: 'home', label: 'الرئيسية', icon: 'ph-house-simple' },
+  { id: 'tasks', label: 'المهام', icon: 'ph-check-square' },
   { id: 'clients', label: 'العملاء', icon: 'ph-buildings' },
   { id: 'projects', label: 'المشاريع', icon: 'ph-briefcase' },
   { id: 'library', label: 'المكتبة والقوالب', icon: 'ph-books' },
@@ -159,7 +160,7 @@ export default function AgencyWorkspacePreview() {
           {section === 'home' && <HomeView onOpenProject={openProject} onOpenTemplate={openTemplates} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => setSection('home')} onOpenTemplates={openTemplates} />}
           {section === 'templates' && <TemplateView onBack={() => setSection('home')} />}
-          {['clients', 'projects', 'my-work'].includes(section) && <section className="agency-preview-content"><span className="agency-eyebrow">نموذج واجهة</span><h1>{NAV.find((item) => item.id === section)?.label}</h1><div className="agency-panel"><h2>هذه الوجهة ستبنى بعد اختبار المسارات الأساسية</h2><p className="agency-empty-copy">نختبر أولًا كيفية انتقال الفريق بين العميل والمشروع والصفحة والمهمة. لن نملأ هذه الشاشة ببيانات أو أزرار لا تمتلك نموذجًا تشغيليًا ثابتًا بعد.</p><button type="button" className="agency-primary-btn" onClick={() => setSection('home')}>العودة إلى المساحة التجريبية</button></div></section>}
+          {['tasks', 'clients', 'projects', 'my-work'].includes(section) && <section className="agency-preview-content"><span className="agency-eyebrow">نموذج واجهة</span><h1>{NAV.find((item) => item.id === section)?.label}</h1><div className="agency-panel"><h2>{section === 'tasks' ? 'التنفيذ في سياق المشروع' : 'هذه الوجهة ستبنى بعد اختبار المسارات الأساسية'}</h2><p className="agency-empty-copy">{section === 'tasks' ? 'ستعرض هذه الوجهة العمل التنفيذي المرتبط بالمشاريع في عروض مناسبة، لا قائمة مهام شخصية منفصلة. لا توجد بيانات مهام داخل النموذج بعد.' : 'نختبر أولًا كيفية انتقال الفريق بين العميل والمشروع والصفحة والمهمة. لن نملأ هذه الشاشة ببيانات أو أزرار لا تمتلك نموذجًا تشغيليًا ثابتًا بعد.'}</p><button type="button" className="agency-primary-btn" onClick={() => setSection('home')}>العودة إلى المساحة التجريبية</button></div></section>}
         </main>
       </div>
     </div>
