@@ -91,6 +91,7 @@ const PROJECT_OPTIONS = [
 const NAV = [
   { id: 'home', label: 'الرئيسية', icon: 'ph-house-simple' },
   { id: 'tasks', label: 'المهام', icon: 'ph-check-square' },
+  { id: 'sync', label: 'صندوق المزامنة', icon: 'ph-arrows-clockwise' },
   { id: 'clients', label: 'العملاء', icon: 'ph-buildings' },
   { id: 'projects', label: 'المشاريع', icon: 'ph-briefcase' },
   { id: 'internal-work', label: 'العمل الداخلي', icon: 'ph-buildings' },
@@ -360,6 +361,31 @@ function TaskList({ tasks, onOpenProject, compact = false }) {
   );
 }
 
+const SYNC_STATUS_LABELS = {
+  pending_preview: 'بانتظار المعاينة',
+  pending_approval: 'بانتظار الموافقة',
+  approved: 'معتمدة للتنفيذ',
+  synced: 'تمت المزامنة',
+  conflict: 'تعارض يحتاج قرارًا',
+  failed: 'فشل يحتاج مراجعة',
+  local_only: 'محلي فقط',
+};
+
+function SyncInboxView({ storeState }) {
+  const operations = [...storeState.syncOperations].reverse();
+  return (
+    <div className="agency-preview-content">
+      <ScreenHeader eyebrow="التحكم" title="صندوق المزامنة" description="هنا تظهر نية التغيير ونتيجته داخل مَهَد. لا تُرسل العملية إلى Trello من هذه الشاشة تلقائيًا؛ كل كتابة تحتاج معاينة وموافقة وسجل نتيجة." />
+      <section className="agency-summary-grid agency-summary-grid-four" aria-label="ملخص صندوق المزامنة"><article><span>كل العمليات</span><strong>{operations.length}</strong><small>سجل مَهَد المحلي</small></article><article><span>بانتظار الموافقة</span><strong>{operations.filter((item) => item.status === 'pending_approval').length}</strong><small>تحتاج قرارًا</small></article><article><span>تعارضات</span><strong>{operations.filter((item) => item.status === 'conflict').length}</strong><small>لا تُطبق تلقائيًا</small></article><article><span>فشل</span><strong>{operations.filter((item) => item.status === 'failed').length}</strong><small>تحتاج مراجعة</small></article></section>
+      <section className="agency-panel agency-sync-inbox-panel">
+        <div className="agency-panel-heading"><div><span className="agency-eyebrow">سجل قابل للتدقيق</span><h2>العمليات</h2></div><PrototypePill tone="success">مَهَد أولًا</PrototypePill></div>
+        {operations.length ? <div className="agency-sync-operation-list">{operations.map((operation) => <article key={operation.id}><div className="agency-sync-operation-top"><div><strong>{operation.payload?.title || operation.payload?.name || operation.entityId}</strong><span>{operation.entityType} · {operation.operation} · {operation.id}</span></div><PrototypePill tone={operation.status === 'synced' ? 'success' : operation.status === 'conflict' || operation.status === 'failed' ? 'warning' : 'neutral'}>{SYNC_STATUS_LABELS[operation.status] || operation.status}</PrototypePill></div><div className="agency-sync-operation-meta"><span>الهدف: {operation.payload?.projectId || operation.payload?.clientId || 'يحتاج خريطة خارجية'}</span><span>{operation.createdAt ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(operation.createdAt)) : 'وقت غير مسجل'}</span></div>{operation.status === 'pending_approval' && <button type="button" className="agency-secondary-btn" disabled>المعاينة متاحة — التنفيذ سيُوصل لاحقًا</button>}{operation.status === 'conflict' && <p className="agency-sync-warning"><i className="ph ph-warning" /> لا يُستبدل أي تغيير حتى يراجع الفريق الفرق بين مَهَد وTrello.</p>}</article>)}</div> : <p className="agency-empty-copy">لا توجد عمليات في صندوق المزامنة. أنشئ كيانًا من مَهَد ثم ضعه في صندوق الموافقة.</p>}
+      </section>
+      <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>الحد التشغيلي الحالي</strong><p>هذه الشاشة تسجل العملية وتوضح حالتها، لكنها لا تنفذ كتابة خارجية تلقائيًا. توصيل زر الاعتماد بموصل Trello يأتي بعد اعتماد سياسة المزامنة وصلاحيات الفريق.</p></div></section>
+    </div>
+  );
+}
+
 function TasksView({ operational, storeState }) {
   return (
     <div className="agency-preview-content">
@@ -576,6 +602,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'projects' && <><SavedProjectsPanel projects={storeState.projects} /><ProjectsView onOpenProject={openProject} /></>}
           {section === 'internal-work' && <InternalWorkView operational={operational} />}
           {section === 'tasks' && <TasksView operational={operational} storeState={storeState} />}
+          {section === 'sync' && <SyncInboxView storeState={storeState} />}
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
