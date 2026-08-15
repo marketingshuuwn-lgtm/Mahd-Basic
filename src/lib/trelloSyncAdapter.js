@@ -2,6 +2,46 @@ import { trelloCreateCard, trelloUpdateCard } from './trello.js';
 
 export const WRITEABLE_TRELLO_OPERATIONS = ['task.create', 'task.update'];
 
+function comparableCard(card = {}) {
+  return {
+    name: String(card.name || card.title || ''),
+    description: String(card.description || card.desc || ''),
+    dueDate: card.dueDate || card.due?.date || null,
+    listId: card.listId || card.list?.id || null,
+    closed: Boolean(card.closed),
+  };
+}
+
+export function detectTrelloConflict({ localSnapshot = {}, externalCard = {} } = {}) {
+  const local = comparableCard(localSnapshot);
+  const external = comparableCard(externalCard);
+  const fields = Object.keys(local).filter((field) => local[field] !== external[field]);
+  return {
+    hasConflict: fields.length > 0,
+    fields,
+    local,
+    external,
+    reason: fields.length ? 'تغيرت بيانات Trello منذ آخر قراءة محفوظة؛ يلزم عرض الفرق قبل التطبيق.' : null,
+  };
+}
+
+export function buildInboundChangeProposal({ entityId, externalId, localSnapshot, externalCard } = {}) {
+  if (!entityId || !externalId) throw new Error('معرّفا مَهَد وTrello مطلوبان لبناء اقتراح القراءة العكسية.');
+  const conflict = detectTrelloConflict({ localSnapshot, externalCard });
+  return {
+    id: `inbound-${entityId}-${externalId}`,
+    entityType: 'task',
+    entityId,
+    externalId,
+    operation: 'update',
+    status: conflict.hasConflict ? 'conflict' : 'synced',
+    requiresApproval: conflict.hasConflict,
+    conflict,
+    payload: conflict.external,
+    reason: conflict.reason || 'لم يتغير المصدر الخارجي منذ آخر قراءة محفوظة.',
+  };
+}
+
 export function buildTrelloWritePlan(operation, { defaultListId = null, listId = null } = {}) {
   if (!operation?.entityType || !operation?.operation) throw new Error('عملية مَهَد غير مكتملة.');
   const key = `${operation.entityType}.${operation.operation}`;
