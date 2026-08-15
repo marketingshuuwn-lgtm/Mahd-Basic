@@ -249,3 +249,12 @@
 .agency-sync-record-footer a:hover { text-decoration: underline; }
 @media (max-width: 960px) { .agency-sync-record-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 680px) { .agency-sync-record-grid { grid-template-columns: 1fr; } .agency-sync-record-footer { align-items: flex-start; flex-direction: column; } }
+
+.agency-entity-store-panel { margin: 18px 0 24px; border-color: #dce8df; }
+.agency-summary-grid-four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.agency-sync-queue-list { display: grid; gap: 8px; margin-top: 14px; }
+.agency-sync-queue-list > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #e8eee9; border-radius: 10px; color: #466154; background: #fbfdfb; font-size: 11px; }
+.agency-sync-queue-list > div > span { display: inline-flex; align-items: center; gap: 6px; }
+.agency-sync-queue-list > div > span i { color: #28745b; font-size: 15px; }
+@media (max-width: 960px) { .agency-summary-grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px) { .agency-summary-grid-four { grid-template-columns: 1fr 1fr; } }

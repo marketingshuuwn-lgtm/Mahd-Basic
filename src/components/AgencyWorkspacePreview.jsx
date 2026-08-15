@@ -149,6 +149,18 @@ const PILOT_SYNC_RECORD = Object.freeze({
   syncedAt: '2026-08-15T18:54:52.334Z',
 });
 
+function EntityStorePanel({ state }) {
+  const pending = state.syncOperations.filter((operation) => ['pending_preview', 'pending_approval', 'approved', 'conflict', 'failed'].includes(operation.status));
+  return (
+    <section className="agency-panel agency-entity-store-panel">
+      <div className="agency-panel-heading"><div><span className="agency-eyebrow">بيانات مَهَد</span><h2>ما تم حفظه داخليًا</h2></div><PrototypePill tone="success">محلي قابل للاستعادة</PrototypePill></div>
+      <div className="agency-summary-grid agency-summary-grid-four"><article><span>العملاء</span><strong>{state.clients.length}</strong><small>كيانات محفوظة</small></article><article><span>المشاريع</span><strong>{state.projects.length}</strong><small>مرتبطة بالعملاء</small></article><article><span>المهام</span><strong>{state.tasks.length}</strong><small>وحدات تنفيذ</small></article><article><span>صندوق المزامنة</span><strong>{pending.length}</strong><small>عمليات تحتاج متابعة</small></article></div>
+      {pending.length > 0 && <div className="agency-sync-queue-list">{pending.slice(0, 4).map((operation) => <div key={operation.id}><span><i className="ph ph-arrows-clockwise" /> {operation.entityType} · {operation.operation}</span><PrototypePill tone="warning">{operation.status === 'pending_approval' ? 'بانتظار الموافقة' : operation.status}</PrototypePill></div>)}</div>}
+      {!pending.length && <p className="agency-empty-copy">لا توجد عمليات معلقة في صندوق المزامنة المحلي.</p>}
+    </section>
+  );
+}
+
 function SyncRecordPanel({ record }) {
   return (
     <section className="agency-panel agency-sync-record-panel">
@@ -184,7 +196,7 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational, syncRecord }) {
+function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational, syncRecord, storeState }) {
   return (
     <div className="agency-preview-content">
       <section className="agency-hero">
@@ -198,6 +210,7 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate,
 
       <TrelloSourceNote source={operational.source} />
       <SyncRecordPanel record={syncRecord} />
+      <EntityStorePanel state={storeState} />
       <section className="agency-summary-grid" aria-label="ملخص قراءة Trello">
         <article><span>بطاقات Board المقروءة</span><strong>{operational.report.total}</strong><small>كل البطاقات ظاهرة في أحد المسارات</small></article>
         <article><span>بطاقات العملاء</span><strong>{operational.report.client.length}</strong><small>ضمن 4 عملاء معروفين</small></article>
@@ -464,6 +477,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const repository = useMemo(() => createMahdRepository(), []);
   const [drafts, setDrafts] = useState(() => repository.listDrafts());
   const [syncRecord] = useState(PILOT_SYNC_RECORD);
+  const [storeState, setStoreState] = useState(() => repository.load());
   const [selectedDraft, setSelectedDraft] = useState(null);
   const connectedTrelloTasks = useMemo(
     () => (Array.isArray(trelloTasks) ? trelloTasks.filter((task) => task.externalSource === 'trello') : []),
@@ -504,6 +518,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     if (draft.entityType === 'task') repository.saveTask(draft);
     const draftRecord = { ...draft, syncStatus: 'local_only', localOnly: true };
     repository.saveDraft(draftRecord);
+    setStoreState(repository.load());
     setDrafts((current) => [draftRecord, ...current.filter((item) => item.id !== draftRecord.id)]);
   };
   const queueDraftForApproval = () => {
@@ -524,6 +539,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     });
     repository.saveDraft(next);
     repository.saveSyncOperation(operation);
+    setStoreState(repository.load());
     setDrafts((current) => current.map((draft) => draft.id === next.id ? next : draft));
     setSelectedDraft(next);
   };
@@ -539,7 +555,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
-          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} />}
+          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} storeState={storeState} />}
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
