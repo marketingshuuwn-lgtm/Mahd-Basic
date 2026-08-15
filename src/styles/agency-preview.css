@@ -258,3 +258,11 @@
 .agency-sync-queue-list > div > span i { color: #28745b; font-size: 15px; }
 @media (max-width: 960px) { .agency-summary-grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 680px) { .agency-summary-grid-four { grid-template-columns: 1fr 1fr; } }
+
+.agency-saved-entities-panel { margin: 18px 0 24px; }
+.agency-saved-entity-list { display: grid; gap: 8px; }
+.agency-saved-entity-list > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid #e4ece6; border-radius: 11px; background: #fbfdfb; }
+.agency-saved-entity-list > div > div { min-width: 0; }
+.agency-saved-entity-list strong, .agency-saved-entity-list span { display: block; }
+.agency-saved-entity-list strong { overflow: hidden; color: #294638; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.agency-saved-entity-list span { margin-top: 3px; overflow: hidden; color: #748279; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }

@@ -239,10 +239,23 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate,
   );
 }
 
-function ClientsView({ onOpenProject, onOpenClientReview, operational }) {
+function SavedProjectsPanel({ projects }) {
+  return (
+    <section className="agency-panel agency-saved-entities-panel">
+      <div className="agency-panel-heading"><div><span className="agency-eyebrow">مشاريع مَهَد</span><h2>المشاريع المحفوظة داخليًا</h2></div><PrototypePill tone="success">{projects.length} مشروع</PrototypePill></div>
+      {projects.length ? <div className="agency-saved-entity-list">{projects.map((project) => <div key={project.id}><div><strong>{project.name}</strong><span>مرتبطة بالعميل: {project.clientId}</span></div><PrototypePill>{project.type || 'نوع غير محدد'}</PrototypePill></div>)}</div> : <p className="agency-empty-copy">لم يُحفظ مشروع داخل مَهَد بعد.</p>}
+    </section>
+  );
+}
+
+function ClientsView({ onOpenProject, onOpenClientReview, operational, storeState }) {
   return (
     <div className="agency-preview-content">
       <ScreenHeader eyebrow="العلاقات" title="العملاء" description="هنا يبقى السياق المشترك للجهة المتعاقدة، ثم تنتقل منه إلى مشروع محدد ومخرجاته عندما يكون المشروع معتمدًا." />
+      <section className="agency-panel agency-saved-entities-panel">
+        <div className="agency-panel-heading"><div><span className="agency-eyebrow">سجل مَهَد</span><h2>العملاء المحفوظون داخليًا</h2></div><PrototypePill tone="success">{storeState.clients.length} عميل</PrototypePill></div>
+        {storeState.clients.length ? <div className="agency-saved-entity-list">{storeState.clients.map((savedClient) => <div key={savedClient.id}><div><strong>{savedClient.name}</strong><span>{savedClient.description || 'لا يوجد وصف إضافي بعد'}</span></div><PrototypePill tone="success">{savedClient.status || 'active'}</PrototypePill></div>)}</div> : <p className="agency-empty-copy">لم يُحفظ عميل داخل مَهَد بعد.</p>}
+      </section>
       <section className="agency-client-grid">
         {CLIENTS.map((client) => {
           const hasProject = Boolean(client.projectId);
@@ -347,11 +360,12 @@ function TaskList({ tasks, onOpenProject, compact = false }) {
   );
 }
 
-function TasksView({ operational }) {
+function TasksView({ operational, storeState }) {
   return (
     <div className="agency-preview-content">
       <ScreenHeader eyebrow="التنفيذ" title="المهام" description="هذه قراءة للبطاقات التشغيلية من Board؛ كل صف يظهر العميل أو العمل الداخلي وقائمة Trello والموعد ورابط المصدر." />
       <TrelloSourceNote source={operational.source} />
+      <section className="agency-panel agency-saved-entities-panel"><div className="agency-panel-heading"><div><span className="agency-eyebrow">تنفيذ مَهَد</span><h2>المهام المحفوظة داخليًا</h2></div><PrototypePill tone="success">{storeState.tasks.length} مهمة</PrototypePill></div>{storeState.tasks.length ? <div className="agency-saved-entity-list">{storeState.tasks.map((task) => <div key={task.id}><div><strong>{task.title}</strong><span>{task.clientId} · {task.projectId} · {task.assigneeId || 'بلا مالك'}</span></div><PrototypePill>{task.status || 'not_started'}</PrototypePill></div>)}</div> : <p className="agency-empty-copy">لم تُحفظ مهمة داخل مَهَد بعد.</p>}</section>
       <section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>كل البطاقات التشغيلية</h2><PrototypePill tone="success">{operational.operationalCards.length} بطاقة</PrototypePill></div><OperationalCardList cards={operational.operationalCards} limit={20} /></section>
       <section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>تحتاج تصنيفًا</h2><PrototypePill tone="warning">{operational.review.length} بطاقات</PrototypePill></div><OperationalCardList cards={operational.review} limit={10} emptyCopy="كل البطاقات مقسمة إلى عميل أو عمل داخلي أو قالب." /></section>
       <section className="agency-guidance-panel"><i className="ph ph-link-simple" /><div><strong>كل صف رابط مصدر</strong><p>يفتح الصف البطاقة الأصلية في Trello. لا ينفذ العرض أي تعديل أو نقل أو إنشاء لبطاقة.</p></div></section>
@@ -556,12 +570,12 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
         </aside>
         <main className="agency-preview-main">
           {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} storeState={storeState} />}
-          {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} />}
+          {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} storeState={storeState} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
-          {section === 'projects' && <ProjectsView onOpenProject={openProject} />}
+          {section === 'projects' && <><SavedProjectsPanel projects={storeState.projects} /><ProjectsView onOpenProject={openProject} /></>}
           {section === 'internal-work' && <InternalWorkView operational={operational} />}
-          {section === 'tasks' && <TasksView operational={operational} />}
+          {section === 'tasks' && <TasksView operational={operational} storeState={storeState} />}
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
