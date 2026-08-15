@@ -20,6 +20,7 @@ export const PROJECT_TYPES = [
 
 export const ENTITY_STATUSES = ['draft', 'active', 'on_hold', 'completed', 'archived'];
 export const TASK_STATUSES = ['not_started', 'in_progress', 'in_review', 'completed', 'cancelled'];
+export const DELIVERABLE_STATUSES = ['planned', 'in_progress', 'in_review', 'approved', 'delivered', 'archived'];
 export const SYNC_STATUSES = ['local_only', 'pending_preview', 'pending_approval', 'approved', 'synced', 'conflict', 'failed', 'rejected', 'resolved'];
 
 function asText(value) {
@@ -97,8 +98,51 @@ export function createTask({ id, projectId = null, clientId = null, internalWork
   };
 }
 
+export function createDeliverable({ id, clientId, projectId, taskId = null, title, type = 'general', description = '', status = 'planned', ownerId = null, dueDate = null, now } = {}) {
+  const cleanClientId = asText(clientId);
+  const cleanProjectId = asText(projectId);
+  const cleanTitle = asText(title);
+  if (!cleanClientId || !cleanProjectId) throw new Error('المخرج يحتاج عميلًا ومشروعًا.');
+  if (!cleanTitle) throw new Error('اسم المخرج مطلوب.');
+  return {
+    id: id || createEntityId('deliverable'),
+    entityType: 'deliverable',
+    clientId: cleanClientId,
+    projectId: cleanProjectId,
+    taskId: taskId || null,
+    title: cleanTitle,
+    type: asText(type) || 'general',
+    description: asText(description),
+    status: DELIVERABLE_STATUSES.includes(status) ? status : 'planned',
+    ownerId: ownerId || null,
+    dueDate: dueDate || null,
+    externalRefs: [],
+    createdAt: isoNow(now),
+    updatedAt: isoNow(now),
+  };
+}
+
+export function createInternalWork({ id, title, workstream = 'company-operations', description = '', status = 'not_started', assigneeId = null, dueDate = null, now } = {}) {
+  const cleanTitle = asText(title);
+  if (!cleanTitle) throw new Error('عنوان العمل الداخلي مطلوب.');
+  return {
+    id: id || createEntityId('internal'),
+    entityType: 'internal_work',
+    workstream: asText(workstream) || 'company-operations',
+    title: cleanTitle,
+    description: asText(description),
+    status: TASK_STATUSES.includes(status) ? status : 'not_started',
+    assigneeId: assigneeId || null,
+    dueDate: dueDate || null,
+    externalRefs: [],
+    syncStatus: 'local_only',
+    createdAt: isoNow(now),
+    updatedAt: isoNow(now),
+  };
+}
+
 export function createSyncOperation({ entityType, entityId, operation, payload = {}, status = 'pending_preview', now } = {}) {
-  if (!['client', 'project', 'task'].includes(entityType)) throw new Error('نوع الكيان غير مدعوم للمزامنة.');
+  if (!['client', 'project', 'task', 'deliverable', 'internal_work'].includes(entityType)) throw new Error('نوع الكيان غير مدعوم للمزامنة.');
   if (!entityId) throw new Error('معرّف الكيان مطلوب للمزامنة.');
   if (!['create', 'update', 'archive', 'link'].includes(operation)) throw new Error('عملية المزامنة غير معروفة.');
   return {

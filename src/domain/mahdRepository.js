@@ -5,7 +5,7 @@ function clone(value) {
 }
 
 function emptyState() {
-  return { version: 1, clients: [], projects: [], tasks: [], syncOperations: [], drafts: [], updatedAt: null };
+  return { version: 1, clients: [], projects: [], tasks: [], deliverables: [], internalWorks: [], syncOperations: [], drafts: [], updatedAt: null };
 }
 
 function normalizeState(value) {
@@ -17,6 +17,8 @@ function normalizeState(value) {
     clients: Array.isArray(next.clients) ? next.clients : [],
     projects: Array.isArray(next.projects) ? next.projects : [],
     tasks: Array.isArray(next.tasks) ? next.tasks : [],
+    deliverables: Array.isArray(next.deliverables) ? next.deliverables : [],
+    internalWorks: Array.isArray(next.internalWorks) ? next.internalWorks : [],
     syncOperations: Array.isArray(next.syncOperations) ? next.syncOperations : [],
     drafts: Array.isArray(next.drafts) ? next.drafts : [],
   };
@@ -53,6 +55,8 @@ export function createMahdRepository({ storage = globalThis?.localStorage, key =
     saveClient(client) { return upsert('clients', client); },
     saveProject(project) { return upsert('projects', project); },
     saveTask(task) { return upsert('tasks', task); },
+    saveDeliverable(deliverable) { return upsert('deliverables', deliverable); },
+    saveInternalWork(internalWork) { return upsert('internalWorks', internalWork); },
     saveSyncOperation(operation) { return upsert('syncOperations', operation); },
     saveDraft(draft) { return upsert('drafts', draft); },
     getDraft(id) { return read().drafts.find((draft) => draft.id === id) || null; },

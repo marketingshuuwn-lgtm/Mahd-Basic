@@ -35,6 +35,16 @@ test('يحدث السجل نفسه بدل إنشاء نسخة مكررة', () =>
   assert.equal(drafts[0].syncStatus, 'pending_approval');
 });
 
+test('يحفظ ويستعيد المخرج والعمل الداخلي مع السجلات الأخرى', () => {
+  const storage = memoryStorage();
+  const repository = createMahdRepository({ storage });
+  repository.saveDeliverable({ id: 'deliverable-1', clientId: 'client-1', projectId: 'project-1', title: 'مخرج هوية', status: 'in_review' });
+  repository.saveInternalWork({ id: 'internal-1', workstream: 'company-operations', title: 'مراجعة إجراءات الشركة', status: 'in_progress' });
+  const state = createMahdRepository({ storage }).load();
+  assert.equal(state.deliverables[0].projectId, 'project-1');
+  assert.equal(state.internalWorks[0].workstream, 'company-operations');
+});
+
 test('يتعامل مع تخزين تالف بالعودة إلى حالة فارغة', () => {
   const storage = memoryStorage();
   storage.setItem('mahd_product_store_v1', '{not-json');

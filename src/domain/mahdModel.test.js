@@ -5,6 +5,8 @@ import {
   createProject,
   createSyncOperation,
   createTask,
+  createDeliverable,
+  createInternalWork,
   validateTaskRelationship,
 } from './mahdModel.js';
 
@@ -35,6 +37,21 @@ test('يمنع ربط مهمة بمشروع تابع لعميل آخر', () => {
   const result = validateTaskRelationship(task, { clients: [clientA, clientB], projects: [project] });
   assert.equal(result.valid, false);
   assert.match(result.reason, /لا ينتميان/);
+});
+
+test('ينشئ مخرجًا مرتبطًا بالمشروع والعميل وعملًا داخليًا مستقلًا', () => {
+  const deliverable = createDeliverable({ id: 'deliverable-1', clientId: 'client-1', projectId: 'project-1', taskId: 'task-1', title: 'هوية بصرية معتمدة', type: 'visual-identity' });
+  const internal = createInternalWork({ id: 'internal-1', title: 'تنظيم مكتبة الشركة', workstream: 'company-operations' });
+  assert.equal(deliverable.entityType, 'deliverable');
+  assert.equal(deliverable.projectId, 'project-1');
+  assert.equal(deliverable.taskId, 'task-1');
+  assert.equal(internal.entityType, 'internal_work');
+  assert.equal(internal.workstream, 'company-operations');
+  assert.equal(internal.clientId, undefined);
+});
+
+test('يرفض المخرج بلا عميل أو مشروع', () => {
+  assert.throws(() => createDeliverable({ title: 'مخرج بلا سياق', projectId: 'project-1' }), /عميلًا ومشروعًا/);
 });
 
 test('يبدأ سجل المزامنة في المعاينة ولا ينفذ تلقائيًا', () => {

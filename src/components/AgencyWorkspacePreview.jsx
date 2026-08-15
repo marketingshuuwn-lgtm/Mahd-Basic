@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { createClient, createProject, createTask, createSyncOperation } from '../domain/mahdModel';
+import { createClient, createProject, createTask, createDeliverable, createInternalWork, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
 import { buildInboundChangeProposal, buildTrelloWritePlan, executeApprovedTrelloWrite } from '../lib/trelloSyncAdapter';
 import { PILOT_ACTOR, assertCanPerformSyncAction } from '../domain/mahdPermissions';
@@ -158,7 +158,7 @@ function EntityStorePanel({ state }) {
   return (
     <section className="agency-panel agency-entity-store-panel">
       <div className="agency-panel-heading"><div><span className="agency-eyebrow">بيانات مَهَد</span><h2>ما تم حفظه داخليًا</h2></div><PrototypePill tone="success">محلي قابل للاستعادة</PrototypePill></div>
-      <div className="agency-summary-grid agency-summary-grid-four"><article><span>العملاء</span><strong>{state.clients.length}</strong><small>كيانات محفوظة</small></article><article><span>المشاريع</span><strong>{state.projects.length}</strong><small>مرتبطة بالعملاء</small></article><article><span>المهام</span><strong>{state.tasks.length}</strong><small>وحدات تنفيذ</small></article><article><span>صندوق المزامنة</span><strong>{pending.length}</strong><small>عمليات تحتاج متابعة</small></article></div>
+      <div className="agency-summary-grid agency-summary-grid-four"><article><span>العملاء</span><strong>{state.clients.length}</strong><small>كيانات محفوظة</small></article><article><span>المشاريع</span><strong>{state.projects.length}</strong><small>مرتبطة بالعملاء</small></article><article><span>المهام</span><strong>{state.tasks.length}</strong><small>وحدات تنفيذ</small></article><article><span>المخرجات</span><strong>{state.deliverables.length}</strong><small>تسليمات مرتبطة</small></article><article><span>العمل الداخلي</span><strong>{state.internalWorks.length}</strong><small>مسارات الشركة</small></article><article><span>صندوق المزامنة</span><strong>{pending.length}</strong><small>عمليات تحتاج متابعة</small></article></div>
       {pending.length > 0 && <div className="agency-sync-queue-list">{pending.slice(0, 4).map((operation) => <div key={operation.id}><span><i className="ph ph-arrows-clockwise" /> {operation.entityType} · {operation.operation}</span><PrototypePill tone="warning">{operation.status === 'pending_approval' ? 'بانتظار الموافقة' : operation.status}</PrototypePill></div>)}</div>}
       {!pending.length && <p className="agency-empty-copy">لا توجد عمليات معلقة في صندوق المزامنة المحلي.</p>}
     </section>
@@ -441,7 +441,7 @@ function ProjectView({ project, onBack, onOpenTemplates, operational }) {
 
 function CreateWorkspaceView({ onBack, drafts, onCreated, onPreviewDraft }) {
   const [kind, setKind] = useState('client');
-  const [form, setForm] = useState({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', assigneeId: '', dueDate: '' });
+  const [form, setForm] = useState({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', taskId: '', assigneeId: '', dueDate: '', description: '', workstream: 'company-operations' });
   const [message, setMessage] = useState('');
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
@@ -452,30 +452,37 @@ function CreateWorkspaceView({ onBack, drafts, onCreated, onPreviewDraft }) {
       const entity = kind === 'client'
         ? createClient({ name: form.name, now })
         : kind === 'project'
-          ? createProject({ clientId: form.clientId || 'client-draft', name: form.name, type: form.type, now })
-          : createTask({ clientId: form.clientId || 'client-draft', projectId: form.projectId || 'project-draft', title: form.title, assigneeId: form.assigneeId, dueDate: form.dueDate || null, now });
+          ? createProject({ clientId: form.clientId || 'client-draft', name: form.name, type: form.type, description: form.description, now })
+          : kind === 'task'
+            ? createTask({ clientId: form.clientId || 'client-draft', projectId: form.projectId || 'project-draft', title: form.title, assigneeId: form.assigneeId, dueDate: form.dueDate || null, description: form.description, now })
+            : kind === 'deliverable'
+              ? createDeliverable({ clientId: form.clientId || 'client-draft', projectId: form.projectId || 'project-draft', taskId: form.taskId || null, title: form.title, type: form.type, description: form.description, dueDate: form.dueDate || null, now })
+              : createInternalWork({ title: form.title, workstream: form.workstream, description: form.description, assigneeId: form.assigneeId, dueDate: form.dueDate || null, now });
       onCreated({ ...entity, localOnly: true });
       setMessage('تم إنشاء مسودة داخل مَهَد لهذه الجلسة. لم تُحفظ بعد ولم تُرسل إلى Trello.');
-      setForm({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', assigneeId: '', dueDate: '' });
+      setForm({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', taskId: '', assigneeId: '', dueDate: '', description: '', workstream: 'company-operations' });
     } catch (error) {
       setMessage(error.message);
     }
   };
 
-  const labels = { client: 'عميل', project: 'مشروع', task: 'مهمة' };
+  const labels = { client: 'عميل', project: 'مشروع', task: 'مهمة', deliverable: 'مخرج', internal_work: 'عمل داخلي' };
+  const draftLabel = (entityType) => labels[entityType] || 'كيان';
   return (
     <div className="agency-preview-content">
       <button type="button" className="agency-back-btn" onClick={onBack}><i className="ph ph-arrow-right" /> العودة إلى الرئيسية</button>
       <ScreenHeader eyebrow="إنشاء داخل مَهَد" title="أنشئ من مكان العمل" description="هذه أول طبقة من تجربة الإنشاء اليومية. المسودة تبقى داخل مَهَد في هذه المرحلة، ثم ستنتقل لاحقًا إلى التخزين المشترك وصندوق الموافقة." />
       <section className="agency-create-switcher" aria-label="نوع الكيان"><span>ماذا تريد إنشاءه؟</span>{Object.entries(labels).map(([id, label]) => <button type="button" key={id} className={kind === id ? 'active' : ''} onClick={() => { setKind(id); setMessage(''); }}>{label}</button>)}</section>
       <form className="agency-panel agency-create-form" onSubmit={submit}>
-        {kind === 'client' && <><label>اسم العميل<input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثل: عميل جديد" required /></label><label>وصف وسياق العميل<textarea value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="ما الذي يجب أن يعرفه الفريق؟" /></label></>}
-        {kind === 'project' && <><label>اسم المشروع<input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثل: خطة إطلاق" required /></label><label>معرّف العميل داخل مَهَد<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} placeholder="سيصبح اختيارًا من سجل العملاء" required /></label><label>نوع المشروع<select value={form.type} onChange={(event) => update('type', event.target.value)}>{PROJECT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}</select></label></>}
-        {kind === 'task' && <><label>عنوان المهمة<input value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="ما الذي يجب إنجازه؟" required /></label><div className="agency-form-grid"><label>معرّف العميل<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} placeholder="client-..." required /></label><label>معرّف المشروع<input value={form.projectId} onChange={(event) => update('projectId', event.target.value)} placeholder="project-..." required /></label></div><div className="agency-form-grid"><label>المالك أو الدور<input value={form.assigneeId} onChange={(event) => update('assigneeId', event.target.value)} placeholder="مدير الحساب" /></label><label>الموعد<input type="date" value={form.dueDate} onChange={(event) => update('dueDate', event.target.value)} /></label></div></>}
+        {kind === 'client' && <><label>اسم العميل<input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثل: عميل جديد" required /></label><label>وصف وسياق العميل<textarea value={form.description} onChange={(event) => update('description', event.target.value)} placeholder="ما الذي يجب أن يعرفه الفريق؟" /></label></>}
+        {kind === 'project' && <><label>اسم المشروع<input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثل: خطة إطلاق" required /></label><label>معرّف العميل داخل مَهَد<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} placeholder="سيصبح اختيارًا من سجل العملاء" required /></label><label>نوع المشروع<select value={form.type} onChange={(event) => update('type', event.target.value)}>{PROJECT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}</select></label><label>وصف المشروع<textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></label></>}
+        {kind === 'task' && <><label>عنوان المهمة<input value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="ما الذي يجب إنجازه؟" required /></label><div className="agency-form-grid"><label>معرّف العميل<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} placeholder="client-..." required /></label><label>معرّف المشروع<input value={form.projectId} onChange={(event) => update('projectId', event.target.value)} placeholder="project-..." required /></label></div><div className="agency-form-grid"><label>المالك أو الدور<input value={form.assigneeId} onChange={(event) => update('assigneeId', event.target.value)} placeholder="مدير الحساب" /></label><label>الموعد<input type="date" value={form.dueDate} onChange={(event) => update('dueDate', event.target.value)} /></label></div><label>وصف المهمة<textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></label></>}
+        {kind === 'deliverable' && <><label>اسم المخرج<input value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="مثل: هوية بصرية معتمدة" required /></label><div className="agency-form-grid"><label>معرّف العميل<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} required /></label><label>معرّف المشروع<input value={form.projectId} onChange={(event) => update('projectId', event.target.value)} required /></label></div><label>المهمة المرتبطة اختياريًا<input value={form.taskId} onChange={(event) => update('taskId', event.target.value)} placeholder="task-..." /></label><label>نوع المخرج<input value={form.type} onChange={(event) => update('type', event.target.value)} placeholder="visual-identity" /></label><label>وصف المخرج<textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></label></>}
+        {kind === 'internal_work' && <><label>عنوان العمل الداخلي<input value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="مثل: تنظيم مكتبة الشركة" required /></label><label>مسار العمل الداخلي<input value={form.workstream} onChange={(event) => update('workstream', event.target.value)} placeholder="company-operations" required /></label><div className="agency-form-grid"><label>المالك أو الدور<input value={form.assigneeId} onChange={(event) => update('assigneeId', event.target.value)} /></label><label>الموعد<input type="date" value={form.dueDate} onChange={(event) => update('dueDate', event.target.value)} /></label></div><label>الوصف<textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></label></>}
         <button type="submit" className="agency-primary-btn"><i className="ph ph-check" /> إنشاء مسودة {labels[kind]} داخل مَهَد</button>
         {message && <p className={`agency-form-message${message.includes('تم إنشاء') ? ' success' : ' error'}`}>{message}</p>}
       </form>
-      <section className="agency-panel"><div className="agency-panel-heading"><h2>مسودات هذه الجلسة</h2><PrototypePill tone="warning">غير محفوظة</PrototypePill></div>{drafts.length ? <div className="agency-draft-list">{drafts.map((draft) => <div className="agency-draft-row" key={draft.id}><div><strong>{draft.name || draft.title}</strong><span>{draft.entityType === 'client' ? 'عميل' : draft.entityType === 'project' ? 'مشروع' : 'مهمة'} · {draft.syncStatus === 'pending_approval' ? 'بانتظار الموافقة' : 'مسودة مَهَد'}</span></div><button type="button" className="agency-inline-btn" onClick={() => onPreviewDraft(draft)}>معاينة الإرسال</button></div>)}</div> : <p className="agency-empty-copy">لم تنشئ مسودة بعد. جرّب إنشاء عميل أو مشروع أو مهمة من هذه الشاشة.</p>}</section>
+      <section className="agency-panel"><div className="agency-panel-heading"><h2>مسودات هذه الجلسة</h2><PrototypePill tone="warning">غير محفوظة</PrototypePill></div>{drafts.length ? <div className="agency-draft-list">{drafts.map((draft) => <div className="agency-draft-row" key={draft.id}><div><strong>{draft.name || draft.title}</strong><span>{draftLabel(draft.entityType)} · {draft.syncStatus === 'pending_approval' ? 'بانتظار الموافقة' : 'مسودة مَهَد'}</span></div><button type="button" className="agency-inline-btn" onClick={() => onPreviewDraft(draft)}>معاينة الإرسال</button></div>)}</div> : <p className="agency-empty-copy">لم تنشئ مسودة بعد. جرّب إنشاء عميل أو مشروع أو مهمة من هذه الشاشة.</p>}</section>
       <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>ما الذي لم يحدث؟</strong><p>لم تُكتب أي بطاقة أو Label في Trello. بعد بناء التخزين المشترك ستتحول المسودة إلى عملية معاينة ثم موافقة ثم مزامنة.</p></div></section>
     </div>
   );
@@ -561,6 +568,8 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     if (draft.entityType === 'client') repository.saveClient(draft);
     if (draft.entityType === 'project') repository.saveProject(draft);
     if (draft.entityType === 'task') repository.saveTask(draft);
+    if (draft.entityType === 'deliverable') repository.saveDeliverable(draft);
+    if (draft.entityType === 'internal_work') repository.saveInternalWork(draft);
     const draftRecord = { ...draft, syncStatus: 'local_only', localOnly: true };
     repository.saveDraft(draftRecord);
     setStoreState(repository.load());
