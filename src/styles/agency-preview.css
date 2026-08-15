@@ -279,3 +279,7 @@
 .agency-sync-warning { display: flex; align-items: flex-start; gap: 6px; margin-top: 11px !important; padding-top: 10px; border-top: 1px solid #f0e2c7; color: #92651f !important; font-size: 11px; }
 .agency-sync-warning i { margin-top: 2px; }
 @media (max-width: 680px) { .agency-sync-operation-top, .agency-sync-operation-meta { align-items: flex-start; flex-direction: column; } }
+
+.agency-sync-operation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.agency-sync-operation-actions .agency-primary-btn, .agency-sync-operation-actions .agency-secondary-btn { padding: 8px 11px; font-size: 11px; }
+.agency-sync-operation-actions .agency-secondary-btn { color: #8d5f1b; background: #fff3dc; }
