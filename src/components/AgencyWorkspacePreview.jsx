@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { createClient, createProject, createTask } from '../domain/mahdModel';
+import { createClient, createProject, createTask, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
 import trelloReadSnapshot from '../data/trelloReadSnapshot';
 import { buildAgencyOperationalView } from '../utils/agencyOperationalView';
@@ -499,13 +499,31 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const openCreate = () => { setProjectId(null); setClientId(null); setAssignment(null); setSelectedDraft(null); setSection('create'); };
   const openDraftPreview = (draft) => { setSelectedDraft(draft); setSection('sync-preview'); };
   const saveCreatedDraft = (draft) => {
-    repository.saveDraft(draft);
-    setDrafts((current) => [draft, ...current.filter((item) => item.id !== draft.id)]);
+    if (draft.entityType === 'client') repository.saveClient(draft);
+    if (draft.entityType === 'project') repository.saveProject(draft);
+    if (draft.entityType === 'task') repository.saveTask(draft);
+    const draftRecord = { ...draft, syncStatus: 'local_only', localOnly: true };
+    repository.saveDraft(draftRecord);
+    setDrafts((current) => [draftRecord, ...current.filter((item) => item.id !== draftRecord.id)]);
   };
   const queueDraftForApproval = () => {
     if (!selectedDraft) return;
     const next = { ...selectedDraft, syncStatus: 'pending_approval', updatedAt: new Date().toISOString() };
+    const operation = createSyncOperation({
+      entityType: selectedDraft.entityType,
+      entityId: selectedDraft.id,
+      operation: 'create',
+      payload: {
+        title: selectedDraft.title || selectedDraft.name,
+        name: selectedDraft.name,
+        description: selectedDraft.description || '',
+        clientId: selectedDraft.clientId || null,
+        projectId: selectedDraft.projectId || null,
+      },
+      status: 'pending_approval',
+    });
     repository.saveDraft(next);
+    repository.saveSyncOperation(operation);
     setDrafts((current) => current.map((draft) => draft.id === next.id ? next : draft));
     setSelectedDraft(next);
   };
