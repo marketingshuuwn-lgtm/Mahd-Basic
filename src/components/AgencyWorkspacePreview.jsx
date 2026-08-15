@@ -243,13 +243,17 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate,
   );
 }
 
-function SavedProjectsPanel({ projects }) {
+function SavedProjectsPanel({ projects, tasks = [], deliverables = [] }) {
   return (
     <section className="agency-panel agency-saved-entities-panel">
       <div className="agency-panel-heading"><div><span className="agency-eyebrow">مشاريع مَهَد</span><h2>المشاريع المحفوظة داخليًا</h2></div><PrototypePill tone="success">{projects.length} مشروع</PrototypePill></div>
-      {projects.length ? <div className="agency-saved-entity-list">{projects.map((project) => <div key={project.id}><div><strong>{project.name}</strong><span>مرتبطة بالعميل: {project.clientId}</span></div><PrototypePill>{project.type || 'نوع غير محدد'}</PrototypePill></div>)}</div> : <p className="agency-empty-copy">لم يُحفظ مشروع داخل مَهَد بعد.</p>}
+      {projects.length ? <div className="agency-saved-entity-list">{projects.map((project) => { const projectTasks = tasks.filter((task) => task.projectId === project.id); const projectDeliverables = deliverables.filter((item) => item.projectId === project.id); return <div key={project.id}><div><strong>{project.name}</strong><span>العميل: {project.clientId} · {projectTasks.length} مهام · {projectDeliverables.length} مخرجات</span></div><PrototypePill>{project.type || 'نوع غير محدد'}</PrototypePill></div>; })}</div> : <p className="agency-empty-copy">لم يُحفظ مشروع داخل مَهَد بعد.</p>}
     </section>
   );
+}
+
+function SavedClientRelationsPanel({ clients, projects, tasks, deliverables }) {
+  return <section className="agency-panel agency-saved-entities-panel"><div className="agency-panel-heading"><div><span className="agency-eyebrow">العلاقات الفعلية</span><h2>العميل ← المشروع ← المهمة ← المخرج</h2></div><PrototypePill tone="success">مَهَد</PrototypePill></div>{clients.length ? <div className="agency-saved-entity-list">{clients.map((client) => { const clientProjects = projects.filter((project) => project.clientId === client.id); const clientTasks = tasks.filter((task) => task.clientId === client.id); const clientDeliverables = deliverables.filter((item) => item.clientId === client.id); return <div key={client.id}><div><strong>{client.name}</strong><span>{clientProjects.length} مشاريع · {clientTasks.length} مهام · {clientDeliverables.length} مخرجات</span></div><PrototypePill tone="success">سياق محفوظ</PrototypePill></div>; })}</div> : <p className="agency-empty-copy">لا توجد علاقات محلية محفوظة بعد.</p>}</section>;
 }
 
 function ClientsView({ onOpenProject, onOpenClientReview, operational, storeState }) {
@@ -260,6 +264,7 @@ function ClientsView({ onOpenProject, onOpenClientReview, operational, storeStat
         <div className="agency-panel-heading"><div><span className="agency-eyebrow">سجل مَهَد</span><h2>العملاء المحفوظون داخليًا</h2></div><PrototypePill tone="success">{storeState.clients.length} عميل</PrototypePill></div>
         {storeState.clients.length ? <div className="agency-saved-entity-list">{storeState.clients.map((savedClient) => <div key={savedClient.id}><div><strong>{savedClient.name}</strong><span>{savedClient.description || 'لا يوجد وصف إضافي بعد'}</span></div><PrototypePill tone="success">{savedClient.status || 'active'}</PrototypePill></div>)}</div> : <p className="agency-empty-copy">لم يُحفظ عميل داخل مَهَد بعد.</p>}
       </section>
+      <SavedClientRelationsPanel clients={storeState.clients} projects={storeState.projects} tasks={storeState.tasks} deliverables={storeState.deliverables} />
       <section className="agency-client-grid">
         {CLIENTS.map((client) => {
           const hasProject = Boolean(client.projectId);
@@ -321,7 +326,7 @@ function ProjectAssignmentPreview({ assignment, client, operational, onBack }) {
   );
 }
 
-function InternalWorkView({ operational }) {
+function InternalWorkView({ operational, storeState }) {
   const activeInternal = operational.internal.filter((card) => !card.completed);
   const waitingInternal = activeInternal.filter((card) => card.listName === 'بانتظار البدء');
   const inProgressInternal = activeInternal.filter((card) => card.listName === 'قيد التنفيذ');
@@ -329,16 +334,17 @@ function InternalWorkView({ operational }) {
     <div className="agency-preview-content">
       <ScreenHeader eyebrow="تشغيل الشركة" title="العمل الداخلي" description="مسار مستقل للمهام الإدارية والتنظيمية للشركة؛ لا يظهر ضمن العملاء أو مشاريعهم." />
       <section className="agency-summary-grid agency-summary-grid-three"><article><span>بطاقات علامة الأم</span><strong>{operational.internal.length}</strong><small>عمل إداري وتنظيمي داخلي</small></article><article><span>قيد التنفيذ</span><strong>{inProgressInternal.length}</strong><small>من قراءة Board الحالية</small></article><article><span>تحتاج البدء</span><strong>{waitingInternal.length}</strong><small>من قراءة Board الحالية</small></article></section>
-      <section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>علامة الأم</h2><PrototypePill tone="success">داخلي</PrototypePill></div><p className="agency-empty-copy">تجمع هذه الوجهة التنظيم والتشغيل الإداري الداخلي للشركة، مثل المتابعة الإدارية والمكتبات والأدوات والإجراءات. لا تمثل علامة الأم عميلًا ولا تربط بطاقاتها بمشروعات العملاء.</p><OperationalCardList cards={operational.internal} limit={10} /></section>
+      <section className="agency-panel agency-saved-entities-panel"><div className="agency-panel-heading"><div><span className="agency-eyebrow">سجل مَهَد</span><h2>الأعمال الداخلية المحفوظة</h2></div><PrototypePill tone="success">{storeState.internalWorks.length} عمل</PrototypePill></div>{storeState.internalWorks.length ? <div className="agency-saved-entity-list">{storeState.internalWorks.map((work) => <div key={work.id}><div><strong>{work.title}</strong><span>{work.workstream} · {work.assigneeId || 'بلا مالك'}</span></div><PrototypePill>{work.status}</PrototypePill></div>)}</div> : <p className="agency-empty-copy">لم يُحفظ عمل داخلي داخل مَهَد بعد.</p>}</section><section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>علامة الأم</h2><PrototypePill tone="success">داخلي</PrototypePill></div><p className="agency-empty-copy">تجمع هذه الوجهة التنظيم والتشغيل الإداري الداخلي للشركة، مثل المتابعة الإدارية والمكتبات والأدوات والإجراءات. لا تمثل علامة الأم عميلًا ولا تربط بطاقاتها بمشروعات العملاء.</p><OperationalCardList cards={operational.internal} limit={10} /></section>
       <section className="agency-guidance-panel"><i className="ph ph-buildings" /><div><strong>حدود المسار</strong><p>تظهر البطاقات ذات Label «ALH - علامة الأم» في هذا المسار عند ربط قراءة Trello بالواجهة. لا ينفذ النموذج الحالي أي إنشاء أو نقل أو تعديل في Trello.</p></div></section>
     </div>
   );
 }
 
-function ProjectsView({ onOpenProject }) {
+function ProjectsView({ onOpenProject, storeState }) {
   return (
     <div className="agency-preview-content">
       <ScreenHeader eyebrow="التنفيذ" title="المشاريع" description="كل مشروع له نطاق وحالة وفريق وتسليم تالٍ؛ افتح المشروع لرؤية المعرفة والتنفيذ معًا." />
+      <SavedProjectsPanel projects={storeState.projects} tasks={storeState.tasks} deliverables={storeState.deliverables} />
       <section className="agency-project-grid agency-project-grid-wide">
         {PROJECTS.map((project) => <ProjectCard key={project.id} project={project} onOpen={onOpenProject} />)}
       </section>
@@ -414,8 +420,11 @@ function MyWorkView({ onOpenTasks }) {
   );
 }
 
-function ProjectView({ project, onBack, onOpenTemplates, operational }) {
+function ProjectView({ project, onBack, onOpenTemplates, operational, storeState }) {
   const [tab, setTab] = useState('overview');
+  const localProject = storeState.projects.find((item) => item.id === project.id);
+  const localTasks = storeState.tasks.filter((task) => task.projectId === project.id);
+  const localDeliverables = storeState.deliverables.filter((item) => item.projectId === project.id);
   const projectTasks = operational.clientCards.filter((task) => task.client === project.client && task.project);
   const tabContent = useMemo(() => ({
     overview: <><div className="agency-project-overview-grid"><article><span>تقدم المشروع</span><strong>{project.progress}%</strong><div className="agency-progress-track"><span style={{ width: `${project.progress}%` }} /></div></article><article><span>التسليم التالي</span><strong>{project.due.replace('التسليم القادم: ', '')}</strong><small>ضمن سياق المشروع نفسه</small></article><article><span>الفريق</span><strong>{project.team.length} أدوار</strong><small>{project.team.join(' · ')}</small></article></div><section className="agency-panel agency-brief-panel"><div className="agency-panel-heading"><h2>ملخص المشروع</h2><PrototypePill>Page + Tasks</PrototypePill></div><p>يضم المشروع موجز العميل والقرارات والروابط والمخرجات، ثم يحول الإجراءات الواضحة إلى مهام مرتبطة به، لا إلى بطاقات بلا سياق.</p><button type="button" onClick={onOpenTemplates}><i className="ph ph-files" /> عرض قالب المشروع</button></section></>,
@@ -431,6 +440,7 @@ function ProjectView({ project, onBack, onOpenTemplates, operational }) {
         <div><span className="agency-eyebrow"><i className="ph ph-buildings" /> {project.client}</span><h1>{project.title}</h1><p>{project.status} · {project.due}</p></div>
         <button type="button" className="agency-secondary-btn" onClick={onOpenTemplates}><i className="ph ph-copy" /> استخدام قالب</button>
       </section>
+      <section className="agency-panel agency-saved-entities-panel"><div className="agency-panel-heading"><div><span className="agency-eyebrow">علاقات مَهَد المحلية</span><h2>المهام والمخرجات داخل المشروع</h2></div><PrototypePill tone={localProject ? 'success' : 'warning'}>{localProject ? 'سجل محفوظ' : 'بيانات Pilot ثابتة'}</PrototypePill></div><div className="agency-saved-entity-list"><div><div><strong>{localTasks.length} مهام محلية</strong><span>{localTasks.map((task) => task.title).join(' · ') || 'لا توجد مهمة محلية مرتبطة بعد'}</span></div><PrototypePill>تنفيذ</PrototypePill></div><div><div><strong>{localDeliverables.length} مخرجات محلية</strong><span>{localDeliverables.map((item) => item.title).join(' · ') || 'لا يوجد مخرج محلي مرتبط بعد'}</span></div><PrototypePill>تسليم</PrototypePill></div></div></section>
       <nav className="agency-project-tabs" aria-label="أقسام المشروع">
         {[['overview', 'نظرة عامة'], ['work', 'التنفيذ'], ['pages', 'الصفحات'], ['activity', 'النشاط']].map(([id, label]) => <button type="button" key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>)}
       </nav>
@@ -662,12 +672,12 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} storeState={storeState} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
-          {section === 'projects' && <><SavedProjectsPanel projects={storeState.projects} /><ProjectsView onOpenProject={openProject} /></>}
-          {section === 'internal-work' && <InternalWorkView operational={operational} />}
+          {section === 'projects' && <ProjectsView onOpenProject={openProject} storeState={storeState} />}
+          {section === 'internal-work' && <InternalWorkView operational={operational} storeState={storeState} />}
           {section === 'tasks' && <TasksView operational={operational} storeState={storeState} />}
           {section === 'sync' && <SyncInboxView storeState={storeState} actor={PILOT_ACTOR} onApprove={approveSyncOperation} onReject={rejectSyncOperation} onExecute={executeApprovedOperation} onReadExternal={readExternalOperation} onResolveConflict={resolveSyncConflict} trelloReady={Boolean(trelloConnection?.config?.apiKey && trelloConnection?.config?.accessToken && trelloConnection?.config?.defaultListId)} />}
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
-          {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
+          {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} storeState={storeState} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
           {section === 'create' && <CreateWorkspaceView onBack={() => openSection('home')} drafts={drafts} onCreated={saveCreatedDraft} onPreviewDraft={openDraftPreview} />}
           {section === 'sync-preview' && selectedDraft && <ChangePreviewView draft={selectedDraft} onBack={() => openSection('create')} onQueue={queueDraftForApproval} />}
