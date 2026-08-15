@@ -1,6 +1,6 @@
 export const PILOT_BOARD_SHORT_LINK = '3QDjP1P2';
 
-export const PILOT_CLIENT_PROJECTS = Object.freeze([
+export const TRELLO_CLIENTS = Object.freeze([
   {
     clientId: 'thabat',
     clientName: 'ثبات',
@@ -8,6 +8,7 @@ export const PILOT_CLIENT_PROJECTS = Object.freeze([
     projectId: 'thabat-content-calendar',
     projectName: 'تقويم تحريري وخطة محتوى',
     projectType: 'تقويم تحريري وخطة محتوى',
+    projectAssignment: 'pilot_one_project_per_client',
   },
   {
     clientId: 'baraka-auction',
@@ -16,6 +17,34 @@ export const PILOT_CLIENT_PROJECTS = Object.freeze([
     projectId: 'baraka-brand-strategy',
     projectName: 'استراتيجية العلامة',
     projectType: 'استراتيجية العلامة',
+    projectAssignment: 'pilot_one_project_per_client',
+  },
+  {
+    clientId: 'sanam',
+    clientName: 'سنام',
+    clientLabel: 'SNM - سنام',
+    projectId: null,
+    projectName: null,
+    projectType: null,
+    projectAssignment: 'requires_project_assignment',
+  },
+  {
+    clientId: 'marketing-brand',
+    clientName: 'علامة تسويق',
+    clientLabel: 'ALM - علامة تسويق',
+    projectId: null,
+    projectName: null,
+    projectType: null,
+    projectAssignment: 'requires_project_assignment',
+  },
+]);
+
+export const TRELLO_INTERNAL_STREAMS = Object.freeze([
+  {
+    streamId: 'mother-brand-operations',
+    streamName: 'علامة الأم',
+    streamLabel: 'ALH - علامة الأم',
+    category: 'إداري وتنظيمي داخلي',
   },
 ]);
 
@@ -28,8 +57,11 @@ function normalizedText(value) {
     .replace(/\s+/g, ' ');
 }
 
-const PILOT_BY_LABEL = new Map(
-  PILOT_CLIENT_PROJECTS.map((item) => [normalizedText(item.clientLabel), item])
+const CLIENT_BY_LABEL = new Map(
+  TRELLO_CLIENTS.map((item) => [normalizedText(item.clientLabel), item])
+);
+const INTERNAL_BY_LABEL = new Map(
+  TRELLO_INTERNAL_STREAMS.map((item) => [normalizedText(item.streamLabel), item])
 );
 
 export function trelloListIsPilotTemplate(listName) {
@@ -43,8 +75,8 @@ export function readTrelloTaskLabels(task) {
 }
 
 /**
- * يصنف بطاقة Trello لإظهارها في معاينة Pilot فقط.
- * لا يكتب إلى Trello ولا يستنتج مشروعًا من اسم البطاقة أو القائمة.
+ * يصنف بطاقة Trello عند القراءة فقط. لا يكتب إلى Trello ولا يخمن مشروعًا
+ * لعميل لا يملك مشروعًا معتمدًا في Pilot.
  */
 export function classifyTrelloTaskForPilot(task) {
   const labels = readTrelloTaskLabels(task);
@@ -52,7 +84,8 @@ export function classifyTrelloTaskForPilot(task) {
 
   if (trelloListIsPilotTemplate(listName)) {
     return {
-      kind: 'excluded',
+      kind: 'template',
+      route: 'library_templates',
       reason: 'template_list',
       reasonLabel: 'البطاقة موجودة في قائمة قوالب المهام',
       labels,
@@ -60,16 +93,32 @@ export function classifyTrelloTaskForPilot(task) {
     };
   }
 
-  const recognized = labels
-    .map((label) => ({ label, mapping: PILOT_BY_LABEL.get(normalizedText(label)) }))
+  const recognizedClients = labels
+    .map((label) => ({ label, mapping: CLIENT_BY_LABEL.get(normalizedText(label)) }))
+    .filter((item) => item.mapping);
+  const recognizedInternal = labels
+    .map((label) => ({ label, mapping: INTERNAL_BY_LABEL.get(normalizedText(label)) }))
     .filter((item) => item.mapping);
 
-  if (recognized.length === 1) {
-    const { label, mapping } = recognized[0];
+  if (recognizedClients.length + recognizedInternal.length > 1) {
     return {
-      kind: 'matched',
-      reason: 'pilot_client_label',
-      reasonLabel: 'تمت المطابقة من Label العميل',
+      kind: 'manual_review',
+      route: 'review',
+      reason: 'multiple_known_routes',
+      reasonLabel: 'البطاقة تحمل أكثر من تصنيف معروف',
+      labels,
+      listName,
+      conflictingLabels: [...recognizedClients, ...recognizedInternal].map((item) => item.label),
+    };
+  }
+
+  if (recognizedClients.length === 1) {
+    const { label, mapping } = recognizedClients[0];
+    return {
+      kind: 'client',
+      route: 'client',
+      reason: mapping.projectId ? 'pilot_client_label' : 'client_project_unassigned',
+      reasonLabel: mapping.projectId ? 'عميل ومشروع Pilot محددان' : 'عميل معروف ومشروعه غير معيّن بعد',
       labels,
       listName,
       clientLabel: label,
@@ -78,25 +127,32 @@ export function classifyTrelloTaskForPilot(task) {
       project: mapping.projectName,
       projectId: mapping.projectId,
       projectType: mapping.projectType,
-      projectAssignment: 'pilot_one_project_per_client',
+      projectAssignment: mapping.projectAssignment,
+      requiresProjectAssignment: !mapping.projectId,
     };
   }
 
-  if (recognized.length > 1) {
+  if (recognizedInternal.length === 1) {
+    const { label, mapping } = recognizedInternal[0];
     return {
-      kind: 'manual_review',
-      reason: 'multiple_pilot_client_labels',
-      reasonLabel: 'البطاقة تحمل أكثر من Label لعميل Pilot',
+      kind: 'internal',
+      route: 'internal_work',
+      reason: 'internal_work_label',
+      reasonLabel: 'عمل إداري وتنظيمي داخلي',
       labels,
       listName,
-      conflictingClientLabels: recognized.map((item) => item.label),
+      streamLabel: label,
+      stream: mapping.streamName,
+      streamId: mapping.streamId,
+      category: mapping.category,
     };
   }
 
   return {
-    kind: 'excluded',
-    reason: labels.length ? 'no_pilot_client_label' : 'missing_client_label',
-    reasonLabel: labels.length ? 'لا تحمل البطاقة Label عميل Pilot' : 'لا تحمل البطاقة أي Label عميل',
+    kind: 'unclassified',
+    route: 'review',
+    reason: labels.length ? 'unknown_label' : 'missing_label',
+    reasonLabel: labels.length ? 'Label غير معرّف في تصنيف مَهَد' : 'Label التصنيف مفقود',
     labels,
     listName,
   };
@@ -115,31 +171,46 @@ function toMatchRecord(task) {
  */
 export function buildPilotTrelloMatchReport(tasks) {
   const records = (Array.isArray(tasks) ? tasks : []).map(toMatchRecord);
-  const matched = records.filter((item) => item.classification.kind === 'matched');
+  const client = records.filter((item) => item.classification.kind === 'client');
+  const pilotMatched = client.filter((item) => item.classification.projectId);
+  const clientNeedsProject = client.filter((item) => item.classification.requiresProjectAssignment);
+  const internal = records.filter((item) => item.classification.kind === 'internal');
+  const templates = records.filter((item) => item.classification.kind === 'template');
   const review = records.filter((item) => item.classification.kind === 'manual_review');
-  const excluded = records.filter((item) => item.classification.kind === 'excluded');
+  const unclassified = records.filter((item) => item.classification.kind === 'unclassified');
 
-  const byClient = PILOT_CLIENT_PROJECTS.map((mapping) => ({
+  const byClient = TRELLO_CLIENTS.map((mapping) => ({
     ...mapping,
-    taskCount: matched.filter((item) => item.classification.clientId === mapping.clientId).length,
+    taskCount: client.filter((item) => item.classification.clientId === mapping.clientId).length,
+  }));
+  const byInternalStream = TRELLO_INTERNAL_STREAMS.map((mapping) => ({
+    ...mapping,
+    taskCount: internal.filter((item) => item.classification.streamId === mapping.streamId).length,
   }));
 
   return {
     total: records.length,
-    matched,
+    client,
+    pilotMatched,
+    clientNeedsProject,
+    internal,
+    templates,
     review,
-    excluded,
+    unclassified,
     byClient,
-    coveragePercent: records.length ? Math.round((matched.length / records.length) * 100) : 0,
+    byInternalStream,
+    classifiedPercent: records.length ? Math.round(((client.length + internal.length + templates.length + review.length) / records.length) * 100) : 0,
   };
 }
 
 export function pilotMatchReasonLabel(reason) {
   return {
     template_list: 'قالب غير تشغيلي',
-    no_pilot_client_label: 'Label عميل Pilot غير موجود',
-    missing_client_label: 'Label العميل مفقود',
-    multiple_pilot_client_labels: 'أكثر من عميل Pilot',
-    pilot_client_label: 'مطابق من Label العميل',
+    client_project_unassigned: 'عميل معروف ومشروع غير معيّن',
+    pilot_client_label: 'عميل ومشروع Pilot محددان',
+    internal_work_label: 'عمل داخلي',
+    unknown_label: 'Label غير معرّف',
+    missing_label: 'Label مفقود',
+    multiple_known_routes: 'أكثر من تصنيف معروف',
   }[reason] || 'غير معرّفة';
 }

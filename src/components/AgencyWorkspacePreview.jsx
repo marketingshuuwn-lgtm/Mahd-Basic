@@ -34,6 +34,7 @@ const CLIENTS = [
     projectId: 'thabat',
     project: 'تقويم تحريري وخطة محتوى',
     next: 'مراجعة التقويم',
+    trelloCards: 26,
   },
   {
     id: 'baraka',
@@ -43,6 +44,27 @@ const CLIENTS = [
     projectId: 'baraka',
     project: 'استراتيجية العلامة',
     next: 'اعتماد موجز العلامة',
+    trelloCards: 33,
+  },
+  {
+    id: 'sanam',
+    name: 'سنام',
+    context: 'بطاقات العميل ظاهرة في قراءة Trello، لكن لم يعتمد لها مشروع محدد في مَهَد بعد.',
+    relationship: 'يحتاج تعيين مشروع',
+    projectId: null,
+    project: 'لم يحدد مشروع بعد',
+    next: 'تعيين مشروع للبطاقات الحالية',
+    trelloCards: 6,
+  },
+  {
+    id: 'marketing-brand',
+    name: 'علامة تسويق',
+    context: 'بطاقات العميل موجودة في Trello وتنتظر ربطًا صريحًا بمشروع قبل عرضها داخل مشروع.',
+    relationship: 'يحتاج تعيين مشروع',
+    projectId: null,
+    project: 'لم يحدد مشروع بعد',
+    next: 'تحديد مشروع لبطاقات العميل',
+    trelloCards: 13,
   },
 ];
 
@@ -58,6 +80,7 @@ const NAV = [
   { id: 'tasks', label: 'المهام', icon: 'ph-check-square' },
   { id: 'clients', label: 'العملاء', icon: 'ph-buildings' },
   { id: 'projects', label: 'المشاريع', icon: 'ph-briefcase' },
+  { id: 'internal-work', label: 'العمل الداخلي', icon: 'ph-buildings' },
   { id: 'library', label: 'المكتبة والقوالب', icon: 'ph-books' },
   { id: 'my-work', label: 'عملي', icon: 'ph-check-square-offset' },
 ];
@@ -114,8 +137,8 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate }) {
       </section>
 
       <section className="agency-summary-grid" aria-label="ملخص نموذج الوكالة">
-        <article><span>عملاء نشطون</span><strong>2</strong><small>ثبات ومزاد بركة</small></article>
-        <article><span>مشاريع نشطة</span><strong>2</strong><small>مشروع تجريبي لكل عميل</small></article>
+        <article><span>عملاء معروفون</span><strong>4</strong><small>ثبات، مزاد بركة، سنام، علامة تسويق</small></article>
+        <article><span>مشاريع Pilot</span><strong>2</strong><small>مشروع تجريبي لكل عميل معتمد</small></article>
         <article><span>تسليمات هذا الأسبوع</span><strong>3</strong><small>تحتاج اعتمادًا أو مراجعة</small></article>
         <article><span>إجراءات قابلة للقالب</span><strong>6</strong><small>هدف الأتمتة التدريجية</small></article>
       </section>
@@ -142,23 +165,53 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate }) {
   );
 }
 
-function ClientsView({ onOpenProject }) {
+function ClientsView({ onOpenProject, onOpenClientReview }) {
   return (
     <div className="agency-preview-content">
-      <ScreenHeader eyebrow="العلاقات" title="العملاء" description="هنا يبقى السياق المشترك للجهة المتعاقدة، ثم تنتقل منه إلى مشروع محدد ومخرجاته." />
+      <ScreenHeader eyebrow="العلاقات" title="العملاء" description="هنا يبقى السياق المشترك للجهة المتعاقدة، ثم تنتقل منه إلى مشروع محدد ومخرجاته عندما يكون المشروع معتمدًا." />
       <section className="agency-client-grid">
-        {CLIENTS.map((client) => (
-          <article className="agency-client-card" key={client.id}>
-            <div className="agency-card-topline"><span className="agency-client-avatar">{client.name.charAt(0)}</span><PrototypePill tone="success">{client.relationship}</PrototypePill></div>
-            <h2>{client.name}</h2>
-            <p>{client.context}</p>
-            <div className="agency-client-metric"><span>المشروع النشط</span><strong>{client.project}</strong></div>
-            <div className="agency-client-metric"><span>التسليم التالي</span><strong>{client.next}</strong></div>
-            <button type="button" className="agency-secondary-btn" onClick={() => onOpenProject(client.projectId)}>فتح مشروع العميل <i className="ph ph-arrow-left" /></button>
-          </article>
-        ))}
+        {CLIENTS.map((client) => {
+          const hasProject = Boolean(client.projectId);
+          return (
+            <article className="agency-client-card" key={client.id}>
+              <div className="agency-card-topline"><span className="agency-client-avatar">{client.name.charAt(0)}</span><PrototypePill tone={hasProject ? 'success' : 'warning'}>{client.relationship}</PrototypePill></div>
+              <h2>{client.name}</h2>
+              <p>{client.context}</p>
+              <div className="agency-client-metric"><span>{hasProject ? 'المشروع النشط' : 'وضع المشروع'}</span><strong>{client.project}</strong></div>
+              <div className="agency-client-metric"><span>{hasProject ? 'التسليم التالي' : 'الخطوة التالية'}</span><strong>{client.next}</strong></div>
+              <div className="agency-client-metric"><span>بطاقات Trello المقروءة</span><strong>{client.trelloCards} بطاقة</strong></div>
+              <button type="button" className="agency-secondary-btn" onClick={() => hasProject ? onOpenProject(client.projectId) : onOpenClientReview(client.id)}>{hasProject ? 'فتح مشروع العميل' : 'عرض حالة العميل'} <i className="ph ph-arrow-left" /></button>
+            </article>
+          );
+        })}
       </section>
-      <section className="agency-guidance-panel"><i className="ph ph-info" /><div><strong>ماذا تمثل هذه الشاشة؟</strong><p>العميل هو العلاقة والسياق المستمر. المشروع هو العمل المحدد الذي ننجزه لهذا العميل الآن.</p></div></section>
+      <section className="agency-guidance-panel"><i className="ph ph-info" /><div><strong>ماذا تمثل هذه الشاشة؟</strong><p>العميل هو العلاقة والسياق المستمر. المشروع هو العمل المحدد الذي ننجزه لهذا العميل الآن. لا تنشئ مَهَد مشروعًا لسنام أو علامة تسويق قبل اعتماده صراحة.</p></div></section>
+    </div>
+  );
+}
+
+function ClientNeedsProjectView({ client, onBack }) {
+  return (
+    <div className="agency-preview-content">
+      <button type="button" className="agency-back-btn" onClick={onBack}><i className="ph ph-arrow-right" /> العودة إلى العملاء</button>
+      <ScreenHeader eyebrow="عميل يحتاج تنظيم المشروع" title={client.name} description="هذا العميل معروف من Label Trello، لكن لا يوجد مشروع معتمد يمكن إسناد البطاقات إليه بأمان بعد." />
+      <section className="agency-project-overview-grid">
+        <article><span>بطاقات Trello المقروءة</span><strong>{client.trelloCards}</strong><small>مرتبطة بـ Label العميل</small></article>
+        <article><span>وضع المشروع</span><strong>غير معيّن</strong><small>لا تستنتج مَهَد مشروعًا من اسم البطاقة أو القائمة</small></article>
+        <article><span>الإجراء المطلوب لاحقًا</span><strong>اعتماد مشروع</strong><small>ثم يربط صراحة ببطاقات العميل</small></article>
+      </section>
+      <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>لا توجد عملية مطلوبة منك الآن</strong><p>لا تعدل هذه الشاشة Trello ولا تقترح اسم مشروع. عند فتح مشروع لهذا العميل، تعتمد إشارة مشروع واضحة ثم تظهر بطاقاته في مساحة المشروع.</p></div></section>
+    </div>
+  );
+}
+
+function InternalWorkView() {
+  return (
+    <div className="agency-preview-content">
+      <ScreenHeader eyebrow="تشغيل الشركة" title="العمل الداخلي" description="مسار مستقل للمهام الإدارية والتنظيمية للشركة؛ لا يظهر ضمن العملاء أو مشاريعهم." />
+      <section className="agency-summary-grid agency-summary-grid-three"><article><span>بطاقات علامة الأم</span><strong>47</strong><small>عمل إداري وتنظيمي داخلي</small></article><article><span>قيد التنفيذ</span><strong>5</strong><small>من قراءة Board الحالية</small></article><article><span>تحتاج البدء</span><strong>3</strong><small>من قراءة Board الحالية</small></article></section>
+      <section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>علامة الأم</h2><PrototypePill tone="success">داخلي</PrototypePill></div><p className="agency-empty-copy">تجمع هذه الوجهة التنظيم والتشغيل الإداري الداخلي للشركة، مثل المتابعة الإدارية والمكتبات والأدوات والإجراءات. لا تمثل علامة الأم عميلًا ولا تربط بطاقاتها بمشروعات العملاء.</p></section>
+      <section className="agency-guidance-panel"><i className="ph ph-buildings" /><div><strong>حدود المسار</strong><p>تظهر البطاقات ذات Label «ALH - علامة الأم» في هذا المسار عند ربط قراءة Trello بالواجهة. لا ينفذ النموذج الحالي أي إنشاء أو نقل أو تعديل في Trello.</p></div></section>
     </div>
   );
 }
@@ -257,25 +310,30 @@ function TemplateView({ onBack }) {
 export default function AgencyWorkspacePreview() {
   const [section, setSection] = useState('home');
   const [projectId, setProjectId] = useState(null);
+  const [clientId, setClientId] = useState(null);
   const project = PROJECTS.find((item) => item.id === projectId);
+  const client = CLIENTS.find((item) => item.id === clientId);
 
-  const openProject = (id) => { setProjectId(id); setSection('project'); };
-  const openTemplates = () => { setProjectId(null); setSection('templates'); };
-  const openSection = (id) => { setProjectId(null); setSection(id === 'library' ? 'templates' : id); };
+  const openProject = (id) => { setProjectId(id); setClientId(null); setSection('project'); };
+  const openClientReview = (id) => { setProjectId(null); setClientId(id); setSection('client-review'); };
+  const openTemplates = () => { setProjectId(null); setClientId(null); setSection('templates'); };
+  const openSection = (id) => { setProjectId(null); setClientId(null); setSection(id === 'library' ? 'templates' : id); };
 
   return (
     <div className="agency-preview-shell" dir="rtl">
-      <header className="agency-preview-banner"><i className="ph ph-flask" /> نموذج تجربة المرحلة الأولى — بيانات توضيحية فقط، لا يقرأ أو يكتب Trello</header>
+      <header className="agency-preview-banner"><i className="ph ph-flask" /> نموذج تجربة المرحلة الأولى — بيانات توضيحية وملخص قراءة Trello، بلا أي كتابة إلى Trello</header>
       <div className="agency-preview-frame">
         <aside className="agency-preview-nav" aria-label="التنقل التجريبي">
           <div className="agency-workspace-mark"><span>م</span><div><strong>وكالة مَهَد</strong><small>مساحة تجريبية</small></div></div>
-          {NAV.map((item) => <button type="button" key={item.id} className={section === item.id || (item.id === 'library' && section === 'templates') ? 'active' : ''} onClick={() => openSection(item.id)}><i className={`ph ${item.icon}`} /> {item.label}</button>)}
+          {NAV.map((item) => <button type="button" key={item.id} className={section === item.id || (item.id === 'clients' && section === 'client-review') || (item.id === 'library' && section === 'templates') ? 'active' : ''} onClick={() => openSection(item.id)}><i className={`ph ${item.icon}`} /> {item.label}</button>)}
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
           {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} />}
-          {section === 'clients' && <ClientsView onOpenProject={openProject} />}
+          {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} />}
+          {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} />}
           {section === 'projects' && <ProjectsView onOpenProject={openProject} />}
+          {section === 'internal-work' && <InternalWorkView />}
           {section === 'tasks' && <TasksView onOpenProject={openProject} />}
           {section === 'my-work' && <MyWorkView onOpenProject={openProject} onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} />}

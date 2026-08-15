@@ -1,5 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  TRELLO_CLIENTS,
+  TRELLO_INTERNAL_STREAMS,
+  classifyTrelloTaskForPilot,
+} from '../src/utils/trelloPilotMatching.js';
 
 const inputPath = process.argv[2];
 const outputPath = process.argv[3];
@@ -8,11 +13,7 @@ if (!inputPath || !outputPath) {
   throw new Error('Usage: node generatePilotTrelloMatchReport.js <input.json> <output.md>');
 }
 
-const SOURCE = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-const CLIENT_PROJECTS = {
-  'THB - ثبات': { client: 'ثبات', project: 'تقويم تحريري وخطة محتوى' },
-  'BRK - مزاد بركة': { client: 'مزاد بركة', project: 'استراتيجية العلامة' },
-};
+const source = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
 
 function stageFromListName(name) {
   const normalized = String(name || '').trim().toLocaleLowerCase('ar');
@@ -22,106 +23,140 @@ function stageFromListName(name) {
   return 'غير معيّنة';
 }
 
-const cards = (SOURCE.lists || []).flatMap((list) =>
-  (list.cards || []).map((card) => ({
-    ...card,
-    listName: list.name || 'قائمة غير مسماة',
-    stage: stageFromListName(list.name),
-  }))
+function escapePipe(value) {
+  return String(value || '—').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+}
+
+function formatDate(value) {
+  return new Date(value).toLocaleString('ar-SA', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Riyadh',
+  });
+}
+
+const records = (source.lists || []).flatMap((list) =>
+  (list.cards || []).map((card) => {
+    const task = {
+      id: card.id,
+      title: card.name,
+      dueDate: card.due?.date || null,
+      completed: Boolean(card.closed),
+      externalUrl: card.url || card.shortUrl || null,
+      externalMeta: {
+        labels: (card.labels || []).map((label) => label.name).filter(Boolean),
+        listName: list.name || 'قائمة غير مسماة',
+      },
+    };
+    return { task, classification: classifyTrelloTaskForPilot(task) };
+  })
 );
 
-const classify = (card) => {
-  const labels = (card.labels || []).map((label) => label.name).filter(Boolean);
-  const recognized = labels.filter((name) => CLIENT_PROJECTS[name]);
-  if (recognized.length === 1) return { kind: 'matched', labels, mapping: CLIENT_PROJECTS[recognized[0]] };
-  if (recognized.length > 1) return { kind: 'ambiguous', labels };
-  return { kind: 'unmatched', labels };
-};
+const kindCount = (kind) => records.filter((record) => record.classification.kind === kind).length;
+const clientRecords = records.filter((record) => record.classification.kind === 'client');
+const pilotRecords = clientRecords.filter((record) => record.classification.projectId);
+const clientProjectPending = clientRecords.filter((record) => record.classification.requiresProjectAssignment);
+const internalRecords = records.filter((record) => record.classification.kind === 'internal');
+const templateRecords = records.filter((record) => record.classification.kind === 'template');
+const reviewRecords = records.filter((record) => record.classification.kind === 'manual_review');
+const unclassifiedRecords = records.filter((record) => record.classification.kind === 'unclassified');
 
-const classified = cards.map((card) => ({ card, result: classify(card) }));
-const matched = classified.filter(({ result }) => result.kind === 'matched');
-const unmatched = classified.filter(({ result }) => result.kind === 'unmatched');
-const ambiguous = classified.filter(({ result }) => result.kind === 'ambiguous');
-const open = cards.filter((card) => !card.closed);
-const closed = cards.filter((card) => card.closed);
-
-const byList = (SOURCE.lists || []).map((list) => {
-  const items = classified.filter(({ card }) => card.listName === list.name);
+const byClient = TRELLO_CLIENTS.map((client) => ({
+  ...client,
+  count: clientRecords.filter((record) => record.classification.clientId === client.clientId).length,
+}));
+const byInternal = TRELLO_INTERNAL_STREAMS.map((stream) => ({
+  ...stream,
+  count: internalRecords.filter((record) => record.classification.streamId === stream.streamId).length,
+}));
+const byList = (source.lists || []).map((list) => {
+  const listRecords = records.filter((record) => record.classification.listName === list.name);
   return {
     name: list.name,
     stage: stageFromListName(list.name),
-    total: items.length,
-    matched: items.filter(({ result }) => result.kind === 'matched').length,
-    unmatched: items.filter(({ result }) => result.kind === 'unmatched').length,
-    ambiguous: items.filter(({ result }) => result.kind === 'ambiguous').length,
+    total: listRecords.length,
+    clients: listRecords.filter((record) => record.classification.kind === 'client').length,
+    internal: listRecords.filter((record) => record.classification.kind === 'internal').length,
+    templates: listRecords.filter((record) => record.classification.kind === 'template').length,
+    review: listRecords.filter((record) => ['manual_review', 'unclassified'].includes(record.classification.kind)).length,
   };
 });
-
-const byClient = Object.keys(CLIENT_PROJECTS).map((label) => {
-  const mapping = CLIENT_PROJECTS[label];
-  const items = matched.filter(({ result }) => result.mapping.client === mapping.client);
-  return { ...mapping, label, total: items.length };
-});
-
-const escapePipe = (value) => String(value || '—').replace(/\|/g, '\\|').replace(/\n/g, ' ');
-const formatDate = (value) => value ? new Date(value).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Riyadh' }) : '—';
-
-const exceptionRows = [...ambiguous, ...unmatched]
-  .map(({ card, result }) => `| ${escapePipe(card.name)} | ${escapePipe(card.listName)} | ${escapePipe(result.labels.join('، ') || 'لا توجد Labels')} | ${result.kind === 'ambiguous' ? 'يحمل أكثر من Label Pilot' : 'لا يحمل Label عميل Pilot'} | [فتح البطاقة](${card.url}) |`)
+const reviewRows = [...reviewRecords, ...unclassifiedRecords]
+  .slice(0, 40)
+  .map(({ task, classification }) => `| ${escapePipe(task.title)} | ${escapePipe(classification.listName)} | ${escapePipe(classification.labels.join('، ') || 'لا توجد Labels')} | ${classification.reasonLabel} | ${task.externalUrl ? `[فتح البطاقة](${task.externalUrl})` : '—'} |`)
   .join('\n');
 
 const lines = [
-  '# تقرير مطابقة Trello — Pilot مَهَد',
+  '# تقرير تصنيف Trello — Pilot مَهَد',
   '',
-  `**المصدر المقروء:** Board «${SOURCE.board?.name || 'غير معروف'}».  `,
-  `**وقت التقرير:** ${formatDate(new Date().toISOString())}.  `,
+  `**المصدر المقروء:** Board «${source.board?.name || 'غير معروف'}».`,
+  `**وقت التقرير:** ${formatDate(new Date().toISOString())}.`,
   '**وضع التقرير:** قراءة وتحليل فقط؛ لم تُنشأ أو تُنقل أو تُعدّل أي بطاقة أو قائمة في Trello.',
   '',
-  '## قاعدة المطابقة المعتمدة',
+  '## قاعدة التصنيف المعتمدة',
   '',
-  '| Label Trello | العميل في مَهَد | مشروع Pilot المؤقت |',
+  '| مصدر Trello | المسار في مَهَد | وضع المشروع الحالي |',
   '|---|---|---|',
-  ...Object.entries(CLIENT_PROJECTS).map(([label, mapping]) => `| ${label} | ${mapping.client} | ${mapping.project} |`),
+  ...TRELLO_CLIENTS.map((client) => `| ${client.clientLabel} | عميل: ${client.clientName} | ${client.projectName || 'يحتاج تعيين مشروع صريح'} |`),
+  ...TRELLO_INTERNAL_STREAMS.map((stream) => `| ${stream.streamLabel} | عمل داخلي: ${stream.streamName} | ${stream.category} |`),
+  '| قائمة `قوالب المهام` | المكتبة والقوالب | ليست تنفيذًا نشطًا |',
+  '| Label مفقود أو غير معرّف | مراجعة التصنيف | لا تخمين |',
   '',
-  '> Label العميل يحدد العميل فقط. ربط المشروع هنا قاعدة Pilot مؤقتة لأن لكل عميل مشروعًا تجريبيًا واحدًا معتمدًا. لا يجوز تعميمها عند وجود أكثر من مشروع للعميل نفسه.',
+  '> لا تختفي بطاقة من مَهَد بسبب عدم انتمائها إلى Pilot. تظهر كل بطاقة في عميل أو عمل داخلي أو مكتبة قوالب أو قائمة مراجعة تصنيف. يبقى ربط ثبات ومزاد بركة بمشروعيهما قاعدة Pilot مؤقتة فقط.',
   '',
   '## ملخص القراءة',
   '',
-  '| المؤشر | العدد |',
+  '| المسار | العدد |',
   '|---|---:|',
-  `| كل البطاقات المقروءة | ${cards.length} |`,
-  `| بطاقات مفتوحة | ${open.length} |`,
-  `| بطاقات مؤرشفة | ${closed.length} |`,
-  `| مطابقة إلى عميل ومشروع Pilot | ${matched.length} |`,
-  `| غير مطابقة بسبب غياب Label Pilot | ${unmatched.length} |`,
-  `| ملتبسة بسبب أكثر من Label Pilot | ${ambiguous.length} |`,
+  `| كل البطاقات المقروءة | ${records.length} |`,
+  `| بطاقات العملاء | ${clientRecords.length} |`,
+  `| منها مرتبطة بمشروعات Pilot | ${pilotRecords.length} |`,
+  `| منها عميل معروف يحتاج مشروعًا صريحًا | ${clientProjectPending.length} |`,
+  `| العمل الإداري والتنظيمي الداخلي | ${internalRecords.length} |`,
+  `| قوالب المكتبة | ${templateRecords.length} |`,
+  `| تحتاج مراجعة تصنيف | ${reviewRecords.length + unclassifiedRecords.length} |`,
   '',
-  '## تغطية عميلَي Pilot',
+  '## تغطية العملاء',
   '',
-  '| العميل | مشروع Pilot | Label القراءة | البطاقات المطابقة |',
+  '| العميل | Label القراءة | وضع المشروع | البطاقات |',
   '|---|---|---|---:|',
-  ...byClient.map((item) => `| ${item.client} | ${item.project} | ${item.label} | ${item.total} |`),
+  ...byClient.map((client) => `| ${client.clientName} | ${client.clientLabel} | ${client.projectName || 'يحتاج تعيين مشروع'} | ${client.count} |`),
+  '',
+  '## العمل الداخلي',
+  '',
+  '| المسار | Label القراءة | الفئة | البطاقات |',
+  '|---|---|---|---:|',
+  ...byInternal.map((stream) => `| ${stream.streamName} | ${stream.streamLabel} | ${stream.category} | ${stream.count} |`),
   '',
   '## التوزيع حسب قائمة Trello',
   '',
-  '| قائمة Trello | مرحلة مَهَد المقروءة | الإجمالي | مطابقة | غير مطابقة | ملتبسة |',
-  '|---|---|---:|---:|---:|---:|',
-  ...byList.map((item) => `| ${escapePipe(item.name)} | ${item.stage} | ${item.total} | ${item.matched} | ${item.unmatched} | ${item.ambiguous} |`),
+  '| قائمة Trello | مرحلة مَهَد المقروءة | الإجمالي | عملاء | داخلي | قوالب | مراجعة تصنيف |',
+  '|---|---|---:|---:|---:|---:|---:|',
+  ...byList.map((item) => `| ${escapePipe(item.name)} | ${item.stage} | ${item.total} | ${item.clients} | ${item.internal} | ${item.templates} | ${item.review} |`),
   '',
-  '## الاستثناءات التي لا تدخل Pilot',
+  '## بطاقات تحتاج مراجعة تصنيف',
   '',
-  'لا تعد الاستثناءات أخطاء في Trello. يبين التقرير فقط أنها لا تملك اليوم إشارة كافية تربطها بعميلَي Pilot، لذلك يجب ألا تظهر داخل مشروع ثبات أو مزاد بركة في مَهَد.',
+  'هذه البطاقات ستبقى مرئية في مَهَد ضمن «تحتاج تصنيفًا». لا يقترح التقرير إضافة Label أو نقل بطاقة؛ يطلب فقط قرارًا بشريًا عند الحاجة.',
   '',
-  '| البطاقة | قائمة Trello | Labels الحالية | سبب الاستثناء | المصدر |',
+  '| البطاقة | قائمة Trello | Labels الحالية | سبب المراجعة | المصدر |',
   '|---|---|---|---|---|',
-  exceptionRows || '| لا توجد استثناءات | — | — | — | — |',
+  reviewRows || '| لا توجد بطاقات تحتاج مراجعة | — | — | — | — |',
   '',
   '## نتيجة المرحلة',
   '',
-  'يمكن للجسر القراءة فقط أن يعرض البطاقات المطابقة لعميلَي Pilot مع قائمة Trello والموعد ومالك Trello عند توفرها. وتبقى البطاقات غير المطابقة خارج العرض التشغيلي إلى أن يقرر الفريق Label العميل الصحيح أو يستبعدها من Pilot. لا يوصي هذا التقرير بأي تعديل تلقائي على Trello.',
+  'تستطيع طبقة القراءة الآن عرض كل بطاقة من Board ضمن مسار مفهوم: عميل، عمل داخلي، قوالب، أو مراجعة. ولا يمنح هذا الجسر صلاحية كتابة أو تغيير في Trello.',
   '',
 ];
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, `${lines.join('\n')}\n`, 'utf8');
-console.log(JSON.stringify({ cards: cards.length, matched: matched.length, unmatched: unmatched.length, ambiguous: ambiguous.length, outputPath }, null, 2));
+console.log(JSON.stringify({
+  cards: records.length,
+  clients: clientRecords.length,
+  pilot: pilotRecords.length,
+  clientProjectPending: clientProjectPending.length,
+  internal: internalRecords.length,
+  templates: templateRecords.length,
+  review: reviewRecords.length + unclassifiedRecords.length,
+  outputPath,
+}, null, 2));
