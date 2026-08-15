@@ -132,6 +132,37 @@ function TrelloSourceNote({ source }) {
   return <section className="agency-source-note"><i className="ph ph-cloud-arrow-down" /><div><strong>{source.mode === 'live' ? 'قراءة Trello الحالية' : 'لقطة قراءة Trello'}</strong><span>{source.detail}</span></div></section>;
 }
 
+const PILOT_SYNC_RECORD = Object.freeze({
+  operationId: 'sync-pilot-mr-art-brand-strategy',
+  entityId: 'task-mr-art-brand-strategy',
+  entityType: 'task',
+  operation: 'create',
+  status: 'synced',
+  title: 'استراتيجية العلامة',
+  client: 'مستر آرت',
+  project: 'التأسيس',
+  boardName: 'Test - مهام اليوم',
+  listName: 'بانتظار البدء',
+  externalId: 'ari:cloud:trello::card/workspace/6a4f3e3250aad9bfddcc108a/6a80b5fcb74f21fe6471d1d5',
+  externalUrl: 'https://trello.com/c/sm7UagQq/70-%D8%A7%D8%B3%D8%AA%D8%B1%D8%A7%D8%AA%D9%8A%D8%AC%D9%8A%D8%A9-%D8%A7%D9%84%D8%B9%D9%84%D8%A7%D9%85%D8%A9',
+  syncedAt: '2026-08-15T18:54:52.334Z',
+});
+
+function SyncRecordPanel({ record }) {
+  return (
+    <section className="agency-panel agency-sync-record-panel">
+      <div className="agency-panel-heading"><div><span className="agency-eyebrow">سجل المزامنة</span><h2>آخر كتابة محروسة</h2></div><PrototypePill tone="success">تمت المزامنة</PrototypePill></div>
+      <div className="agency-sync-record-grid">
+        <div><span>المهمة</span><strong>{record.title}</strong></div>
+        <div><span>السياق</span><strong>{record.client} · {record.project}</strong></div>
+        <div><span>الهدف الخارجي</span><strong>{record.boardName} · {record.listName}</strong></div>
+        <div><span>معرّف العملية</span><strong>{record.operationId}</strong></div>
+      </div>
+      <div className="agency-sync-record-footer"><span><i className="ph ph-check-circle" /> تم التحقق من البطاقة في Trello</span><a href={record.externalUrl} target="_blank" rel="noreferrer">فتح البطاقة <i className="ph ph-arrow-up-left" /></a></div>
+    </section>
+  );
+}
+
 function ProjectCard({ project, onOpen }) {
   return (
     <button type="button" className="agency-project-card" onClick={() => onOpen(project.id)}>
@@ -152,7 +183,7 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational }) {
+function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational, syncRecord }) {
   return (
     <div className="agency-preview-content">
       <section className="agency-hero">
@@ -165,6 +196,7 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate,
       </section>
 
       <TrelloSourceNote source={operational.source} />
+      <SyncRecordPanel record={syncRecord} />
       <section className="agency-summary-grid" aria-label="ملخص قراءة Trello">
         <article><span>بطاقات Board المقروءة</span><strong>{operational.report.total}</strong><small>كل البطاقات ظاهرة في أحد المسارات</small></article>
         <article><span>بطاقات العملاء</span><strong>{operational.report.client.length}</strong><small>ضمن 4 عملاء معروفين</small></article>
@@ -429,6 +461,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const [clientId, setClientId] = useState(null);
   const [assignment, setAssignment] = useState(null);
   const [drafts, setDrafts] = useState([]);
+  const [syncRecord] = useState(PILOT_SYNC_RECORD);
   const [selectedDraft, setSelectedDraft] = useState(null);
   const connectedTrelloTasks = useMemo(
     () => (Array.isArray(trelloTasks) ? trelloTasks.filter((task) => task.externalSource === 'trello') : []),
@@ -468,7 +501,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
 
   return (
     <div className="agency-preview-shell" dir="rtl">
-      <header className="agency-preview-banner"><i className="ph ph-flask" /> نموذج تجربة المرحلة الأولى — بيانات توضيحية وملخص قراءة Trello، بلا أي كتابة إلى Trello</header>
+      <header className="agency-preview-banner"><i className="ph ph-shield-check" /> نموذج Pilot — مَهَد أولًا، وكتابة Trello محروسة بعد المعاينة والموافقة</header>
       <div className="agency-preview-frame">
         <aside className="agency-preview-nav" aria-label="التنقل التجريبي">
           <div className="agency-workspace-mark"><span>م</span><div><strong>وكالة مَهَد</strong><small>مساحة تجريبية</small></div></div>
@@ -476,7 +509,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
-          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} />}
+          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} />}
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
