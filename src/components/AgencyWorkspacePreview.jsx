@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createClient, createProject, createTask } from '../domain/mahdModel';
 import trelloReadSnapshot from '../data/trelloReadSnapshot';
 import { buildAgencyOperationalView } from '../utils/agencyOperationalView';
 import { PILOT_BOARD_ID, PILOT_BOARD_SHORT_LINK } from '../utils/trelloPilotMatching';
@@ -151,7 +152,7 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, operational }) {
+function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational }) {
   return (
     <div className="agency-preview-content">
       <section className="agency-hero">
@@ -160,9 +161,7 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, operational }
           <h1>العمل من السياق إلى التسليم</h1>
           <p>نموذج تجربة لمدير حساب يرى العملاء والمشاريع والتسليمات، لا قائمة مهام شخصية معزولة.</p>
         </div>
-        <button type="button" className="agency-primary-btn" onClick={onOpenTemplate}>
-          <i className="ph ph-plus-circle" /> مشروع من قالب
-        </button>
+        <div className="agency-hero-actions"><button type="button" className="agency-primary-btn" onClick={onOpenCreate}><i className="ph ph-plus-circle" /> إنشاء من مَهَد</button><button type="button" className="agency-secondary-btn" onClick={onOpenTemplate}><i className="ph ph-copy" /> مشروع من قالب</button></div>
       </section>
 
       <TrelloSourceNote source={operational.source} />
@@ -349,6 +348,48 @@ function ProjectView({ project, onBack, onOpenTemplates, operational }) {
   );
 }
 
+function CreateWorkspaceView({ onBack, drafts, onCreated }) {
+  const [kind, setKind] = useState('client');
+  const [form, setForm] = useState({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', assigneeId: '', dueDate: '' });
+  const [message, setMessage] = useState('');
+
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const submit = (event) => {
+    event.preventDefault();
+    try {
+      const now = new Date().toISOString();
+      const entity = kind === 'client'
+        ? createClient({ name: form.name, now })
+        : kind === 'project'
+          ? createProject({ clientId: form.clientId || 'client-draft', name: form.name, type: form.type, now })
+          : createTask({ clientId: form.clientId || 'client-draft', projectId: form.projectId || 'project-draft', title: form.title, assigneeId: form.assigneeId, dueDate: form.dueDate || null, now });
+      onCreated({ ...entity, localOnly: true });
+      setMessage('تم إنشاء مسودة داخل مَهَد لهذه الجلسة. لم تُحفظ بعد ولم تُرسل إلى Trello.');
+      setForm({ name: '', clientId: '', type: 'monthly-operations-campaign', title: '', projectId: '', assigneeId: '', dueDate: '' });
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const labels = { client: 'عميل', project: 'مشروع', task: 'مهمة' };
+  return (
+    <div className="agency-preview-content">
+      <button type="button" className="agency-back-btn" onClick={onBack}><i className="ph ph-arrow-right" /> العودة إلى الرئيسية</button>
+      <ScreenHeader eyebrow="إنشاء داخل مَهَد" title="أنشئ من مكان العمل" description="هذه أول طبقة من تجربة الإنشاء اليومية. المسودة تبقى داخل مَهَد في هذه المرحلة، ثم ستنتقل لاحقًا إلى التخزين المشترك وصندوق الموافقة." />
+      <section className="agency-create-switcher" aria-label="نوع الكيان"><span>ماذا تريد إنشاءه؟</span>{Object.entries(labels).map(([id, label]) => <button type="button" key={id} className={kind === id ? 'active' : ''} onClick={() => { setKind(id); setMessage(''); }}>{label}</button>)}</section>
+      <form className="agency-panel agency-create-form" onSubmit={submit}>
+        {kind === 'client' && <><label>اسم العميل<input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثل: عميل جديد" required /></label><label>وصف وسياق العميل<textarea value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="ما الذي يجب أن يعرفه الفريق؟" /></label></>}
+        {kind === 'project' && <><label>اسم المشروع<input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثل: خطة إطلاق" required /></label><label>معرّف العميل داخل مَهَد<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} placeholder="سيصبح اختيارًا من سجل العملاء" required /></label><label>نوع المشروع<select value={form.type} onChange={(event) => update('type', event.target.value)}>{PROJECT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}</select></label></>}
+        {kind === 'task' && <><label>عنوان المهمة<input value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="ما الذي يجب إنجازه؟" required /></label><div className="agency-form-grid"><label>معرّف العميل<input value={form.clientId} onChange={(event) => update('clientId', event.target.value)} placeholder="client-..." required /></label><label>معرّف المشروع<input value={form.projectId} onChange={(event) => update('projectId', event.target.value)} placeholder="project-..." required /></label></div><div className="agency-form-grid"><label>المالك أو الدور<input value={form.assigneeId} onChange={(event) => update('assigneeId', event.target.value)} placeholder="مدير الحساب" /></label><label>الموعد<input type="date" value={form.dueDate} onChange={(event) => update('dueDate', event.target.value)} /></label></div></>}
+        <button type="submit" className="agency-primary-btn"><i className="ph ph-check" /> إنشاء مسودة {labels[kind]} داخل مَهَد</button>
+        {message && <p className={`agency-form-message${message.includes('تم إنشاء') ? ' success' : ' error'}`}>{message}</p>}
+      </form>
+      <section className="agency-panel"><div className="agency-panel-heading"><h2>مسودات هذه الجلسة</h2><PrototypePill tone="warning">غير محفوظة</PrototypePill></div>{drafts.length ? <div className="agency-draft-list">{drafts.map((draft) => <div className="agency-draft-row" key={draft.id}><strong>{draft.name || draft.title}</strong><span>{draft.entityType === 'client' ? 'عميل' : draft.entityType === 'project' ? 'مشروع' : 'مهمة'} · مَهَد فقط</span></div>)}</div> : <p className="agency-empty-copy">لم تنشئ مسودة بعد. جرّب إنشاء عميل أو مشروع أو مهمة من هذه الشاشة.</p>}</section>
+      <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>ما الذي لم يحدث؟</strong><p>لم تُكتب أي بطاقة أو Label في Trello. بعد بناء التخزين المشترك ستتحول المسودة إلى عملية معاينة ثم موافقة ثم مزامنة.</p></div></section>
+    </div>
+  );
+}
+
 function TemplateView({ onBack, operational }) {
   return (
     <div className="agency-preview-content">
@@ -371,6 +412,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const [projectId, setProjectId] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [assignment, setAssignment] = useState(null);
+  const [drafts, setDrafts] = useState([]);
   const connectedTrelloTasks = useMemo(
     () => (Array.isArray(trelloTasks) ? trelloTasks.filter((task) => task.externalSource === 'trello') : []),
     [trelloTasks]
@@ -402,6 +444,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const openClientReview = (id) => { setProjectId(null); setClientId(id); setAssignment(null); setSection('client-review'); };
   const openAssignmentPreview = (nextAssignment) => { setProjectId(null); setAssignment(nextAssignment); setSection('assignment-preview'); };
   const openTemplates = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('templates'); };
+  const openCreate = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('create'); };
   const openSection = (id) => { setProjectId(null); setClientId(null); setAssignment(null); setSection(id === 'library' ? 'templates' : id); };
 
   return (
@@ -414,7 +457,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
-          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} operational={operational} />}
+          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} />}
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
@@ -424,6 +467,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
+          {section === 'create' && <CreateWorkspaceView onBack={() => openSection('home')} drafts={drafts} onCreated={(draft) => setDrafts((current) => [draft, ...current])} />}
         </main>
       </div>
     </div>

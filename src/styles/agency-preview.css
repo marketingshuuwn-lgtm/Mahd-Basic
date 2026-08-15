@@ -209,3 +209,23 @@
 .agency-decision-callout > i { margin-top: 2px; color: #2f7ba5; font-size: 20px; }
 .agency-decision-callout strong { display: block; margin-bottom: 3px; color: #244b61; font-size: 13px; }
 .agency-decision-callout p { font-size: 12px; }
+
+
+.agency-hero-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.agency-create-switcher { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 18px; padding: 8px; border: 1px solid #dfe8e2; border-radius: 18px; background: rgba(255,255,255,.72); }
+.agency-create-switcher > span { color: #6c7c73; font-size: .82rem; font-weight: 700; margin-inline-end: 4px; }
+.agency-create-switcher button { border: 0; border-radius: 12px; padding: 9px 16px; background: transparent; color: #173d32; cursor: pointer; font: inherit; font-weight: 800; }
+.agency-create-switcher button.active { background: #176e57; color: #fff; box-shadow: 0 6px 16px rgba(23,110,87,.18); }
+.agency-create-form { display: grid; gap: 14px; }
+.agency-create-form label { display: grid; gap: 7px; color: #173d32; font-weight: 800; }
+.agency-create-form input, .agency-create-form textarea, .agency-create-form select { width: 100%; box-sizing: border-box; border: 1px solid #dfe8e2; border-radius: 12px; background: #fff; color: #173d32; padding: 12px 13px; font: inherit; font-weight: 500; }
+.agency-create-form textarea { min-height: 90px; resize: vertical; }
+.agency-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.agency-form-message { margin: 0; border-radius: 12px; padding: 11px 13px; font-weight: 700; }
+.agency-form-message.success { background: #e5f6ed; color: #176e57; }
+.agency-form-message.error { background: #fff0ef; color: #9d3b32; }
+.agency-draft-list { display: grid; gap: 8px; }
+.agency-draft-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid #dfe8e2; border-radius: 13px; padding: 12px 14px; background: rgba(248,252,249,.8); }
+.agency-draft-row strong { color: #173d32; }
+.agency-draft-row span { color: #6c7c73; font-size: .82rem; }
+@media (max-width: 680px) { .agency-form-grid { grid-template-columns: 1fr; } .agency-hero-actions { width: 100%; } .agency-hero-actions > * { flex: 1; } .agency-draft-row { align-items: flex-start; flex-direction: column; } }
