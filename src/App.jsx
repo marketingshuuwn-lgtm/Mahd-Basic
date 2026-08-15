@@ -454,7 +454,7 @@ export default function App() {
   };
 
   if (view === 'AgencyPreview') {
-    return <AgencyWorkspacePreview />;
+    return <AgencyWorkspacePreview trelloTasks={tasks} trelloConnection={trello} />;
   }
 
   if (loading) {

@@ -176,3 +176,17 @@
 
 @media (max-width: 960px) { .agency-client-grid { grid-template-columns: 1fr; } .agency-task-table-head, .agency-task-row, .agency-task-list.compact .agency-task-row { grid-template-columns: 1.4fr 1.2fr .8fr .7fr; } .agency-task-table-head > :nth-child(3), .agency-task-row > :nth-child(3) { display: none; } }
 @media (max-width: 680px) { .agency-screen-header { align-items: stretch; flex-direction: column; } .agency-summary-grid-three { grid-template-columns: 1fr; } .agency-task-table-head { display: none; } .agency-task-row, .agency-task-list.compact .agency-task-row { grid-template-columns: 1.5fr 1fr .7fr; gap: 7px; } .agency-task-row > :nth-child(4) { display: none; } .agency-task-context strong { font-size: 10px; } .agency-client-card { min-height: auto; } }
+
+/* Read-only operational Trello views */
+.agency-source-note { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 20px; padding: 12px 14px; border: 1px solid #d9e9df; border-radius: 12px; color: #376050; background: #f3faf5; }
+.agency-source-note > i { margin-top: 1px; color: #1d7655; font-size: 18px; }
+.agency-source-note strong, .agency-source-note span { display: block; }
+.agency-source-note strong { color: #1e4d3a; font-size: 12px; }
+.agency-source-note span { margin-top: 2px; color: #65776c; font-size: 11px; line-height: 1.6; }
+.agency-operational-list { display: grid; overflow: hidden; border: 1px solid #e4ece6; border-radius: 12px; }
+.agency-operational-row { display: grid; grid-template-columns: 1.7fr 1.4fr .9fr .8fr .75fr; gap: 10px; align-items: center; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e9efea; color: #30493d; background: #fff; font: inherit; text-align: right; text-decoration: none; transition: background .15s ease, color .15s ease; }
+.agency-operational-row:first-child { border-top: 0; }
+.agency-operational-row:hover { color: #1b684d; background: #f4faf6; }
+.agency-operational-row .ph-trello-logo { color: #237fd3; }
+@media (max-width: 960px) { .agency-operational-row { grid-template-columns: 1.4fr 1.2fr .8fr .7fr; } .agency-operational-row > :nth-child(3) { display: none; } }
+@media (max-width: 680px) { .agency-operational-row { grid-template-columns: 1.5fr 1fr .7fr; gap: 7px; } .agency-operational-row > :nth-child(4) { display: none; } }

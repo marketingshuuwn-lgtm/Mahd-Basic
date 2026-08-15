@@ -1,4 +1,5 @@
 export const PILOT_BOARD_SHORT_LINK = '3QDjP1P2';
+export const PILOT_BOARD_ID = '6a7e0e3e48a317dd981a35e0';
 
 export const TRELLO_CLIENTS = Object.freeze([
   {
