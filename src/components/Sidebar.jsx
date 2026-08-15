@@ -6,6 +6,7 @@ const NAV_GROUPS = [
     id: 'daily',
     label: 'يومي',
     items: [
+      { id: 'AgencyPreview', label: 'مساحة الوكالة', icon: 'ph-sparkle', hint: 'نموذج تجربة جديد' },
       { id: 'Projects', label: 'المشاريع', icon: 'ph-briefcase', hint: 'لوحات Trello' },
       { id: 'Matrix', label: 'المهام', icon: 'ph-squares-four', hint: 'Alt+1' },
       { id: 'Pending', label: 'المعلقة', icon: 'ph-hourglass', hint: 'Alt+2' },

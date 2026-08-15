@@ -22,6 +22,7 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import ViewSwitcher from './components/ViewSwitcher';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher';
 import ProjectsView from './components/ProjectsView';
+import AgencyWorkspacePreview from './components/AgencyWorkspacePreview';
 import { useTasks } from './hooks/useTasks';
 import { sendNotificationPreview, useLocalNotifications } from './hooks/useLocalNotifications';
 import { useTrello } from './hooks/useTrello';
@@ -132,7 +133,7 @@ export default function App() {
     ensureContextsFromTasks,
   } = useWorkspaces();
 
-  const [view, setView] = useState('Matrix');
+  const [view, setView] = useState('AgencyPreview');
   const [subview, setSubview] = useState('Board');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
@@ -452,7 +453,7 @@ export default function App() {
     }
   };
 
-  if (loading) {
+  if (loading && view !== 'AgencyPreview') {
     return (
       <div className="full-center" style={{ padding: 24 }}>
         <LoadingSkeleton />
@@ -463,7 +464,7 @@ export default function App() {
     );
   }
 
-  if (!connected) {
+  if (!connected && view !== 'AgencyPreview') {
     return (
       <div className="full-center" style={{ padding: 24 }}>
         <div className="card" style={{ maxWidth: 440, textAlign: 'center', padding: 36 }}>
@@ -539,6 +540,8 @@ export default function App() {
         />
 
         <div className="view-transition" key={view}>
+        {view === 'AgencyPreview' && <AgencyWorkspacePreview />}
+
         {view === 'Projects' && (
           <ProjectsView
             projects={trello.projects}
