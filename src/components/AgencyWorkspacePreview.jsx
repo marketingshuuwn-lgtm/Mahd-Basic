@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createClient, createProject, createTask } from '../domain/mahdModel';
+import { createMahdRepository } from '../domain/mahdRepository';
 import trelloReadSnapshot from '../data/trelloReadSnapshot';
 import { buildAgencyOperationalView } from '../utils/agencyOperationalView';
 import { PILOT_BOARD_ID, PILOT_BOARD_SHORT_LINK } from '../utils/trelloPilotMatching';
@@ -460,7 +461,8 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const [projectId, setProjectId] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [assignment, setAssignment] = useState(null);
-  const [drafts, setDrafts] = useState([]);
+  const repository = useMemo(() => createMahdRepository(), []);
+  const [drafts, setDrafts] = useState(() => repository.listDrafts());
   const [syncRecord] = useState(PILOT_SYNC_RECORD);
   const [selectedDraft, setSelectedDraft] = useState(null);
   const connectedTrelloTasks = useMemo(
@@ -496,7 +498,17 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const openTemplates = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('templates'); };
   const openCreate = () => { setProjectId(null); setClientId(null); setAssignment(null); setSelectedDraft(null); setSection('create'); };
   const openDraftPreview = (draft) => { setSelectedDraft(draft); setSection('sync-preview'); };
-  const queueDraftForApproval = () => { setDrafts((current) => current.map((draft) => draft.id === selectedDraft?.id ? { ...draft, syncStatus: 'pending_approval' } : draft)); setSelectedDraft((current) => current ? { ...current, syncStatus: 'pending_approval' } : current); };
+  const saveCreatedDraft = (draft) => {
+    repository.saveDraft(draft);
+    setDrafts((current) => [draft, ...current.filter((item) => item.id !== draft.id)]);
+  };
+  const queueDraftForApproval = () => {
+    if (!selectedDraft) return;
+    const next = { ...selectedDraft, syncStatus: 'pending_approval', updatedAt: new Date().toISOString() };
+    repository.saveDraft(next);
+    setDrafts((current) => current.map((draft) => draft.id === next.id ? next : draft));
+    setSelectedDraft(next);
+  };
   const openSection = (id) => { setProjectId(null); setClientId(null); setAssignment(null); setSection(id === 'library' ? 'templates' : id); };
 
   return (
@@ -519,7 +531,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
-          {section === 'create' && <CreateWorkspaceView onBack={() => openSection('home')} drafts={drafts} onCreated={(draft) => setDrafts((current) => [draft, ...current])} onPreviewDraft={openDraftPreview} />}
+          {section === 'create' && <CreateWorkspaceView onBack={() => openSection('home')} drafts={drafts} onCreated={saveCreatedDraft} onPreviewDraft={openDraftPreview} />}
           {section === 'sync-preview' && selectedDraft && <ChangePreviewView draft={selectedDraft} onBack={() => openSection('create')} onQueue={queueDraftForApproval} />}
         </main>
       </div>
