@@ -78,6 +78,12 @@ const TASKS = [
   { id: 'baraka-research', title: 'تلخيص مخرجات الاكتشاف', client: 'مزاد بركة', projectId: 'baraka', project: 'استراتيجية العلامة', owner: 'مدير الحساب', due: 'هذا الأسبوع', status: 'قيد التنفيذ', tone: 'success' },
 ];
 
+const PROJECT_OPTIONS = [
+  { id: 'brand-strategy', title: 'استراتيجية العلامة', description: 'هوية بصرية ولفظية واكتشاف وقرارات العلامة.', icon: 'ph-sparkle' },
+  { id: 'content-calendar', title: 'تقويم تحريري وخطة محتوى', description: 'استراتيجية محتوى وإنتاج ومراجعة ونشر.', icon: 'ph-calendar-dots' },
+  { id: 'promotion-campaign', title: 'حملة إعلانية ترويجية', description: 'هدف الحملة ومخرجها وإطلاقها وقياسها.', icon: 'ph-rocket-launch' },
+];
+
 const NAV = [
   { id: 'home', label: 'الرئيسية', icon: 'ph-house-simple' },
   { id: 'tasks', label: 'المهام', icon: 'ph-check-square' },
@@ -213,7 +219,8 @@ function ClientsView({ onOpenProject, onOpenClientReview, operational }) {
   );
 }
 
-function ClientNeedsProjectView({ client, onBack, operational }) {
+function ClientNeedsProjectView({ client, onBack, onPreviewAssignment, operational }) {
+  const [selectedProject, setSelectedProject] = useState(null);
   const clientCards = operational.clients.find((item) => item.clientId === client.id)?.cards || [];
   return (
     <div className="agency-preview-content">
@@ -225,7 +232,23 @@ function ClientNeedsProjectView({ client, onBack, operational }) {
         <article><span>الإجراء المطلوب لاحقًا</span><strong>اعتماد مشروع</strong><small>ثم يربط صراحة ببطاقات العميل</small></article>
       </section>
       <section className="agency-panel agency-task-panel"><div className="agency-panel-heading"><h2>بطاقات العميل المقروءة</h2><PrototypePill>قراءة فقط</PrototypePill></div><OperationalCardList cards={clientCards} limit={8} /></section>
-      <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>لا توجد عملية مطلوبة منك الآن</strong><p>لا تعدل هذه الشاشة Trello ولا تقترح اسم مشروع. عند فتح مشروع لهذا العميل، تعتمد إشارة مشروع واضحة ثم تظهر بطاقاته في مساحة المشروع.</p></div></section>
+      <section className="agency-panel agency-assignment-panel"><div className="agency-panel-heading"><h2>ما نوع المشروع؟</h2><PrototypePill tone="warning">اختيار يحتاج اعتمادًا</PrototypePill></div><p>اختر نوعًا لمعاينة أثر الربط فقط. لن يُحفظ الاختيار ولن تتغير Labels أو البطاقات في Trello.</p><div className="agency-assignment-options">{PROJECT_OPTIONS.map((option) => <button type="button" key={option.id} className={`agency-assignment-option${selectedProject === option.id ? ' selected' : ''}`} onClick={() => setSelectedProject(option.id)}><i className={`ph ${option.icon}`} /><span><strong>{option.title}</strong><small>{option.description}</small></span>{selectedProject === option.id && <i className="ph ph-check-circle" />}</button>)}</div><button type="button" className="agency-primary-btn" disabled={!selectedProject} onClick={() => onPreviewAssignment({ clientId: client.id, projectOptionId: selectedProject })}>معاينة المطابقة قبل الاعتماد <i className="ph ph-arrow-left" /></button></section>
+      <section className="agency-guidance-panel"><i className="ph ph-shield-check" /><div><strong>المعاينة ليست اعتمادًا</strong><p>لا تعدل هذه الشاشة Trello ولا تقترح مشروعًا تلقائيًا. الاعتماد النهائي يحتاج موافقة صريحة من مالك/مدير المشاريع ومدير الحساب.</p></div></section>
+    </div>
+  );
+}
+
+function ProjectAssignmentPreview({ assignment, client, operational, onBack }) {
+  const option = PROJECT_OPTIONS.find((item) => item.id === assignment.projectOptionId);
+  const clientCards = operational.clients.find((item) => item.clientId === client.id)?.cards || [];
+  return (
+    <div className="agency-preview-content">
+      <button type="button" className="agency-back-btn" onClick={onBack}><i className="ph ph-arrow-right" /> العودة إلى مراجعة العميل</button>
+      <ScreenHeader eyebrow="معاينة قبل الاعتماد" title={`${client.name} ← ${option?.title || 'مشروع مقترح'}`} description="هذه نتيجة مطابقة مؤقتة تساعد الفريق على مراجعة الأثر قبل اتخاذ قرار. لا تُنشئ مشروعًا ولا تغيّر بطاقات Trello." />
+      <TrelloSourceNote source={operational.source} />
+      <section className="agency-project-overview-grid"><article><span>البطاقات المتأثرة في المعاينة</span><strong>{clientCards.length}</strong><small>بطاقات العميل المقروءة حاليًا</small></article><article><span>المشروع المقترح</span><strong>{option?.title || 'غير محدد'}</strong><small>اختيار محلي غير محفوظ</small></article><article><span>حالة القرار</span><strong>بانتظار الاعتماد</strong><small>يتطلب مالك/مدير مشاريع ومدير حساب</small></article></section>
+      <section className="agency-panel agency-assignment-panel"><div className="agency-panel-heading"><h2>ما الذي سيحدث لو اعتمد الفريق؟</h2><PrototypePill tone="warning">معاينة فقط</PrototypePill></div><ol className="agency-flow-list"><li><span>1</span> إنشاء تعريف مشروع مَهَد للعميل: {client.name}</li><li><span>2</span> ربط {clientCards.length} بطاقة بالـ Label الحالي للعميل</li><li><span>3</span> إبقاء Labels وقوائم Trello كما هي</li><li><span>4</span> عرض البطاقات ضمن المشروع بعد موافقة صريحة</li></ol><OperationalCardList cards={clientCards} limit={8} /></section>
+      <section className="agency-guidance-panel"><i className="ph ph-hand" /><div><strong>لم يتم اعتماد أي شيء</strong><p>لا يوجد زر تنفيذ في هذه المرحلة. هذه الشاشة تسجل ما سيحدث فقط، ثم تنتظر موافقة الفريق قبل الانتقال إلى أي مسار كتابي.</p></div></section>
     </div>
   );
 }
@@ -341,6 +364,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const [section, setSection] = useState('home');
   const [projectId, setProjectId] = useState(null);
   const [clientId, setClientId] = useState(null);
+  const [assignment, setAssignment] = useState(null);
   const connectedTrelloTasks = useMemo(
     () => (Array.isArray(trelloTasks) ? trelloTasks.filter((task) => task.externalSource === 'trello') : []),
     [trelloTasks]
@@ -369,9 +393,10 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const client = CLIENTS.find((item) => item.id === clientId);
 
   const openProject = (id) => { setProjectId(id); setClientId(null); setSection('project'); };
-  const openClientReview = (id) => { setProjectId(null); setClientId(id); setSection('client-review'); };
-  const openTemplates = () => { setProjectId(null); setClientId(null); setSection('templates'); };
-  const openSection = (id) => { setProjectId(null); setClientId(null); setSection(id === 'library' ? 'templates' : id); };
+  const openClientReview = (id) => { setProjectId(null); setClientId(id); setAssignment(null); setSection('client-review'); };
+  const openAssignmentPreview = (nextAssignment) => { setProjectId(null); setAssignment(nextAssignment); setSection('assignment-preview'); };
+  const openTemplates = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('templates'); };
+  const openSection = (id) => { setProjectId(null); setClientId(null); setAssignment(null); setSection(id === 'library' ? 'templates' : id); };
 
   return (
     <div className="agency-preview-shell" dir="rtl">
@@ -385,7 +410,8 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
         <main className="agency-preview-main">
           {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} operational={operational} />}
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} />}
-          {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} operational={operational} />}
+          {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
+          {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
           {section === 'projects' && <ProjectsView onOpenProject={openProject} />}
           {section === 'internal-work' && <InternalWorkView operational={operational} />}
           {section === 'tasks' && <TasksView operational={operational} />}
