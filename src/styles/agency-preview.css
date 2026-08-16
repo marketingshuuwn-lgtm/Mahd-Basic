@@ -177,6 +177,15 @@
 @media (max-width: 960px) { .agency-client-grid { grid-template-columns: 1fr; } .agency-task-table-head, .agency-task-row, .agency-task-list.compact .agency-task-row { grid-template-columns: 1.4fr 1.2fr .8fr .7fr; } .agency-task-table-head > :nth-child(3), .agency-task-row > :nth-child(3) { display: none; } }
 @media (max-width: 680px) { .agency-screen-header { align-items: stretch; flex-direction: column; } .agency-summary-grid-three { grid-template-columns: 1fr; } .agency-task-table-head { display: none; } .agency-task-row, .agency-task-list.compact .agency-task-row { grid-template-columns: 1.5fr 1fr .7fr; gap: 7px; } .agency-task-row > :nth-child(4) { display: none; } .agency-task-context strong { font-size: 10px; } .agency-client-card { min-height: auto; } }
 
+.agency-role-switcher { display: grid; gap: 8px; padding: 10px; margin: 12px 0 8px; border: 1px solid #dfe9e2; border-radius: 14px; background: #fbfdfb; }
+.agency-role-switcher > span { display: flex; align-items: center; gap: 6px; color: #66786d; font-size: 11px; font-weight: 800; }
+.agency-role-switcher > div { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.agency-role-switcher button { border: 1px solid transparent; border-radius: 9px; padding: 7px 5px; color: #66786d; background: transparent; font: inherit; font-size: 12px; cursor: pointer; transition: background 160ms ease-out, color 160ms ease-out, transform 160ms ease-out; }
+.agency-role-switcher button:hover { background: #f1f6f2; }
+.agency-role-switcher button:active { transform: scale(.97); }
+.agency-role-switcher button.active { color: #15523f; background: #e4f2ea; border-color: #b9ddc8; }
+.agency-preview-nav > .agency-permission-note { margin: 0 0 10px; padding: 9px 10px; font-size: 11px; line-height: 1.55; }
+
 /* Read-only operational Trello views */
 .agency-source-note { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 20px; padding: 12px 14px; border: 1px solid #d9e9df; border-radius: 12px; color: #376050; background: #f3faf5; }
 .agency-source-note > i { margin-top: 1px; color: #1d7655; font-size: 18px; }

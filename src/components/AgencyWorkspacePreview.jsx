@@ -547,6 +547,10 @@ function TemplateView({ onBack, operational }) {
 
 export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnection }) {
   const [section, setSection] = useState('home');
+  const [role, setRole] = useState(() => localStorage.getItem('mahd_preview_role') || 'owner');
+  const isOwner = role === 'owner';
+  const actor = isOwner ? PILOT_ACTOR : { id: 'member-preview', name: 'عضو الفريق', role: 'member' };
+  const visibleNav = NAV.filter((item) => isOwner || !['sync', 'internal-work'].includes(item.id));
   const [projectId, setProjectId] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [assignment, setAssignment] = useState(null);
@@ -586,7 +590,10 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const openClientReview = (id) => { setProjectId(null); setClientId(id); setAssignment(null); setSection('client-review'); };
   const openAssignmentPreview = (nextAssignment) => { setProjectId(null); setAssignment(nextAssignment); setSection('assignment-preview'); };
   const openTemplates = () => { setProjectId(null); setClientId(null); setAssignment(null); setSection('templates'); };
-  const openCreate = () => { setProjectId(null); setClientId(null); setAssignment(null); setSelectedDraft(null); setSection('create'); };
+  const openCreate = () => {
+    if (!isOwner) return;
+    setProjectId(null); setClientId(null); setAssignment(null); setSelectedDraft(null); setSection('create');
+  };
   const openDraftPreview = (draft) => { setSelectedDraft(draft); setSection('sync-preview'); };
   const saveCreatedDraft = (draft) => {
     if (draft.entityType === 'client') repository.saveClient(draft);
@@ -691,7 +698,15 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     setDrafts((current) => current.map((draft) => draft.id === next.id ? next : draft));
     setSelectedDraft(next);
   };
-  const openSection = (id) => { setProjectId(null); setClientId(null); setAssignment(null); setSection(id === 'library' ? 'templates' : id); };
+  const openSection = (id) => {
+    if (!isOwner && ['sync', 'internal-work'].includes(id)) return;
+    setProjectId(null); setClientId(null); setAssignment(null); setSection(id === 'library' ? 'templates' : id);
+  };
+
+  useEffect(() => {
+    localStorage.setItem('mahd_preview_role', role);
+    if (!isOwner && ['sync', 'internal-work'].includes(section)) setSection('home');
+  }, [isOwner, role, section]);
 
   return (
     <div className="agency-preview-shell" dir="rtl">
@@ -699,7 +714,9 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
       <div className="agency-preview-frame">
         <aside className="agency-preview-nav" aria-label="التنقل التجريبي">
           <div className="agency-workspace-mark"><span>م</span><div><strong>وكالة مَهَد</strong><small>مساحة تجريبية</small></div></div>
-          {NAV.map((item) => <button type="button" key={item.id} className={section === item.id || (item.id === 'clients' && section === 'client-review') || (item.id === 'library' && section === 'templates') ? 'active' : ''} onClick={() => openSection(item.id)}><i className={`ph ${item.icon}`} /> {item.label}</button>)}
+          <div className="agency-role-switcher" aria-label="نمط العرض"><span><i className="ph ph-users-three" /> نمط العرض</span><div><button type="button" className={isOwner ? 'active' : ''} onClick={() => setRole('owner')}>المالك</button><button type="button" className={!isOwner ? 'active' : ''} onClick={() => setRole('member')}>الموظف</button></div></div>
+          <div className="agency-permission-note"><i className="ph ph-shield-check" /><span>{isOwner ? 'صلاحية إدارة المساحة والمزامنة' : 'عرض العمل المسند إليك فقط · المزامنة يديرها المالك'}</span></div>
+          {visibleNav.map((item) => <button type="button" key={item.id} className={section === item.id || (item.id === 'clients' && section === 'client-review') || (item.id === 'library' && section === 'templates') ? 'active' : ''} onClick={() => openSection(item.id)}><i className={`ph ${item.icon}`} /> {item.label}</button>)}
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
@@ -708,9 +725,9 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
           {section === 'projects' && <ProjectsView onOpenProject={openProject} storeState={storeState} />}
-          {section === 'internal-work' && <InternalWorkView operational={operational} storeState={storeState} />}
+          {section === 'internal-work' && isOwner && <InternalWorkView operational={operational} storeState={storeState} />}
           {section === 'tasks' && <TasksView operational={operational} storeState={storeState} />}
-          {section === 'sync' && <SyncInboxView storeState={storeState} actor={PILOT_ACTOR} onApprove={approveSyncOperation} onReject={rejectSyncOperation} onExecute={executeApprovedOperation} onReadExternal={readExternalOperation} onResolveConflict={resolveSyncConflict} trelloReady={Boolean(trelloConnection?.config?.apiKey && trelloConnection?.config?.accessToken && trelloConnection?.config?.defaultListId)} />}
+          {section === 'sync' && isOwner && <SyncInboxView storeState={storeState} actor={actor} onApprove={approveSyncOperation} onReject={rejectSyncOperation} onExecute={executeApprovedOperation} onReadExternal={readExternalOperation} onResolveConflict={resolveSyncConflict} trelloReady={Boolean(trelloConnection?.config?.apiKey && trelloConnection?.config?.accessToken && trelloConnection?.config?.defaultListId)} />}
           {section === 'my-work' && <MyWorkView onOpenTasks={() => openSection('tasks')} />}
           {section === 'project' && project && <ProjectView project={project} onBack={() => openSection('projects')} onOpenTemplates={openTemplates} operational={operational} storeState={storeState} />}
           {section === 'templates' && <TemplateView onBack={() => openSection('home')} operational={operational} />}
