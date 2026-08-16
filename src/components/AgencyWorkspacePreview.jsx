@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient, createProject, createTask, createDeliverable, createInternalWork, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
 import { createPilotEvent, createPilotRun, PILOT_EVENT_TYPES, summarizePilotRun } from '../domain/mahdPilot';
@@ -213,7 +213,16 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational, syncRecord, storeState, onStartPilot, onRecordPilotEvent }) {
+function RoleHomeSummary({ isOwner, operational, storeState, onOpenCreate, onOpenSync, onOpenMyWork }) {
+  const pending = storeState.syncOperations.filter((item) => item.status === 'pending_approval').length;
+  const activeTasks = operational.operationalCards.filter((item) => !item.completed).length;
+  if (isOwner) {
+    return <section className="agency-role-home-summary owner"><div><span className="agency-eyebrow"><i className="ph ph-crown" /> Owner Workspace</span><h2>لوحة التحكم التشغيلية</h2><p>إدارة أعضاء المساحة، مراجعة العمليات، ومتابعة بوابة Pilot قبل السماح بالكتابة الموسعة إلى Trello.</p></div><div className="agency-role-home-metrics"><article><span>عمليات تنتظر قرارًا</span><strong>{pending}</strong><small>في صندوق المزامنة</small></article><article><span>بطاقات قيد المتابعة</span><strong>{activeTasks}</strong><small>من قراءة Board الحالية</small></article><article><span>العضوية</span><strong>إدارة</strong><small>الدعوات والصلاحيات</small></article></div><div className="agency-role-home-actions"><button type="button" className="agency-primary-btn" onClick={onOpenSync}><i className="ph ph-arrows-clockwise" /> فتح صندوق المزامنة</button><button type="button" className="agency-secondary-btn" onClick={onOpenCreate}><i className="ph ph-plus-circle" /> إنشاء سجل</button></div></section>;
+  }
+  return <section className="agency-role-home-summary member"><div><span className="agency-eyebrow"><i className="ph ph-user" /> Member Workspace</span><h2>مساحة عملي</h2><p>الوصول اليومي يركز على المشاريع والمهام والمخرجات المتاحة لمساحة عملك. ربط الإسناد الشخصي بهوية المستخدم الخادمية يأتي في خطوة تالية؛ ولا تظهر أدوات إدارة الأعضاء أو تنفيذ مزامنة Trello.</p></div><div className="agency-role-home-metrics"><article><span>مهام مفتوحة في العرض</span><strong>{activeTasks}</strong><small>بانتظار ربط الإسناد الشخصي</small></article><article><span>مشاريع نشطة</span><strong>{PROJECTS.length}</strong><small>ضمن مساحة الوكالة</small></article><article><span>المزامنة</span><strong>محروسة</strong><small>يديرها المالك</small></article></div><div className="agency-role-home-actions"><button type="button" className="agency-primary-btn" onClick={onOpenMyWork}><i className="ph ph-check-square-offset" /> فتح عملي</button></div></section>;
+}
+
+function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, onOpenSync, onOpenMyWork, operational, syncRecord, storeState, onStartPilot, onRecordPilotEvent, isOwner }) {
   return (
     <div className="agency-preview-content">
       <section className="agency-hero">
@@ -222,13 +231,12 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate,
           <h1>العمل من السياق إلى التسليم</h1>
           <p>نموذج تجربة لمدير حساب يرى العملاء والمشاريع والتسليمات، لا قائمة مهام شخصية معزولة.</p>
         </div>
-        <div className="agency-hero-actions"><button type="button" className="agency-primary-btn" onClick={onOpenCreate}><i className="ph ph-plus-circle" /> إنشاء من مَهَد</button><button type="button" className="agency-secondary-btn" onClick={onOpenTemplate}><i className="ph ph-copy" /> مشروع من قالب</button></div>
+        <div className="agency-hero-actions">{isOwner && <button type="button" className="agency-primary-btn" onClick={onOpenCreate}><i className="ph ph-plus-circle" /> إنشاء من مَهَد</button>}<button type="button" className="agency-secondary-btn" onClick={onOpenTemplate}><i className="ph ph-copy" /> مشروع من قالب</button></div>
       </section>
 
+      <RoleHomeSummary isOwner={isOwner} operational={operational} storeState={storeState} onOpenCreate={onOpenCreate} onOpenSync={onOpenSync} onOpenMyWork={onOpenMyWork} />
       <TrelloSourceNote source={operational.source} />
-      <SyncRecordPanel record={syncRecord} />
-      <PilotMetricsPanel storeState={storeState} onStart={onStartPilot} onRecord={onRecordPilotEvent} />
-      <EntityStorePanel state={storeState} />
+      {isOwner && <><SyncRecordPanel record={syncRecord} /><PilotMetricsPanel storeState={storeState} onStart={onStartPilot} onRecord={onRecordPilotEvent} /><EntityStorePanel state={storeState} /></>}
       <section className="agency-summary-grid" aria-label="ملخص قراءة Trello">
         <article><span>بطاقات Board المقروءة</span><strong>{operational.report.total}</strong><small>كل البطاقات ظاهرة في أحد المسارات</small></article>
         <article><span>بطاقات العملاء</span><strong>{operational.report.client.length}</strong><small>ضمن 4 عملاء معروفين</small></article>
@@ -720,7 +728,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
-          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} storeState={storeState} onStartPilot={startPilot} onRecordPilotEvent={recordPilotEvent} />}
+          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} onOpenSync={() => openSection('sync')} onOpenMyWork={() => openSection('my-work')} operational={operational} syncRecord={syncRecord} storeState={storeState} onStartPilot={startPilot} onRecordPilotEvent={recordPilotEvent} isOwner={isOwner} />}
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} storeState={storeState} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}
