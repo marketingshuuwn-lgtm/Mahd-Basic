@@ -79,3 +79,59 @@ export function userFromRequest(db, req) {
 }
 
 export { sessionCookie };
+
+export function getActiveMembership(db, userId, workspaceId) {
+  return db.prepare(`SELECT m.id, m.workspace_id, m.user_id, m.role, m.status, u.email, u.display_name
+    FROM memberships m JOIN users u ON u.id = m.user_id
+    WHERE m.user_id = ? AND m.workspace_id = ? AND m.status = 'active'`).get(userId, workspaceId) || null;
+}
+
+export function createWorkspaceForUser(db, user, { name }) {
+  const workspaceName = String(name || '').trim();
+  if (!workspaceName) throw new Error('اسم مساحة العمل مطلوب.');
+  const workspaceId = randomUUID();
+  const membershipId = randomUUID();
+  const timestamp = iso();
+  db.exec('BEGIN');
+  try {
+    db.prepare('INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)').run(workspaceId, workspaceName, timestamp);
+    db.prepare('INSERT INTO memberships (id, workspace_id, user_id, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(membershipId, workspaceId, user.id, 'owner', 'active', timestamp);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+  return db.prepare('SELECT id, name, created_at FROM workspaces WHERE id = ?').get(workspaceId);
+}
+
+export function createWorkspaceInvitation(db, { workspaceId, invitedBy, email, role = 'member' }) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail) throw new Error('بريد المدعو مطلوب.');
+  const token = randomBytes(32).toString('base64url');
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const id = randomUUID();
+  db.prepare(`INSERT INTO workspace_invitations
+    (id, workspace_id, email, role, token_hash, status, invited_by, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`).run(id, workspaceId, cleanEmail, role, tokenHash(token), invitedBy, iso(expires), iso());
+  return { id, workspaceId, email: cleanEmail, role, token, expiresAt: expires.toISOString() };
+}
+
+export function acceptWorkspaceInvitation(db, { token, user }) {
+  const invitation = db.prepare(`SELECT * FROM workspace_invitations
+    WHERE token_hash = ? AND status = 'pending' AND expires_at > ?`).get(tokenHash(token), iso());
+  if (!invitation) throw new Error('الدعوة غير صالحة أو منتهية.');
+  if (invitation.email !== user.email.toLowerCase()) throw new Error('الدعوة ليست موجهة إلى هذا المستخدم.');
+  const timestamp = iso();
+  db.exec('BEGIN');
+  try {
+    db.prepare(`INSERT INTO memberships (id, workspace_id, user_id, role, status, created_at)
+      VALUES (?, ?, ?, ?, 'active', ?)
+      ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = excluded.role, status = 'active'`).run(randomUUID(), invitation.workspace_id, user.id, invitation.role, timestamp);
+    db.prepare('UPDATE workspace_invitations SET status = ?, accepted_by = ?, accepted_at = ? WHERE id = ?').run('accepted', user.id, timestamp, invitation.id);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+  return getActiveMembership(db, user.id, invitation.workspace_id);
+}

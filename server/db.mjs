@@ -114,7 +114,21 @@ export function createDatabase(filename = process.env.MAHD_DB_PATH || './data/ma
     );
     CREATE INDEX IF NOT EXISTS clients_workspace_idx ON clients(workspace_id);
     CREATE INDEX IF NOT EXISTS projects_workspace_idx ON projects(workspace_id);
-    CREATE INDEX IF NOT EXISTS tasks_workspace_idx ON tasks(workspace_id);
+    CREATE TABLE IF NOT EXISTS workspace_invitations (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      invited_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TEXT NOT NULL,
+      accepted_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      accepted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS invitations_workspace_idx ON workspace_invitations(workspace_id);
+    CREATE INDEX IF NOT EXISTS invitations_email_idx ON workspace_invitations(email);
     CREATE INDEX IF NOT EXISTS deliverables_workspace_idx ON deliverables(workspace_id);
     CREATE INDEX IF NOT EXISTS internal_work_workspace_idx ON internal_work(workspace_id);
   `);
