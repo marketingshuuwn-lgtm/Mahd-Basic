@@ -1,4 +1,5 @@
 import { trelloCreateCard, trelloUpdateCard } from './trello.js';
+import { assertPilotGatePassed } from '../domain/mahdPilotGate.js';
 
 export const WRITEABLE_TRELLO_OPERATIONS = ['task.create', 'task.update'];
 
@@ -82,7 +83,8 @@ export function assertApprovedWrite(operation, plan, { approvedBy } = {}) {
   return true;
 }
 
-export async function executeApprovedTrelloWrite({ operation, plan, apiKey, accessToken, approvedBy }) {
+export async function executeApprovedTrelloWrite({ operation, plan, apiKey, accessToken, approvedBy, pilotRun, pilotEvents = [] }) {
+  assertPilotGatePassed(pilotRun, pilotEvents);
   assertApprovedWrite(operation, plan, { approvedBy });
   if (plan.key === 'task.create') {
     return trelloCreateCard(apiKey, accessToken, { listId: plan.target.listId, title: plan.payload.title, description: plan.payload.description, dueDate: plan.payload.dueDate });

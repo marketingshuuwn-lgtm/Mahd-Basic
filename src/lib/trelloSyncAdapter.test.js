@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createPilotRun } from '../domain/mahdPilot.js';
 import {
   assertApprovedWrite,
   buildInboundChangeProposal,
   buildTrelloWritePlan,
+  executeApprovedTrelloWrite,
   detectTrelloConflict,
 } from './trelloSyncAdapter.js';
 
@@ -30,6 +32,13 @@ test('يبقي إنشاء العميل والمشروع غير ممثلين ضم
     assert.equal(plan.supported, false);
     assert.match(plan.reason, /خريطة كتابة صريحة/);
   }
+});
+
+test('يوقف التنفيذ الفعلي حتى بعد اعتماد العملية إذا لم يجتز Pilot البوابة', async () => {
+  const operation = { entityType: 'task', operation: 'create', status: 'approved', payload: { title: 'مهمة محروسة' } };
+  const plan = buildTrelloWritePlan(operation, { defaultListId: 'list-todo' });
+  const run = createPilotRun({ id: 'pilot-gate-blocked', clientId: 'c', projectId: 'p', deliverableId: 'd', title: 'Pilot غير مكتمل', status: 'completed' });
+  await assert.rejects(() => executeApprovedTrelloWrite({ operation, plan, apiKey: 'x', accessToken: 'y', approvedBy: 'owner-1', pilotRun: run, pilotEvents: [] }), /لا يمكن توسيع مزامنة Trello/);
 });
 
 test('يحتاج تحديث المهمة إلى معرّف Trello خارجي', () => {
