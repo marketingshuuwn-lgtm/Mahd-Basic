@@ -31,6 +31,15 @@ test('ينشئ دعوة ويقبلها المستخدم المطابق للبر�
   });
 });
 
+test('يرفض إنشاء دعوة بدور غير معروف أو دعوة مالك', () => {
+  withDatabase((db) => {
+    const owner = createUser(db, { email: 'owner@agency.test', displayName: 'المالك', password: 'strong-pass-1' });
+    const workspace = createWorkspaceForUser(db, owner, { name: 'وكالة مَهَد' });
+    assert.throws(() => createWorkspaceInvitation(db, { workspaceId: workspace.id, invitedBy: owner.id, email: 'x@agency.test', role: 'member' }), /غير معتمد/);
+    assert.throws(() => createWorkspaceInvitation(db, { workspaceId: workspace.id, invitedBy: owner.id, email: 'x@agency.test', role: 'owner' }), /لا يمكن دعوة مالك/);
+  });
+});
+
 test('يرفض قبول الدعوة من مستخدم لا يطابق البريد', () => {
   withDatabase((db) => {
     const owner = createUser(db, { email: 'owner@agency.test', displayName: 'المالك', password: 'strong-pass-1' });

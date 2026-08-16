@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from './db.mjs';
 import { acceptWorkspaceInvitation, authenticateUser, createSession, createUser, createWorkspaceForUser, createWorkspaceInvitation, getActiveMembership, revokeSession, sessionCookie, userFromRequest } from './auth.mjs';
+import { hasPermission, permissionForEntity } from './permissions.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const db = createDatabase();
@@ -49,11 +50,6 @@ function listForWorkspace(table, workspace) {
 }
 
 const ENTITY_TABLE_MAP = { 'internal-work': 'internal_work' };
-
-function canWriteEntity(membership, entity) {
-  if (entity === 'internal-work') return membership.role === 'owner';
-  return membership.status === 'active';
-}
 
 function createEntity(workspaceId, entity, body) {
   const table = ENTITY_TABLE_MAP[entity] || entity;
@@ -126,9 +122,9 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && invitationMatch) {
       const access = requireMembership(req, res);
       if (!access) return;
-      if (access.membership.role !== 'owner') return send(res, 403, { error: 'إدارة الدعوات متاحة للمالك فقط حاليًا.' });
+      if (!hasPermission(access.membership, 'manage_members')) return send(res, 403, { error: 'لا تملك صلاحية إدارة أعضاء مساحة العمل.' });
       const body = await readJson(req);
-      return send(res, 201, { invitation: createWorkspaceInvitation(db, { workspaceId: invitationMatch[1], invitedBy: access.user.id, email: body.email, role: body.role || 'member' }) });
+      return send(res, 201, { invitation: createWorkspaceInvitation(db, { workspaceId: invitationMatch[1], invitedBy: access.user.id, email: body.email, role: body.role || 'project_coordinator' }) });
     }
     if (req.method === 'POST' && url.pathname === '/api/invitations/accept') {
       const user = userFromRequest(db, req);
@@ -142,17 +138,18 @@ const server = createServer(async (req, res) => {
     const entityMatch = url.pathname.match(/^\/api\/(clients|projects|tasks|deliverables|internal-work)$/);
     if (req.method === 'POST' && entityMatch) {
       const entity = entityMatch[1];
-      if (!canWriteEntity(workspace.membership, entity)) return send(res, 403, { error: 'لا تملك صلاحية إنشاء هذا النوع من السجلات.' });
+      if (!hasPermission(workspace.membership, permissionForEntity(entity, 'create'))) return send(res, 403, { error: 'لا تملك صلاحية إنشاء هذا النوع من السجلات.' });
       const body = await readJson(req);
       return send(res, 201, { entity: createEntity(workspaceId, entity, body) });
     }
-    if (req.method === 'GET' && url.pathname === '/api/clients') return send(res, 200, listForWorkspace('clients', workspaceId));
-    if (req.method === 'GET' && url.pathname === '/api/projects') return send(res, 200, listForWorkspace('projects', workspaceId));
-    if (req.method === 'GET' && url.pathname === '/api/tasks') return send(res, 200, listForWorkspace('tasks', workspaceId));
-    if (req.method === 'GET' && url.pathname === '/api/deliverables') return send(res, 200, listForWorkspace('deliverables', workspaceId));
-    if (req.method === 'GET' && url.pathname === '/api/internal-work') return send(res, 200, listForWorkspace('internal_work', workspaceId));
-    if (req.method === 'GET' && url.pathname === '/api/pilot-runs') return send(res, 200, listForWorkspace('pilot_runs', workspaceId));
-    if (req.method === 'GET' && url.pathname === '/api/sync-operations') return send(res, 200, listForWorkspace('sync_operations', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/clients' && hasPermission(workspace.membership, 'read_clients')) return send(res, 200, listForWorkspace('clients', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/projects' && hasPermission(workspace.membership, 'read_projects')) return send(res, 200, listForWorkspace('projects', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/tasks' && hasPermission(workspace.membership, 'read_tasks')) return send(res, 200, listForWorkspace('tasks', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/deliverables' && hasPermission(workspace.membership, 'read_deliverables')) return send(res, 200, listForWorkspace('deliverables', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/internal-work' && hasPermission(workspace.membership, 'read_internal_work')) return send(res, 200, listForWorkspace('internal_work', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/pilot-runs' && hasPermission(workspace.membership, 'read_pilot_runs')) return send(res, 200, listForWorkspace('pilot_runs', workspaceId));
+    if (req.method === 'GET' && url.pathname === '/api/sync-operations' && hasPermission(workspace.membership, 'read_sync_operations')) return send(res, 200, listForWorkspace('sync_operations', workspaceId));
+    if (req.method === 'GET' && url.pathname.startsWith('/api/')) return send(res, 403, { error: 'الدور الحالي لا يملك صلاحية الوصول إلى هذا المورد.' });
     send(res, 404, { error: 'المسار غير موجود.' });
   } catch (error) {
     send(res, 500, { error: 'خطأ داخلي في Backend.', detail: error.message });

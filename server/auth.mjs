@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { isKnownRole } from './permissions.mjs';
 
 const SESSION_DAYS = 7;
 const PASSWORD_KEY_LENGTH = 64;
@@ -104,9 +105,10 @@ export function createWorkspaceForUser(db, user, { name }) {
   return db.prepare('SELECT id, name, created_at FROM workspaces WHERE id = ?').get(workspaceId);
 }
 
-export function createWorkspaceInvitation(db, { workspaceId, invitedBy, email, role = 'member' }) {
+export function createWorkspaceInvitation(db, { workspaceId, invitedBy, email, role = 'project_coordinator' }) {
   const cleanEmail = String(email || '').trim().toLowerCase();
   if (!cleanEmail) throw new Error('بريد المدعو مطلوب.');
+  if (!isKnownRole(role) || role === 'owner') throw new Error('دور الدعوة غير معتمد أو لا يمكن دعوة مالك جديد بهذه الطريقة.');
   const token = randomBytes(32).toString('base64url');
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const id = randomUUID();
