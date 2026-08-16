@@ -183,7 +183,13 @@ const server = createServer(async (req, res) => {
       if (migrationMatch[1] !== workspaceId) return send(res, 403, { error: 'مساحة الترحيل لا تطابق مساحة الطلب.' });
       if (!hasPermission(workspace.membership, 'migrate_entities')) return send(res, 403, { error: 'ترحيل الكيانات متاح للمالك فقط.' });
       const body = await readJson(req);
-      return send(res, 201, { migrated: migrateSnapshot(workspaceId, body) });
+      try {
+        return send(res, 201, { migrated: migrateSnapshot(workspaceId, body) });
+      } catch (error) {
+        if (error.message.includes('تحتوي بيانات')) return send(res, 409, { error: error.message });
+        if (error.message.includes('المهام الداخلية')) return send(res, 422, { error: error.message });
+        throw error;
+      }
     }
     const entityMatch = url.pathname.match(/^\/api\/(clients|projects|tasks|deliverables|internal-work)$/);
     if (req.method === 'POST' && entityMatch) {
