@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { createClient, createProject, createTask, createDeliverable, createInternalWork, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
 import { createPilotEvent, createPilotRun, PILOT_EVENT_TYPES, summarizePilotRun } from '../domain/mahdPilot';
+import { assertPilotGatePassed } from '../domain/mahdPilotGate';
 import { buildInboundChangeProposal, buildTrelloWritePlan, executeApprovedTrelloWrite } from '../lib/trelloSyncAdapter';
 import { PILOT_ACTOR, assertCanPerformSyncAction } from '../domain/mahdPermissions';
 import { trelloFetchBoardCards } from '../lib/trello';
@@ -634,6 +635,13 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   };
   const executeApprovedOperation = async (operation) => {
     assertCanPerformSyncAction(PILOT_ACTOR, 'execute_sync');
+    try {
+      const currentPilotRun = [...repository.load().pilotRuns].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+      assertPilotGatePassed(currentPilotRun, repository.load().pilotEvents);
+    } catch (error) {
+      updateSyncOperation(operation, 'failed', { error: error.message || 'لم تجتز بوابة Pilot قبل توسيع مزامنة Trello.' });
+      return;
+    }
     const config = trelloConnection?.config;
     const plan = buildTrelloWritePlan(operation, { defaultListId: config?.defaultListId });
     if (!config?.apiKey || !config?.accessToken || !config?.defaultListId || !plan.supported) {
