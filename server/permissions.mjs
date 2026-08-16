@@ -20,6 +20,7 @@ const READ_ALL = [
 const ROLE_PERMISSIONS = {
   owner: new Set([
     'manage_members',
+    'migrate_entities',
     'read_internal_work',
     'create_internal_work',
     'read_pilot_runs',

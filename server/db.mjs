@@ -133,7 +133,41 @@ export function createDatabase(filename = process.env.MAHD_DB_PATH || './data/ma
     CREATE INDEX IF NOT EXISTS internal_work_workspace_idx ON internal_work(workspace_id);
   `);
   ensureAuthSchema(db);
+  ensureEntityColumns(db);
   return db;
+}
+
+function ensureEntityColumns(db) {
+  const additions = {
+    projects: [
+      ['description', "TEXT NOT NULL DEFAULT ''"],
+      ['owner_user_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL'],
+    ],
+    tasks: [
+      ['description', "TEXT NOT NULL DEFAULT ''"],
+      ['due_date', 'TEXT'],
+      ['internal_workstream', 'TEXT'],
+      ['sync_status', "TEXT NOT NULL DEFAULT 'local_only'"],
+    ],
+    deliverables: [
+      ['type', "TEXT NOT NULL DEFAULT 'general'"],
+      ['description', "TEXT NOT NULL DEFAULT ''"],
+      ['owner_user_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL'],
+      ['due_date', 'TEXT'],
+    ],
+    internal_work: [
+      ['workstream', "TEXT NOT NULL DEFAULT 'company-operations'"],
+      ['description', "TEXT NOT NULL DEFAULT ''"],
+      ['due_date', 'TEXT'],
+      ['sync_status', "TEXT NOT NULL DEFAULT 'local_only'"],
+    ],
+  };
+  for (const [table, columns] of Object.entries(additions)) {
+    const existing = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((column) => column.name));
+    for (const [name, definition] of columns) {
+      if (!existing.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    }
+  }
 }
 
 export function closeDatabase(db) {

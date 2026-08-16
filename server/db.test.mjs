@@ -27,6 +27,16 @@ test('يفرض علاقات الكيانات داخل مساحة العمل', ()
   });
 });
 
+test('يضيف مخطط الترحيل حقول نموذج مَهَد الموسع', () => {
+  withDatabase((db) => {
+    const columns = (table) => new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name));
+    for (const column of ['description', 'owner_user_id']) assert.equal(columns('projects').has(column), true);
+    for (const column of ['description', 'due_date', 'internal_workstream', 'sync_status']) assert.equal(columns('tasks').has(column), true);
+    for (const column of ['type', 'description', 'owner_user_id', 'due_date']) assert.equal(columns('deliverables').has(column), true);
+    for (const column of ['workstream', 'description', 'due_date', 'sync_status']) assert.equal(columns('internal_work').has(column), true);
+  });
+});
+
 test('يعزل القراءة حسب workspace_id', () => {
   withDatabase((db) => {
     const now = new Date().toISOString();
