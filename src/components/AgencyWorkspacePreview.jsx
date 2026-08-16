@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createClient, createProject, createTask, createDeliverable, createInternalWork, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
+import { createPilotEvent, createPilotRun, PILOT_EVENT_TYPES, summarizePilotRun } from '../domain/mahdPilot';
 import { buildInboundChangeProposal, buildTrelloWritePlan, executeApprovedTrelloWrite } from '../lib/trelloSyncAdapter';
 import { PILOT_ACTOR, assertCanPerformSyncAction } from '../domain/mahdPermissions';
 import { trelloFetchBoardCards } from '../lib/trello';
@@ -165,6 +166,17 @@ function EntityStorePanel({ state }) {
   );
 }
 
+function PilotMetricsPanel({ storeState, onStart, onRecord }) {
+  const run = [...storeState.pilotRuns].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+  const events = storeState.pilotEvents;
+  const client = run ? storeState.clients.find((item) => item.id === run.clientId) : storeState.clients.find((item) => item.name.includes('مستر آرت'));
+  const project = run ? storeState.projects.find((item) => item.id === run.projectId) : storeState.projects.find((item) => item.clientId === client?.id);
+  const deliverable = run ? storeState.deliverables.find((item) => item.id === run.deliverableId) : storeState.deliverables.find((item) => item.projectId === project?.id);
+  const summary = run ? summarizePilotRun(run, events) : null;
+  const missing = [!client && 'عميل مستر آرت', !project && 'مشروع مرتبط', !deliverable && 'مخرج مرتبط'].filter(Boolean);
+  return <section className="agency-panel agency-pilot-panel"><div className="agency-panel-heading"><div><span className="agency-eyebrow">Pilot قابل للقياس</span><h2>دورة العميل · مستر آرت</h2></div><PrototypePill tone={run ? 'success' : 'warning'}>{run ? 'قيد القياس' : 'لم يبدأ بعد'}</PrototypePill></div>{!run ? <><p>لا تُنشأ قياسات تلقائيًا. يبدأ Pilot فقط عند وجود عميل ومشروع ومخرج محفوظين فعليًا داخل مَهَد.</p>{missing.length ? <div className="agency-permission-note"><i className="ph ph-warning" /><span>ينقص المسار: {missing.join('، ')}</span></div> : <button type="button" className="agency-primary-btn" onClick={() => onStart({ client, project, deliverable })}>بدء Pilot الفعلي <i className="ph ph-play" /></button>}</> : <><div className="agency-project-overview-grid"><article><span>الجهد</span><strong>{summary.effortMinutes} دقيقة</strong><small>من أحداث مسجلة فقط</small></article><article><span>الأخطاء</span><strong>{summary.errorCount}</strong><small>أحداث خطأ</small></article><article><span>إعادة العمل</span><strong>{summary.reworkCount}</strong><small>أحداث إعادة عمل</small></article><article><span>التسليم</span><strong>{summary.deliveryAccepted ? 'مقبول' : summary.delivered ? 'مُسلّم' : 'لم يُسلّم'}</strong><small>{summary.eventCount} أحداث</small></article></div><div className="agency-pilot-actions"><button type="button" onClick={() => onRecord(PILOT_EVENT_TYPES.progress, 0, '')}>تسجيل تقدم</button><button type="button" onClick={() => onRecord(PILOT_EVENT_TYPES.error, 0, 'خطأ يحتاج توثيقًا')}>تسجيل خطأ</button><button type="button" onClick={() => onRecord(PILOT_EVENT_TYPES.rework, 0, 'إعادة عمل تحتاج توثيقًا')}>تسجيل إعادة عمل</button><button type="button" onClick={() => onRecord(PILOT_EVENT_TYPES.review_submitted, 0, '')}>إرسال للمراجعة</button><button type="button" onClick={() => onRecord(PILOT_EVENT_TYPES.delivered, 0, '')}>تسجيل التسليم</button><button type="button" onClick={() => onRecord(PILOT_EVENT_TYPES.delivery_accepted, 0, '')}>قبول التسليم</button></div><p className="agency-empty-copy">كل زر يسجل حدثًا زمنيًا محليًا؛ لا توجد أرقام افتراضية ولا إعلان نجاح قبل اكتمال الدورة.</p></>}</section>;
+}
+
 function SyncRecordPanel({ record }) {
   return (
     <section className="agency-panel agency-sync-record-panel">
@@ -200,7 +212,7 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational, syncRecord, storeState }) {
+function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate, operational, syncRecord, storeState, onStartPilot, onRecordPilotEvent }) {
   return (
     <div className="agency-preview-content">
       <section className="agency-hero">
@@ -214,6 +226,7 @@ function HomeView({ onOpenProject, onOpenProjects, onOpenTemplate, onOpenCreate,
 
       <TrelloSourceNote source={operational.source} />
       <SyncRecordPanel record={syncRecord} />
+      <PilotMetricsPanel storeState={storeState} onStart={onStartPilot} onRecord={onRecordPilotEvent} />
       <EntityStorePanel state={storeState} />
       <section className="agency-summary-grid" aria-label="ملخص قراءة Trello">
         <article><span>بطاقات Board المقروءة</span><strong>{operational.report.total}</strong><small>كل البطاقات ظاهرة في أحد المسارات</small></article>
@@ -634,6 +647,20 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
       updateSyncOperation(operation, 'failed', { error: error.message || 'تعذر تنفيذ العملية في Trello.' });
     }
   };
+  const startPilot = ({ client, project, deliverable }) => {
+    const run = createPilotRun({ clientId: client.id, projectId: project.id, deliverableId: deliverable.id, title: `${client.name} · ${project.name} · ${deliverable.title}`, actorId: PILOT_ACTOR.id, status: 'active' });
+    repository.savePilotRun({ ...run, startedAt: new Date().toISOString() });
+    setStoreState(repository.load());
+  };
+  const recordPilotEvent = (type, minutes = 0, note = '') => {
+    const currentRun = [...repository.load().pilotRuns].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+    if (!currentRun) return;
+    const event = createPilotEvent({ runId: currentRun.id, type, minutes, note, actorId: PILOT_ACTOR.id });
+    repository.savePilotEvent(event);
+    const nextStatus = type === PILOT_EVENT_TYPES.delivery_accepted ? 'completed' : currentRun.status;
+    repository.savePilotRun({ ...currentRun, status: nextStatus, completedAt: nextStatus === 'completed' ? event.at : currentRun.completedAt, updatedAt: event.at });
+    setStoreState(repository.load());
+  };
   const queueDraftForApproval = () => {
     if (!selectedDraft) return;
     const next = { ...selectedDraft, syncStatus: 'pending_approval', updatedAt: new Date().toISOString() };
@@ -668,7 +695,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
         </aside>
         <main className="agency-preview-main">
-          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} storeState={storeState} />}
+          {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} operational={operational} syncRecord={syncRecord} storeState={storeState} onStartPilot={startPilot} onRecordPilotEvent={recordPilotEvent} />}
           {section === 'clients' && <ClientsView onOpenProject={openProject} onOpenClientReview={openClientReview} operational={operational} storeState={storeState} />}
           {section === 'client-review' && client && <ClientNeedsProjectView client={client} onBack={() => openSection('clients')} onPreviewAssignment={openAssignmentPreview} operational={operational} />}
           {section === 'assignment-preview' && client && assignment && <ProjectAssignmentPreview assignment={assignment} client={client} operational={operational} onBack={() => openClientReview(client.id)} />}

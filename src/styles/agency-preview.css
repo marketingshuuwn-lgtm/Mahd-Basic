@@ -294,3 +294,9 @@
 .agency-permission-note { display: flex; align-items: center; gap: 7px; margin: 14px 0; padding: 10px 12px; border: 1px solid #dce9e0; border-radius: 10px; background: #f7fbf8; color: #607268; font-size: 11px; }
 .agency-permission-note i { color: #28745b; font-size: 16px; }
 .agency-permission-note strong { color: #294638; }
+
+.agency-pilot-panel { border-color: #c9e3d5; background: #fbfefc; }
+.agency-pilot-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.agency-pilot-actions button { border: 1px solid #cfe1d6; border-radius: 9px; background: #fff; color: #285441; padding: 9px 12px; cursor: pointer; font: inherit; font-size: 12px; }
+.agency-pilot-actions button:hover { background: #eef8f1; border-color: #9ccdb0; }
+@media (max-width: 640px) { .agency-pilot-actions button { flex: 1 1 calc(50% - 8px); } }
