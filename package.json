@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "backend": "node server/index.mjs",
+    "test:backend": "node --test server/db.test.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "express": "^5.2.1",
     "marked": "^18.0.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
