@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { ensureAuthSchema } from './auth.mjs';
 
 export function createDatabase(filename = process.env.MAHD_DB_PATH || './data/mahd.sqlite') {
   mkdirSync(dirname(filename), { recursive: true });
@@ -117,6 +118,7 @@ export function createDatabase(filename = process.env.MAHD_DB_PATH || './data/ma
     CREATE INDEX IF NOT EXISTS deliverables_workspace_idx ON deliverables(workspace_id);
     CREATE INDEX IF NOT EXISTS internal_work_workspace_idx ON internal_work(workspace_id);
   `);
+  ensureAuthSchema(db);
   return db;
 }
 

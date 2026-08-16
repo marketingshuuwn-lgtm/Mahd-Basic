@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "backend": "node server/index.mjs",
-    "test:backend": "node --test server/db.test.mjs",
+    "test:backend": "node --test server/db.test.mjs server/auth.test.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
