@@ -131,6 +131,8 @@ export function createDatabase(filename = process.env.MAHD_DB_PATH || './data/ma
     CREATE INDEX IF NOT EXISTS invitations_email_idx ON workspace_invitations(email);
     CREATE INDEX IF NOT EXISTS deliverables_workspace_idx ON deliverables(workspace_id);
     CREATE INDEX IF NOT EXISTS internal_work_workspace_idx ON internal_work(workspace_id);
+    CREATE INDEX IF NOT EXISTS pilot_runs_workspace_idx ON pilot_runs(workspace_id);
+    CREATE INDEX IF NOT EXISTS pilot_events_run_idx ON pilot_events(run_id);
   `);
   ensureAuthSchema(db);
   ensureEntityColumns(db);
@@ -160,6 +162,15 @@ function ensureEntityColumns(db) {
       ['description', "TEXT NOT NULL DEFAULT ''"],
       ['due_date', 'TEXT'],
       ['sync_status', "TEXT NOT NULL DEFAULT 'local_only'"],
+    ],
+    pilot_runs: [
+      ['actor_user_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL'],
+      ['baseline_json', "TEXT NOT NULL DEFAULT '{}'"],
+      ['completed_at', 'TEXT'],
+    ],
+    pilot_events: [
+      ['actor_user_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL'],
+      ['metadata_json', "TEXT NOT NULL DEFAULT '{}'"],
     ],
   };
   for (const [table, columns] of Object.entries(additions)) {

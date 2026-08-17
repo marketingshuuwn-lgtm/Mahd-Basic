@@ -7,6 +7,7 @@ import { assertPilotGatePassed } from '../domain/mahdPilotGate';
 import { buildInboundChangeProposal, buildTrelloWritePlan, executeApprovedTrelloWrite } from '../lib/trelloSyncAdapter';
 import { PILOT_ACTOR, assertCanPerformSyncAction } from '../domain/mahdPermissions';
 import { trelloFetchBoardCards } from '../lib/trello';
+import { mahdApi } from '../lib/mahdApi.js';
 import trelloReadSnapshot from '../data/trelloReadSnapshot';
 import { buildAgencyOperationalView } from '../utils/agencyOperationalView';
 import { PILOT_BOARD_ID, PILOT_BOARD_SHORT_LINK } from '../utils/trelloPilotMatching';
@@ -708,15 +709,40 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
       updateSyncOperation(operation, 'failed', { error: error.message || 'تعذر تنفيذ العملية في Trello.' });
     }
   };
-  const startPilot = ({ client, project, deliverable }) => {
-    const run = createPilotRun({ clientId: client.id, projectId: project.id, deliverableId: deliverable.id, title: `${client.name} · ${project.name} · ${deliverable.title}`, actorId: PILOT_ACTOR.id, status: 'active' });
-    repository.savePilotRun({ ...run, startedAt: new Date().toISOString() });
+  const startPilot = async ({ client, project, deliverable }) => {
+    const actorId = auth?.user?.id || PILOT_ACTOR.id;
+    const startedAt = new Date().toISOString();
+    const run = createPilotRun({ clientId: client.id, projectId: project.id, deliverableId: deliverable.id, title: `${client.name} · ${project.name} · ${deliverable.title}`, actorId, status: 'active', now: startedAt });
+    let remoteRun = null;
+    const hasSharedRelations = storeState.clients.some((item) => item.id === client.id) && storeState.projects.some((item) => item.id === project.id) && storeState.deliverables.some((item) => item.id === deliverable.id);
+    if (sharedRepository && hasSharedRelations) {
+      try {
+        const response = await mahdApi.createPilotRun(auth.activeWorkspaceId, { id: run.id, clientId: run.clientId, projectId: run.projectId, deliverableId: run.deliverableId, title: run.title, status: 'active', baseline: run.baseline });
+        remoteRun = response.pilotRun;
+        await mahdApi.recordPilotEvent(auth.activeWorkspaceId, remoteRun.id, { type: 'started', minutes: 0, note: 'بدأ Pilot من داخل مَهَد.' });
+        setSharedStatus('ready');
+      } catch (error) {
+        setSharedStatus('fallback');
+        setSharedError(error.message);
+      }
+    }
+    repository.savePilotRun({ ...run, startedAt, remoteId: remoteRun?.id || null });
     setStoreState(repository.load());
   };
-  const recordPilotEvent = (type, minutes = 0, note = '') => {
+  const recordPilotEvent = async (type, minutes = 0, note = '') => {
     const currentRun = [...repository.load().pilotRuns].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
     if (!currentRun) return;
-    const event = createPilotEvent({ runId: currentRun.id, type, minutes, note, actorId: PILOT_ACTOR.id });
+    const actorId = auth?.user?.id || PILOT_ACTOR.id;
+    const event = createPilotEvent({ runId: currentRun.id, type, minutes, note, actorId });
+    if (sharedRepository && currentRun.remoteId) {
+      try {
+        await mahdApi.recordPilotEvent(auth.activeWorkspaceId, currentRun.remoteId, { type, minutes, note });
+        setSharedStatus('ready');
+      } catch (error) {
+        setSharedStatus('fallback');
+        setSharedError(error.message);
+      }
+    }
     repository.savePilotEvent(event);
     const nextStatus = type === PILOT_EVENT_TYPES.delivery_accepted ? 'completed' : currentRun.status;
     repository.savePilotRun({ ...currentRun, status: nextStatus, completedAt: nextStatus === 'completed' ? event.at : currentRun.completedAt, updatedAt: event.at });

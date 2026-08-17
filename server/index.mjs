@@ -192,6 +192,58 @@ const server = createServer(async (req, res) => {
     const workspace = requireMembership(req, res);
     if (!workspace) return;
     const workspaceId = workspace.workspaceId;
+    const pilotRunMatch = url.pathname.match(/^\/api\/pilot-runs\/([^/]+)$/);
+    const pilotEventsMatch = url.pathname.match(/^\/api\/pilot-runs\/([^/]+)\/events$/);
+    if (req.method === 'GET' && url.pathname === '/api/pilot-runs') {
+      if (!hasPermission(workspace.membership, 'read_pilot_runs')) return send(res, 403, { error: 'لا تملك صلاحية قراءة سجلات Pilot.' });
+      const runs = db.prepare('SELECT * FROM pilot_runs WHERE workspace_id = ? ORDER BY created_at DESC').all(workspaceId).map((run) => ({ ...run, baseline: JSON.parse(run.baseline_json || '{}') }));
+      return send(res, 200, { pilotRuns: runs });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/pilot-runs') {
+      if (!hasPermission(workspace.membership, 'create_pilot_runs')) return send(res, 403, { error: 'لا تملك صلاحية إنشاء Pilot.' });
+      const body = await readJson(req);
+      const clientId = String(body.clientId || '').trim();
+      const projectId = String(body.projectId || '').trim();
+      const deliverableId = String(body.deliverableId || '').trim();
+      const title = String(body.title || '').trim();
+      if (!clientId || !projectId || !deliverableId || !title) return send(res, 400, { error: 'Pilot يحتاج عميلًا ومشروعًا ومخرجًا وعنوانًا.' });
+      const related = db.prepare(`SELECT d.id FROM deliverables d JOIN projects p ON p.id = d.project_id AND p.workspace_id = d.workspace_id JOIN clients c ON c.id = d.client_id AND c.workspace_id = d.workspace_id WHERE d.id = ? AND d.project_id = ? AND d.client_id = ? AND d.workspace_id = ?`).get(deliverableId, projectId, clientId, workspaceId);
+      if (!related) return send(res, 422, { error: 'علاقات Pilot لا تنتمي إلى Workspace الحالية أو غير مترابطة.' });
+      const id = String(body.id || randomUUID());
+      const timestamp = now();
+      db.prepare('INSERT INTO pilot_runs (id, workspace_id, client_id, project_id, deliverable_id, title, status, actor_user_id, baseline_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, workspaceId, clientId, projectId, deliverableId, title, ['planned', 'active'].includes(body.status) ? body.status : 'planned', workspace.user.id, JSON.stringify(body.baseline || {}), timestamp, timestamp);
+      return send(res, 201, { pilotRun: db.prepare('SELECT * FROM pilot_runs WHERE id = ?').get(id) });
+    }
+    if (pilotEventsMatch && req.method === 'GET') {
+      if (!hasPermission(workspace.membership, 'read_pilot_runs')) return send(res, 403, { error: 'لا تملك صلاحية قراءة أحداث Pilot.' });
+      const run = db.prepare('SELECT id FROM pilot_runs WHERE id = ? AND workspace_id = ?').get(pilotEventsMatch[1], workspaceId);
+      if (!run) return send(res, 404, { error: 'سجل Pilot غير موجود في Workspace الحالية.' });
+      return send(res, 200, { events: db.prepare('SELECT * FROM pilot_events WHERE run_id = ? AND workspace_id = ? ORDER BY at ASC').all(run.id, workspaceId).map((event) => ({ ...event, metadata: JSON.parse(event.metadata_json || '{}') })) });
+    }
+    if (pilotEventsMatch && req.method === 'POST') {
+      if (!hasPermission(workspace.membership, 'record_pilot_events')) return send(res, 403, { error: 'لا تملك صلاحية تسجيل أحداث Pilot.' });
+      const run = db.prepare('SELECT id, status FROM pilot_runs WHERE id = ? AND workspace_id = ?').get(pilotEventsMatch[1], workspaceId);
+      if (!run) return send(res, 404, { error: 'سجل Pilot غير موجود في Workspace الحالية.' });
+      const body = await readJson(req);
+      const allowedTypes = ['started', 'progress', 'error', 'rework', 'review_submitted', 'review_approved', 'delivered', 'delivery_accepted'];
+      const type = String(body.type || '');
+      const minutes = Number(body.minutes || 0);
+      if (!allowedTypes.includes(type)) return send(res, 400, { error: 'نوع حدث Pilot غير معروف.' });
+      if (!Number.isFinite(minutes) || minutes < 0) return send(res, 400, { error: 'دقائق الجهد يجب أن تكون رقمًا غير سالب.' });
+      const id = String(body.id || randomUUID());
+      const at = body.at || now();
+      db.prepare('INSERT INTO pilot_events (id, workspace_id, run_id, type, minutes, note, at, actor_user_id, metadata_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, workspaceId, run.id, type, minutes, String(body.note || ''), at, workspace.user.id, JSON.stringify(body.metadata || {}), now());
+      if (type === 'started') db.prepare("UPDATE pilot_runs SET status = 'active', updated_at = ? WHERE id = ?").run(now(), run.id);
+      if (type === 'delivery_accepted') db.prepare("UPDATE pilot_runs SET status = 'completed', completed_at = ?, updated_at = ? WHERE id = ?").run(at, now(), run.id);
+      return send(res, 201, { event: db.prepare('SELECT * FROM pilot_events WHERE id = ?').get(id) });
+    }
+    if (pilotRunMatch && req.method === 'GET') {
+      if (!hasPermission(workspace.membership, 'read_pilot_runs')) return send(res, 403, { error: 'لا تملك صلاحية قراءة سجل Pilot.' });
+      const run = db.prepare('SELECT * FROM pilot_runs WHERE id = ? AND workspace_id = ?').get(pilotRunMatch[1], workspaceId);
+      if (!run) return send(res, 404, { error: 'سجل Pilot غير موجود في Workspace الحالية.' });
+      const events = db.prepare('SELECT * FROM pilot_events WHERE run_id = ? AND workspace_id = ? ORDER BY at ASC').all(run.id, workspaceId);
+      return send(res, 200, { pilotRun: { ...run, baseline: JSON.parse(run.baseline_json || '{}'), events: events.map((event) => ({ ...event, metadata: JSON.parse(event.metadata_json || '{}') })) } });
+    }
     const migrationMatch = url.pathname.match(/^\/api\/workspaces\/([^/]+)\/migrate$/);
     if (req.method === 'POST' && migrationMatch) {
       if (migrationMatch[1] !== workspaceId) return send(res, 403, { error: 'مساحة الترحيل لا تطابق مساحة الطلب.' });

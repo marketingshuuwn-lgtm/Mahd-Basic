@@ -38,6 +38,9 @@ export const mahdApi = {
   },
   createEntity: (workspaceId, entity, record) => workspaceRequest(workspaceId, `/api/${entity}`, { method: 'POST', body: JSON.stringify(record) }),
   migrateSnapshot: (workspaceId, snapshot) => request(`/api/workspaces/${workspaceId}/migrate`, { method: 'POST', headers: { 'x-workspace-id': workspaceId }, body: JSON.stringify(snapshot) }),
+  createPilotRun: (workspaceId, body) => workspaceRequest(workspaceId, '/api/pilot-runs', { method: 'POST', body: JSON.stringify(body) }),
+  recordPilotEvent: (workspaceId, runId, body) => workspaceRequest(workspaceId, `/api/pilot-runs/${runId}/events`, { method: 'POST', body: JSON.stringify(body) }),
+  listPilotRuns: (workspaceId) => workspaceRequest(workspaceId, '/api/pilot-runs'),
 };
 
 export { API_BASE };
