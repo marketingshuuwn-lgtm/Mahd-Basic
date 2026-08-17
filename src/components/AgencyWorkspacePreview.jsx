@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createClient, createProject, createTask, createDeliverable, createInternalWork, createSyncOperation } from '../domain/mahdModel';
 import { createMahdRepository } from '../domain/mahdRepository';
+import { createMahdSharedRepository } from '../domain/mahdSharedRepository';
 import { createPilotEvent, createPilotRun, PILOT_EVENT_TYPES, summarizePilotRun } from '../domain/mahdPilot';
 import { assertPilotGatePassed } from '../domain/mahdPilotGate';
 import { buildInboundChangeProposal, buildTrelloWritePlan, executeApprovedTrelloWrite } from '../lib/trelloSyncAdapter';
@@ -563,9 +564,12 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const [clientId, setClientId] = useState(null);
   const [assignment, setAssignment] = useState(null);
   const repository = useMemo(() => createMahdRepository(), []);
+  const sharedRepository = useMemo(() => auth?.activeWorkspaceId ? createMahdSharedRepository({ workspaceId: auth.activeWorkspaceId }) : null, [auth?.activeWorkspaceId]);
   const [drafts, setDrafts] = useState(() => repository.listDrafts());
   const [syncRecord] = useState(PILOT_SYNC_RECORD);
   const [storeState, setStoreState] = useState(() => repository.load());
+  const [sharedStatus, setSharedStatus] = useState('loading');
+  const [sharedError, setSharedError] = useState(null);
   const [selectedDraft, setSelectedDraft] = useState(null);
   const connectedTrelloTasks = useMemo(
     () => (Array.isArray(trelloTasks) ? trelloTasks.filter((task) => task.externalSource === 'trello') : []),
@@ -594,6 +598,23 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   const project = PROJECTS.find((item) => item.id === projectId);
   const client = CLIENTS.find((item) => item.id === clientId);
 
+  useEffect(() => {
+    let active = true;
+    if (!sharedRepository) return undefined;
+    setSharedStatus('loading');
+    sharedRepository.load().then((remoteState) => {
+      if (!active) return;
+      const hasRemoteEntities = ['clients', 'projects', 'tasks', 'deliverables', 'internalWorks'].some((key) => remoteState[key].length > 0);
+      if (hasRemoteEntities) setStoreState((current) => ({ ...current, ...remoteState, syncOperations: current.syncOperations, drafts: current.drafts, pilotRuns: current.pilotRuns, pilotEvents: current.pilotEvents }));
+      setSharedStatus('ready');
+    }).catch((error) => {
+      if (!active) return;
+      setSharedStatus('fallback');
+      setSharedError(error.message);
+    });
+    return () => { active = false; };
+  }, [sharedRepository]);
+
   const openProject = (id) => { setProjectId(id); setClientId(null); setSection('project'); };
   const openClientReview = (id) => { setProjectId(null); setClientId(id); setAssignment(null); setSection('client-review'); };
   const openAssignmentPreview = (nextAssignment) => { setProjectId(null); setAssignment(nextAssignment); setSection('assignment-preview'); };
@@ -603,12 +624,25 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     setProjectId(null); setClientId(null); setAssignment(null); setSelectedDraft(null); setSection('create');
   };
   const openDraftPreview = (draft) => { setSelectedDraft(draft); setSection('sync-preview'); };
-  const saveCreatedDraft = (draft) => {
+  const saveCreatedDraft = async (draft) => {
     if (draft.entityType === 'client') repository.saveClient(draft);
     if (draft.entityType === 'project') repository.saveProject(draft);
     if (draft.entityType === 'task') repository.saveTask(draft);
     if (draft.entityType === 'deliverable') repository.saveDeliverable(draft);
     if (draft.entityType === 'internal_work') repository.saveInternalWork(draft);
+    if (sharedRepository) {
+      try {
+        if (draft.entityType === 'client') await sharedRepository.saveClient(draft);
+        if (draft.entityType === 'project') await sharedRepository.saveProject(draft);
+        if (draft.entityType === 'task') await sharedRepository.saveTask(draft);
+        if (draft.entityType === 'deliverable') await sharedRepository.saveDeliverable(draft);
+        if (draft.entityType === 'internal_work') await sharedRepository.saveInternalWork(draft);
+        setSharedStatus('ready');
+      } catch (error) {
+        setSharedStatus('fallback');
+        setSharedError(error.message);
+      }
+    }
     const draftRecord = { ...draft, syncStatus: 'local_only', localOnly: true };
     repository.saveDraft(draftRecord);
     setStoreState(repository.load());
@@ -627,7 +661,11 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
     if (resolution === 'accept_external' && proposal?.conflict?.external) {
       const external = proposal.conflict.external;
       const currentTask = repository.load().tasks.find((task) => task.id === operation.entityId);
-      if (currentTask) repository.saveTask({ ...currentTask, title: external.name || currentTask.title, description: external.description || '', dueDate: external.dueDate || null, updatedAt: new Date().toISOString() });
+      if (currentTask) {
+        const updatedTask = { ...currentTask, title: external.name || currentTask.title, description: external.description || '', dueDate: external.dueDate || null, updatedAt: new Date().toISOString() };
+        repository.saveTask(updatedTask);
+        sharedRepository?.saveTask(updatedTask).catch((error) => { setSharedStatus('fallback'); setSharedError(error.message); });
+      }
     }
     updateSyncOperation(operation, 'resolved', { resolution, resolvedBy: 'owner-local-pilot', resolvedAt: new Date().toISOString() });
   };
@@ -724,7 +762,7 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
           <div className="agency-role-switcher agency-real-access" aria-label="الوصول الحالي"><span><i className="ph ph-shield-check" /> الوصول الفعلي</span><strong>{isOwner ? 'Owner · مالك المساحة' : 'Member · عضو الفريق'}</strong>{(auth?.workspaces?.length || 0) > 1 && <select value={auth.activeWorkspaceId || ''} onChange={(event) => auth.selectWorkspace(event.target.value)} aria-label="اختيار مساحة العمل">{auth.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name} · {workspace.role}</option>)}</select>}</div>
           <div className="agency-permission-note"><i className="ph ph-lock-key" /><span>{isOwner ? 'صلاحية إدارة المساحة والمزامنة من Backend' : 'الوصول التشغيلي فقط · المزامنة يديرها المالك'}</span></div>
           {visibleNav.map((item) => <button type="button" key={item.id} className={section === item.id || (item.id === 'clients' && section === 'client-review') || (item.id === 'library' && section === 'templates') ? 'active' : ''} onClick={() => openSection(item.id)}><i className={`ph ${item.icon}`} /> {item.label}</button>)}
-          <div className="agency-nav-note"><i className="ph ph-info" /> الصلاحيات مصدرها جلسة وعضوية Backend، وليست تبديلًا محليًا.</div><button type="button" className="agency-nav-logout" onClick={auth.logout}><i className="ph ph-sign-out" /> تسجيل الخروج</button>
+          <div className="agency-nav-note"><i className="ph ph-info" /> الصلاحيات مصدرها جلسة وعضوية Backend، وليست تبديلًا محليًا.</div><div className="agency-nav-note agency-shared-status"><i className={`ph ${sharedStatus === 'ready' ? 'ph-cloud-check' : sharedStatus === 'fallback' ? 'ph-warning' : 'ph-spinner-gap'}`} /> {sharedStatus === 'ready' ? 'البيانات المشتركة متصلة' : sharedStatus === 'fallback' ? `Fallback محلي مؤقت${sharedError ? ` · ${sharedError}` : ''}` : 'جارٍ تحميل البيانات المشتركة…'}</div><button type="button" className="agency-nav-logout" onClick={auth.logout}><i className="ph ph-sign-out" /> تسجيل الخروج</button>
         </aside>
         <main className="agency-preview-main">
           {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} onOpenSync={() => openSection('sync')} onOpenMyWork={() => openSection('my-work')} operational={operational} syncRecord={syncRecord} storeState={storeState} onStartPilot={startPilot} onRecordPilotEvent={recordPilotEvent} isOwner={isOwner} />}

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_MAHD_API_URL || 'http://localhost:8787';
+const API_BASE = import.meta.env?.VITE_MAHD_API_URL || 'http://localhost:8787';
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -15,6 +15,10 @@ async function request(path, options = {}) {
   return payload;
 }
 
+async function workspaceRequest(workspaceId, path, options = {}) {
+  return request(path, { ...options, headers: { 'x-workspace-id': workspaceId, ...(options.headers || {}) } });
+}
+
 export const mahdApi = {
   me: () => request('/api/auth/me'),
   login: (body) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
@@ -22,7 +26,18 @@ export const mahdApi = {
   logout: () => request('/api/auth/logout', { method: 'POST', body: '{}' }),
   workspaces: () => request('/api/workspaces'),
   createWorkspace: (body) => request('/api/workspaces', { method: 'POST', body: JSON.stringify(body) }),
-  membership: (workspaceId) => request('/api/auth/me', { headers: { 'x-workspace-id': workspaceId } }),
+  listEntities: async (workspaceId) => {
+    const [clients, projects, tasks, deliverables, internalWorks] = await Promise.all([
+      workspaceRequest(workspaceId, '/api/clients'),
+      workspaceRequest(workspaceId, '/api/projects'),
+      workspaceRequest(workspaceId, '/api/tasks'),
+      workspaceRequest(workspaceId, '/api/deliverables'),
+      workspaceRequest(workspaceId, '/api/internal-work').catch((error) => error.status === 403 ? [] : Promise.reject(error)),
+    ]);
+    return { clients, projects, tasks, deliverables, internalWorks };
+  },
+  createEntity: (workspaceId, entity, record) => workspaceRequest(workspaceId, `/api/${entity}`, { method: 'POST', body: JSON.stringify(record) }),
+  migrateSnapshot: (workspaceId, snapshot) => request(`/api/workspaces/${workspaceId}/migrate`, { method: 'POST', headers: { 'x-workspace-id': workspaceId }, body: JSON.stringify(snapshot) }),
 };
 
 export { API_BASE };
