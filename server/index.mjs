@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from './db.mjs';
-import { acceptWorkspaceInvitation, authenticateUser, createSession, createUser, createWorkspaceForUser, createWorkspaceInvitation, getActiveMembership, revokeSession, sessionCookie, userFromRequest } from './auth.mjs';
+import { acceptWorkspaceInvitation, authenticateUser, createSession, createUser, createWorkspaceForUser, createWorkspaceInvitation, getActiveMembership, listUserWorkspaces, revokeSession, sessionCookie, userFromRequest } from './auth.mjs';
 import { hasPermission, permissionForEntity } from './permissions.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -123,6 +123,15 @@ function createEntity(workspaceId, entity, body) {
 }
 
 const server = createServer(async (req, res) => {
+  const origin = String(req.headers.origin || '');
+  if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+    res.setHeader('access-control-allow-origin', origin);
+    res.setHeader('access-control-allow-credentials', 'true');
+    res.setHeader('access-control-allow-headers', 'content-type, x-workspace-id');
+    res.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
+    res.setHeader('vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') return send(res, 204, {});
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     if (req.method === 'GET' && url.pathname === '/health') {
@@ -153,6 +162,11 @@ const server = createServer(async (req, res) => {
       if (!user) return send(res, 401, { error: 'جلسة غير صالحة أو منتهية.' });
       const { token, ...safeUser } = user;
       return send(res, 200, { user: safeUser });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/workspaces') {
+      const user = userFromRequest(db, req);
+      if (!user) return send(res, 401, { error: 'جلسة صالحة مطلوبة لقراءة مساحات العمل.' });
+      return send(res, 200, { workspaces: listUserWorkspaces(db, user.id) });
     }
     if (req.method === 'POST' && url.pathname === '/api/workspaces') {
       const user = userFromRequest(db, req);

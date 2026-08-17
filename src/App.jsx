@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMahdAuth } from './hooks/useMahdAuth';
+import MahdAuthGate from './components/MahdAuthGate';
+import './styles/mahd-auth.css';
 import Sidebar from './components/Sidebar';
 import FloatingSmartBar from './components/QuickAdd';
 import QuadrantBoard from './components/QuadrantBoard';
@@ -98,6 +101,7 @@ const TRELLO_SYNC_ENABLED = true;
 
 export default function App() {
   const showToast = useToast();
+  const mahdAuth = useMahdAuth();
   const trello = useTrello(showToast);
   const {
     tasks,
@@ -454,7 +458,7 @@ export default function App() {
   };
 
   if (view === 'AgencyPreview') {
-    return <AgencyWorkspacePreview trelloTasks={tasks} trelloConnection={trello} />;
+    return <MahdAuthGate auth={mahdAuth}><AgencyWorkspacePreview trelloTasks={tasks} trelloConnection={trello} auth={mahdAuth} /></MahdAuthGate>;
   }
 
   if (loading) {

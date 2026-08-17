@@ -81,6 +81,13 @@ export function userFromRequest(db, req) {
 
 export { sessionCookie };
 
+export function listUserWorkspaces(db, userId) {
+  return db.prepare(`SELECT w.id, w.name, w.created_at, m.role, m.status
+    FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+    WHERE m.user_id = ? AND m.status = 'active'
+    ORDER BY w.created_at ASC`).all(userId);
+}
+
 export function getActiveMembership(db, userId, workspaceId) {
   return db.prepare(`SELECT m.id, m.workspace_id, m.user_id, m.role, m.status, u.email, u.display_name
     FROM memberships m JOIN users u ON u.id = m.user_id

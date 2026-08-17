@@ -1,0 +1,17 @@
+.mahd-auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; direction: rtl; background: #f7faf8; }
+.mahd-auth-card { width: min(100%, 430px); padding: 34px; border: 1px solid #dce8df; border-radius: 22px; background: #fff; box-shadow: 0 18px 50px rgba(27, 78, 56, .10); color: #17382b; }
+.mahd-auth-eyebrow { color: #1a7652; font-size: 12px; font-weight: 800; }
+.mahd-auth-card h1 { margin: 10px 0; font-size: 25px; line-height: 1.35; }
+.mahd-auth-card p { margin: 0 0 22px; color: #6c7b72; font-size: 13px; line-height: 1.8; }
+.mahd-auth-card form { display: grid; gap: 14px; }
+.mahd-auth-card label { display: grid; gap: 6px; color: #3b5447; font-size: 12px; font-weight: 700; }
+.mahd-auth-card input { width: 100%; box-sizing: border-box; padding: 12px 13px; border: 1px solid #d6e2da; border-radius: 10px; background: #fbfdfb; color: #17382b; font: inherit; outline: none; }
+.mahd-auth-card input:focus { border-color: #2e8b64; box-shadow: 0 0 0 3px rgba(46, 139, 100, .12); }
+.mahd-auth-submit { min-height: 44px; border: 0; border-radius: 10px; background: #1d704f; color: #fff; cursor: pointer; font: inherit; font-weight: 800; }
+.mahd-auth-submit:disabled { opacity: .6; cursor: wait; }
+.mahd-auth-link { display: block; margin: 18px auto 0; border: 0; background: transparent; color: #1d704f; cursor: pointer; font: inherit; font-size: 12px; font-weight: 800; }
+.mahd-auth-error { padding: 10px 12px; border: 1px solid #f0caca; border-radius: 9px; background: #fff5f5; color: #a23838; font-size: 12px; line-height: 1.6; }
+.agency-nav-logout { display: flex; align-items: center; gap: 7px; width: 100%; margin-top: auto; padding: 10px 12px; border: 1px solid #eadede; border-radius: 9px; background: #fffafa; color: #9a4a4a; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.agency-real-access strong { color: #1d704f; font-size: 12px; }
+.agency-real-access select { width: 100%; padding: 8px; border: 1px solid #d8e5dc; border-radius: 8px; background: #fff; color: #315242; font: inherit; font-size: 11px; }
+@media (max-width: 600px) { .mahd-auth-shell { padding: 16px; } .mahd-auth-card { padding: 24px; } }

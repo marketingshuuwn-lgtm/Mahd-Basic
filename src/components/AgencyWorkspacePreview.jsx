@@ -553,9 +553,9 @@ function TemplateView({ onBack, operational }) {
   );
 }
 
-export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnection }) {
+export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnection, auth }) {
   const [section, setSection] = useState('home');
-  const [role, setRole] = useState(() => localStorage.getItem('mahd_preview_role') || 'owner');
+  const role = auth?.activeWorkspace?.role || 'member';
   const isOwner = role === 'owner';
   const actor = isOwner ? PILOT_ACTOR : { id: 'member-preview', name: 'عضو الفريق', role: 'member' };
   const visibleNav = NAV.filter((item) => isOwner || !['sync', 'internal-work'].includes(item.id));
@@ -712,20 +712,19 @@ export default function AgencyWorkspacePreview({ trelloTasks = [], trelloConnect
   };
 
   useEffect(() => {
-    localStorage.setItem('mahd_preview_role', role);
     if (!isOwner && ['sync', 'internal-work'].includes(section)) setSection('home');
-  }, [isOwner, role, section]);
+  }, [isOwner, section]);
 
   return (
     <div className="agency-preview-shell" dir="rtl">
       <header className="agency-preview-banner"><i className="ph ph-shield-check" /> نموذج Pilot — مَهَد أولًا، وكتابة Trello محروسة بعد المعاينة والموافقة</header>
       <div className="agency-preview-frame">
         <aside className="agency-preview-nav" aria-label="التنقل التجريبي">
-          <div className="agency-workspace-mark"><span>م</span><div><strong>وكالة مَهَد</strong><small>مساحة تجريبية</small></div></div>
-          <div className="agency-role-switcher" aria-label="نمط العرض"><span><i className="ph ph-users-three" /> نمط العرض</span><div><button type="button" className={isOwner ? 'active' : ''} onClick={() => setRole('owner')}>المالك</button><button type="button" className={!isOwner ? 'active' : ''} onClick={() => setRole('member')}>الموظف</button></div></div>
-          <div className="agency-permission-note"><i className="ph ph-shield-check" /><span>{isOwner ? 'صلاحية إدارة المساحة والمزامنة' : 'عرض العمل المسند إليك فقط · المزامنة يديرها المالك'}</span></div>
+          <div className="agency-workspace-mark"><span>م</span><div><strong>{auth?.activeWorkspace?.name || 'مساحة مَهَد'}</strong><small>{auth?.user?.displayName || auth?.user?.email}</small></div></div>
+          <div className="agency-role-switcher agency-real-access" aria-label="الوصول الحالي"><span><i className="ph ph-shield-check" /> الوصول الفعلي</span><strong>{isOwner ? 'Owner · مالك المساحة' : 'Member · عضو الفريق'}</strong>{(auth?.workspaces?.length || 0) > 1 && <select value={auth.activeWorkspaceId || ''} onChange={(event) => auth.selectWorkspace(event.target.value)} aria-label="اختيار مساحة العمل">{auth.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name} · {workspace.role}</option>)}</select>}</div>
+          <div className="agency-permission-note"><i className="ph ph-lock-key" /><span>{isOwner ? 'صلاحية إدارة المساحة والمزامنة من Backend' : 'الوصول التشغيلي فقط · المزامنة يديرها المالك'}</span></div>
           {visibleNav.map((item) => <button type="button" key={item.id} className={section === item.id || (item.id === 'clients' && section === 'client-review') || (item.id === 'library' && section === 'templates') ? 'active' : ''} onClick={() => openSection(item.id)}><i className={`ph ${item.icon}`} /> {item.label}</button>)}
-          <div className="agency-nav-note"><i className="ph ph-info" /> هدف النموذج: اختبار السياق والتدفق قبل بناء البيانات أو الأتمتة.</div>
+          <div className="agency-nav-note"><i className="ph ph-info" /> الصلاحيات مصدرها جلسة وعضوية Backend، وليست تبديلًا محليًا.</div><button type="button" className="agency-nav-logout" onClick={auth.logout}><i className="ph ph-sign-out" /> تسجيل الخروج</button>
         </aside>
         <main className="agency-preview-main">
           {section === 'home' && <HomeView onOpenProject={openProject} onOpenProjects={() => openSection('projects')} onOpenTemplate={openTemplates} onOpenCreate={openCreate} onOpenSync={() => openSection('sync')} onOpenMyWork={() => openSection('my-work')} operational={operational} syncRecord={syncRecord} storeState={storeState} onStartPilot={startPilot} onRecordPilotEvent={recordPilotEvent} isOwner={isOwner} />}
